@@ -32,7 +32,7 @@ delay_offset = 100
 #E_offset = -0.2 #Scan 188
 #delay_offset = 0
 
-E_offset = 0.0 #Scan 062
+#E_offset = 0.0 #Scan 062
 
 #E_offset = +0.5 #Scan 138
 #delay_offset = 0
@@ -90,7 +90,8 @@ elif np.ndim(I) == 3:
 
 #%%
 ### Interactive Plot!
-#matplotlib auto
+
+%matplotlib auto
 
 global new_x, new_y
 
