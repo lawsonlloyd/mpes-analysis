@@ -26,7 +26,10 @@ from LoadData import LoadData
 E_offset = -0.25 #Scan 163
 delay_offset = 100
 
-#E_offset = -0.525 #Scan 162
+#E_offset = 0.75 #Scan 163
+#delay_offset = 100
+
+#E_offset = -0.5 #Scan 162
 #delay_offset = 85
 
 #E_offset = -0.2 #Scan 188
@@ -51,7 +54,7 @@ points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics a
 tMap_E, tint_E = [1.55, 1.2], 0.2 #Energy and E integration for traces
 xint_k, yint_k = 0.25, 0.5 #Total momentum integration range for kx, ky
 
-ylim_E = -4.5 #Energy minimum for k cut plots
+ylim_E = -2.25 #Energy minimum for k cut plots
 
 #%%
 
@@ -129,13 +132,11 @@ xint = round(xint_k/dkx)
 yint = round(yint_k/dky) 
 
 ##########################################
-###          ###
-### Plotting #############################
-###          ###
+############### Plotting #################
 ##########################################
 
 #fig, ax = plt.subplots(nrows = 2, ncols=3, gridspec_kw={'width_ratios': [1, 1.25, 1.25], 'height_ratios':[1.25, 1]})
-fig, ax = plt.subplots(nrows = 2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1.25]})
+fig, ax = plt.subplots(nrows = 2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
 
 fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
@@ -246,16 +247,16 @@ for label in ax[y_i].yaxis.get_ticklabels()[1::2]:
 
 ax[x_i].set_xlim(-2,2)
 ax[y_i].set_xlim(-2,2)
-ax[x_i].set_ylim(ylim_E, ax_E_offset[-1]+0.1)
-ax[y_i].set_ylim(ylim_E, ax_E_offset[-1]+0.1)
+ax[x_i].set_ylim(ylim_E, 3.1)
+ax[y_i].set_ylim(ylim_E, 3.1)
 ax[x_i].set_xlabel('$k_x$', fontsize = 18)
 ax[y_i].set_xlabel('$k_y$', fontsize = 18)
-ax[x_i].set_ylabel('E - E_$VBM$, eV', fontsize = 18)
-ax[y_i].set_ylabel('E - E_$VBM$, eV', fontsize = 18)
-ax[x_i].tick_params(axis='both', labelsize=16)
-ax[y_i].tick_params(axis='both', labelsize=16)
-ax[x_i].set_aspect(1)
-ax[y_i].set_aspect(1)
+ax[x_i].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
+ax[y_i].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
+ax[x_i].tick_params(axis='both', labelsize=14)
+ax[y_i].tick_params(axis='both', labelsize=14)
+ax[x_i].set_aspect(0.8)
+ax[y_i].set_aspect(0.8)
 
 t_i = int(1)
 
@@ -286,6 +287,7 @@ if np.ndim(I) > 3:
     ax[t_i].tick_params(axis='both', labelsize=16)
     ax[t_i].set_xlabel('Delay, fs', fontsize = 18)
     ax[t_i].set_aspect(750)
+    #ax[t_i].legend(frameon = False)
 
     #ax[4].set_yticks() 
     # setting ticks for y-axis 
@@ -508,6 +510,8 @@ def on_motion(event):
         im4.set_ydata(newtrace)
         im4_2.set_ydata(newtrace_2)
         
+        #im4.legend()
+        
     im_1.set_data(np.transpose(new_to_plot))
     im_2.set_data(np.transpose(new_to_plot2))
     im_3.set_data(np.transpose(new_to_plot3))
@@ -531,6 +535,7 @@ fig.canvas.mpl_connect('motion_notify_event', on_motion)
 # Calling the function "update" when the value of the slider is changed
 E_factor.on_changed(update)
 E_factor_2.on_changed(update)
+plt.subplots_adjust(hspace = 0.3)
 plt.show()
 
 #%%
