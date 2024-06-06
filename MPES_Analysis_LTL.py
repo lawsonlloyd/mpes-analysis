@@ -18,7 +18,7 @@ from LoadData import LoadData
 #%% Load File in your path...
 
 #fn = 'your_data_file.h5'
-#I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
+I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 
 #%%
 ### Transform Data, axes if needed...
@@ -29,8 +29,8 @@ delay_offset = 100
 #E_offset = 0.75 #Scan 163
 #delay_offset = 100
 
-#E_offset = -0.5 #Scan 162
-#delay_offset = 85
+E_offset = -0.3 #Scan 162
+delay_offset = 85
 
 #E_offset = -0.2 #Scan 188
 #delay_offset = 0
@@ -51,7 +51,7 @@ mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
 
 points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics and traces
 
-tMap_E, tint_E = [1.55, 1.2], 0.2 #Energy and E integration for traces
+tMap_E, tint_E = [1.55, 1.2], 0.1 #Energy and E integration for traces
 xint_k, yint_k = 0.25, 0.5 #Total momentum integration range for kx, ky
 
 ylim_E = -2.25 #Energy minimum for k cut plots
@@ -121,6 +121,7 @@ t[1] = (np.abs(ax_E_offset - tMap_E[1])).argmin()
 E = t[0]
 
 t0 = (np.abs(ax_delay_offset - 0)).argmin()
+dt = ax_delay_offset[1] - ax_delay_offset[0]
 
 dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
@@ -140,6 +141,7 @@ fig, ax = plt.subplots(nrows = 2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 
 
 fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
+cmap_to_use = viridis_LTL
 #fig.tight_layout()
 
 ### First Panel
@@ -147,7 +149,7 @@ extentImage = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]]
 
 firstPanel = I_Summed[:,:,E:(E+Eint)].sum(axis=(2))
 
-im_1 = ax[0].imshow(np.transpose(firstPanel), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=extentImage) #kx, ky, t
+im_1 = ax[0].imshow(np.transpose(firstPanel), origin='lower', cmap=cmap_to_use, clim=None, interpolation='none', extent=extentImage) #kx, ky, t
 line_horizontal = ax[0].axhline(points[0,1], color='black', linestyle = 'dashed')
 line_vertical = ax[0].axvline(points[0,0], color='black', linestyle = 'dashed')
 
@@ -205,8 +207,8 @@ slice_E_k_2 = I_Enhanced[x[0]:x[0]+xint,:,:].sum(axis=(0))
 ### Second and Third Panels
 x_i = int(2)
 y_i = int(3)
-im_2 = ax[x_i].imshow(np.transpose(slice_E_k_1), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[0], ax_E_offset[-1] ]) #kx, ky, t
-im_3 = ax[y_i].imshow(np.transpose(slice_E_k_2), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[0], ax_E_offset[-1] ]) #kx, ky, t
+im_2 = ax[x_i].imshow(np.transpose(slice_E_k_1), origin='lower', cmap=cmap_to_use, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[0], ax_E_offset[-1] ]) #kx, ky, t
+im_3 = ax[y_i].imshow(np.transpose(slice_E_k_2), origin='lower', cmap=cmap_to_use, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[0], ax_E_offset[-1] ]) #kx, ky, t
 #lhor = ax[1].axhline(tMap_E[0],color='red')
 line_horizontal_E = ax[x_i].axhline(tMap_E[0],color='black', linestyle = 'dashed')
 line_horizontal_E_2 = ax[y_i].axhline(tMap_E[0],color='black', linestyle = 'dashed')
@@ -272,14 +274,11 @@ if np.ndim(I) > 3:
     
     im4, = ax[t_i].plot(ax_delay_offset, trace1, color = 'black', label = 'E = ' + str(tMap_E[0]) + ' eV')
     im4_2, = ax[t_i].plot(ax_delay_offset, trace2, color = 'purple', label = 'E = ' + str(tMap_E[1]) + ' eV')
-    
-#    im4_2, = ax[4].plot(ax_delay_offset, trace2, color = 'blue', label = 'E = ' + str(tMap_E[1]) + ' eV')
-    
+        
     #ax[3].plot(ax_delay_offset, trace2, color ='blue',label = 'E = ' + str(tMap_E[1]) + ' eV')
-    ax[t_i].set_xlim(ax_delay_offset[1],ax_delay_offset[-2])
     ax[t_i].set_yticks([-0.25, 0, 0.25, 0.5, 0.75, 1, 1.25])
     ax[t_i].set_yticklabels(['', '0', '', '0.5', '', '1', 1.25])
-
+    
     ax[t_i].set_ylim(-0.25, 1.1)
     #ax[4].set_ylim(-1.1,1.1)
     ax[t_i].set_title('Dynamics', fontsize = 20)
@@ -287,6 +286,11 @@ if np.ndim(I) > 3:
     ax[t_i].tick_params(axis='both', labelsize=16)
     ax[t_i].set_xlabel('Delay, fs', fontsize = 18)
     ax[t_i].set_aspect(750)
+    ax[t_i].set_xticks(np.arange(-500,1250,250))
+    for label in ax[t_i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    ax[t_i].set_xlim(ax_delay_offset[1],ax_delay_offset[-2])
+
     #ax[t_i].legend(frameon = False)
 
     #ax[4].set_yticks() 
@@ -299,21 +303,25 @@ else:
     #ax[5].axis('off')
     #ax[4].axis('off')
 
-### Make the Sliders
+#######################################################
+### Define and Implement and Interactive Components ###
+#######################################################
+
 # Defining the Slider button
 # xposition, yposition, width and height
-xp = 0.01
-yp = 0.35
-
 E_slide = plt.axes([0.045, 0.6, 0.03, 0.25])
 E_slide_2 = plt.axes([0.075, 0.6, 0.03, 0.25])
+delay_slide = plt.axes([0.8, 0.55, 0.15, 0.03])
+delay_integration = plt.axes([0.8, 0.5, 0.15, 0.03])
+
+delay_button = plt.axes([0.75, 0.6, 0.1, 0.05])
+diff_box = CheckButtons(delay_button, ['Pos-Neg Delay Difference'])
 
 # Properties of the slider
 E_factor = Slider(E_slide, 'E, eV', -4, 3.5, valinit=tMap_E[0], valstep=0.025, color = 'black', orientation = 'vertical')
 E_factor_2 = Slider(E_slide_2, 'E, eV', -4, 3.5, valinit=tMap_E[1], valstep=0.025, color = 'purple', orientation = 'vertical')
-
-#d_factor = Slider(delay_slide, 'dt, fs',
-                  #-500, 1000, valinit= 0, valstep=15)                 
+delay_factor_ = Slider(delay_slide, 'delay, fs ', -200, 1000, valinit=-100, valstep=10, color = 'green', orientation = 'horizontal')               
+delay_int_factor = Slider(delay_integration, 'delay Int., fs ', 5, 1000, valinit=20, valstep=10, color = 'green', orientation = 'horizontal')               
 
 #int_factor = Slider(int_slide, 'Int',
                  # 0, 1, valinit= 0.2, valstep=0.04)
@@ -328,7 +336,6 @@ def my_button(label):
 def my_button_2(label):
     print('what')
         
-#
 # Recalculate and Updating the plot
     
 def update(val):
@@ -339,12 +346,35 @@ def update(val):
     current_v_E_2 = E_factor_2.val
     E_2 = (np.abs(ax_E_offset - current_v_E_2)).argmin()
     #E = (np.abs(ax_E_offset - (new_y_E-(tint/2)))).argmin() #central slice for plotting
+    current_v_d = delay_factor_.val
+    delay_point = (np.abs(ax_delay_offset - current_v_d)).argmin()
+    
+    current_v_d_int = delay_int_factor.val
+    dtp = round((current_v_d_int/dt)/2)
     
     tint_ = int(tint/2)
     new_to_plot = I_Summed[:,:,E-tint_:E+tint_].sum(axis=(2)) #Time delay integrated
     new_to_plot2 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1)) #Integrates all
     new_to_plot3 = I_Enhanced[x[0]:x[0]+xint,:].sum(axis=(0))
     
+    if diff_box.get_status()[0] is True:
+        #new_to_plot = I[:,:,E_new:(E_new+tint),dt:dt+1].sum(axis=(2,3))
+        tp = delay_point
+        neg_frames_map = I_Enhanced_Full[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
+        neg_frames_x = I_Enhanced_Full[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
+        neg_frames_y = I_Enhanced_Full[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
+        
+        new_to_plot = I_Enhanced_Full[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp+1) - neg_frames_map
+        new_to_plot2 = I_Enhanced_Full[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
+        new_to_plot3 = I_Enhanced_Full[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
+
+        new_to_plot = new_to_plot/np.max(np.abs(new_to_plot))
+        new_to_plot2 = new_to_plot2/np.max(np.abs(new_to_plot2))
+        new_to_plot3 = new_to_plot3/np.max(np.abs(new_to_plot3))
+        
+        new_to_plot2[:,mask_start:] *= 1
+        new_to_plot3[:,mask_start:] *= 1
+            
     if np.ndim(I) > 3:
 
         newtrace = I[x[0]:x[0]+xint,y[0]:y[0]+yint,E-(tint_):E+(tint_),:].sum(axis=(0,1,2))
@@ -370,6 +400,13 @@ def update(val):
     
     c_max = np.max(new_to_plot)
     im_1.set_clim(vmin=0, vmax = c_max*1.0)
+    if diff_box.get_status()[0] is True:
+        im_1.set_clim(vmin=-1*c_max, vmax = 1.0*c_max)
+        im_2.set_clim(vmin=-1*c_max, vmax = c_max*1.0)
+        im_3.set_clim(vmin=-1, vmax = c_max*1.0)
+        im_1.set_cmap('seismic')
+        im_2.set_cmap('seismic')
+        im_3.set_cmap('seismic')
     
 def update_square(x_center, y_center, half_length, square):
     #global x_center, y_center
@@ -491,12 +528,35 @@ def on_motion(event):
     current_v_E_2 = E_factor_2.val
     E_2 = (np.abs(ax_E_offset - current_v_E_2)).argmin()
     #E = (np.abs(ax_E_offset - (new_y_E-(tint/2)))).argmin() #central slice for plotting
+    current_v_d = delay_factor_.val
+    delay_point = (np.abs(ax_delay_offset - current_v_d)).argmin()
+    
+    current_v_d_int = delay_int_factor.val
+    dtp = round((current_v_d_int/dt)/2)
     
     tint_ = int(tint/2)
     new_to_plot = I_Summed[:,:,E-tint_:E+tint_].sum(axis=(2)) #Time delay integrated
     new_to_plot2 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1)) #Integrates all
     new_to_plot3 = I_Enhanced[x[0]:x[0]+xint,:].sum(axis=(0))
     
+    if diff_box.get_status()[0] is True:
+        #new_to_plot = I[:,:,E_new:(E_new+tint),dt:dt+1].sum(axis=(2,3))
+        tp = delay_point
+        neg_frames_map = I_Enhanced_Full[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
+        neg_frames_x = I_Enhanced_Full[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
+        neg_frames_y = I_Enhanced_Full[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
+        
+        new_to_plot = I_Enhanced_Full[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp) - neg_frames_map
+        new_to_plot2 = I_Enhanced_Full[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
+        new_to_plot3 = I_Enhanced_Full[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
+
+        new_to_plot = new_to_plot/np.max(np.abs(new_to_plot))
+        new_to_plot2 = new_to_plot2/np.max(np.abs(new_to_plot2))
+        new_to_plot3 = new_to_plot3/np.max(np.abs(new_to_plot3))
+        
+        new_to_plot2[:,mask_start:] *= 1
+        new_to_plot3[:,mask_start:] *= 1
+        
     if np.ndim(I) > 3:
 
         newtrace = I[x[0]:x[0]+xint,y[0]:y[0]+yint,E-(tint_):E+(tint_),:].sum(axis=(0,1,2))
@@ -510,8 +570,6 @@ def on_motion(event):
         im4.set_ydata(newtrace)
         im4_2.set_ydata(newtrace_2)
         
-        #im4.legend()
-        
     im_1.set_data(np.transpose(new_to_plot))
     im_2.set_data(np.transpose(new_to_plot2))
     im_3.set_data(np.transpose(new_to_plot3))
@@ -524,9 +582,19 @@ def on_motion(event):
     im_2.set_clim(vmin=0, vmax = c_max2*1.0)
     im_3.set_clim(vmin=0, vmax = c_max3*1.0)
     
+    if diff_box.get_status()[0] is True:
+            im_1.set_cmap('seismic')
+            im_2.set_cmap('seismic')
+            im_3.set_cmap('seismic')
+            im_1.set_clim(vmin=-1*c_max, vmax = c_max*1.0)
+            im_2.set_clim(vmin=-1, vmax = c_max*1.0)
+            im_3.set_clim(vmin=-1, vmax = c_max*1.0)
     #current_v_E = E_factor.val
     #E = (np.abs(ax_E_offset - current_v_E)).argmin()
-    
+
+        #im.set_clim(vmin=-1 , vmax = 1.0)
+        #im2.set_clim(vmin=-1*c_max1 , vmax = 1*c_max1*1.0)
+        #im3.set_clim(vmin=-1*1*c_max2, vmax = 1*c_max2*1.0)      
 # Connect the event handlers
 fig.canvas.mpl_connect('button_press_event', on_press)
 fig.canvas.mpl_connect('button_release_event', on_release)
@@ -535,6 +603,7 @@ fig.canvas.mpl_connect('motion_notify_event', on_motion)
 # Calling the function "update" when the value of the slider is changed
 E_factor.on_changed(update)
 E_factor_2.on_changed(update)
+delay_factor_.on_changed(update)
 plt.subplots_adjust(hspace = 0.3)
 plt.show()
 
