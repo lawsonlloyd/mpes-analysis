@@ -26,14 +26,11 @@ I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 E_offset = -0.25 #Scan 163
 delay_offset = 100
 
-#E_offset = 0.75 #Scan 163
-#delay_offset = 100
-
 E_offset = -0.3 #Scan 162
 delay_offset = 85
 
-#E_offset = -0.2 #Scan 188
-#delay_offset = 0
+E_offset = -0.2 #Scan 188
+delay_offset = +60
 
 #E_offset = 0.0 #Scan 062
 
@@ -51,8 +48,8 @@ mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
 
 points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics and traces
 
-tMap_E, tint_E = [1.55, 1.2], 0.1 #Energy and E integration for traces
-xint_k, yint_k = 0.25, 0.5 #Total momentum integration range for kx, ky
+tMap_E, tint_E = [1.55, 1.2], 0.15 #Energy and E integration for traces
+xint_k, yint_k = 0.5, 0.5 #Total momentum integration range for kx, ky
 
 ylim_E = -2.25 #Energy minimum for k cut plots
 
@@ -69,11 +66,11 @@ if np.ndim(I) > 3:
     #I_derivative = 
    
     logicMask = np.ones((I_Summed.shape))
-    logicMask[:,:,mask_start:] *= 300
+    logicMask[:,:,mask_start:] *= 200
     I_Enhanced = logicMask * I_Summed
     
     logicMask_Full = np.ones((I.shape))
-    logicMask_Full[:,:,mask_start:] *= 300
+    logicMask_Full[:,:,mask_start:] *= 200
     I_Enhanced_Full = logicMask_Full * I
 
 elif np.ndim(I) == 3:
@@ -84,11 +81,11 @@ elif np.ndim(I) == 3:
     #I_Summed  =
     
     logicMask = np.ones((I_Summed.shape))
-    logicMask[:,:,mask_start:] *= 300
+    logicMask[:,:,mask_start:] *= 200
     I_Enhanced = logicMask * I_Summed
     
     logicMask_Full = np.ones((I.shape))
-    logicMask_Full[:,:,mask_start:] *= 300
+    logicMask_Full[:,:,mask_start:] *= 200
     I_Enhanced_Full = logicMask_Full * I
 
 #%%
@@ -285,8 +282,8 @@ if np.ndim(I) > 3:
     ax[t_i].set_ylabel('Int.', fontsize = 18)
     ax[t_i].tick_params(axis='both', labelsize=16)
     ax[t_i].set_xlabel('Delay, fs', fontsize = 18)
-    ax[t_i].set_aspect(750)
-    ax[t_i].set_xticks(np.arange(-500,1250,250))
+    ax[t_i].set_aspect('auto')
+    ax[t_i].set_xticks(np.arange(-500,1500,250))
     for label in ax[t_i].xaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
     ax[t_i].set_xlim(ax_delay_offset[1],ax_delay_offset[-2])
@@ -311,17 +308,17 @@ else:
 # xposition, yposition, width and height
 E_slide = plt.axes([0.045, 0.6, 0.03, 0.25])
 E_slide_2 = plt.axes([0.075, 0.6, 0.03, 0.25])
-delay_slide = plt.axes([0.8, 0.55, 0.15, 0.03])
-delay_integration = plt.axes([0.8, 0.5, 0.15, 0.03])
+delay_slide = plt.axes([0.8, 0.475, 0.15, 0.03])
+delay_integration = plt.axes([0.8, 0.44, 0.15, 0.03])
 
-delay_button = plt.axes([0.75, 0.6, 0.1, 0.05])
-diff_box = CheckButtons(delay_button, ['Pos-Neg Delay Difference'])
+delay_button = plt.axes([0.75, 0.38, 0.15, 0.05])
+diff_box = CheckButtons(delay_button, ['Pos-Neg Delay Diff'])
 
 # Properties of the slider
 E_factor = Slider(E_slide, 'E, eV', -4, 3.5, valinit=tMap_E[0], valstep=0.025, color = 'black', orientation = 'vertical')
 E_factor_2 = Slider(E_slide_2, 'E, eV', -4, 3.5, valinit=tMap_E[1], valstep=0.025, color = 'purple', orientation = 'vertical')
 delay_factor_ = Slider(delay_slide, 'delay, fs ', -200, 1000, valinit=-100, valstep=10, color = 'green', orientation = 'horizontal')               
-delay_int_factor = Slider(delay_integration, 'delay Int., fs ', 5, 1000, valinit=20, valstep=10, color = 'green', orientation = 'horizontal')               
+delay_int_factor = Slider(delay_integration, 'Int., fs ', 10, 1000, valinit=50, valstep=10, color = 'green', orientation = 'horizontal')               
 
 #int_factor = Slider(int_slide, 'Int',
                  # 0, 1, valinit= 0.2, valstep=0.04)
