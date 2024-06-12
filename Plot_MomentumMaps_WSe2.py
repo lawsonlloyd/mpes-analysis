@@ -26,13 +26,17 @@ I_Summed_pos = I[:,:,:,t0+-1:t0+3]
 pos_length = I_Summed_pos.shape[3]
 I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
 
-I_Summed_ = I[:,:,:,:].sum(axis=(3)) 
+I_Summed_ = I[:,:,:,:].sum(axis=(3)) # Summ over all delay/ADC bins
 
 #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-mask_start = (np.abs(ax_E_offset - 0.5)).argmin()
+mask_start = (np.abs(ax_E_offset - 1.0)).argmin()
 logicMask_Full = np.ones((I.shape))
-logicMask_Full[:,:,mask_start:] *= 300
+logicMask_Full[:,:,mask_start:] *= 200
 I_Enhanced_Full = logicMask_Full * I
+
+logicMask = np.ones((I_Summed.shape))
+logicMask[:,:,mask_start:] *= 50
+I_Enhanced = logicMask * I_Summed
 #testP = testP - (testP[:,:,:,0:20].sum(axis=3))
 
 #logicMask = np.ones((I_.shape))
@@ -42,10 +46,42 @@ I_Enhanced_Full = logicMask_Full * I
 #ax_E = ax_E + 0.05
 
 #%%
-### User Inputs
-tMaps, tint  = [-.0, 1.1], 2
+%matplotlib inline
+# Plot EDCs
 
-adcs = [0, 1.5]
+fig, ax = plt.subplots(1,3, sharey=False)
+plt.gcf().set_dpi(300)
+
+edc = I_Summed_[x[0]-2:x[0]+2,y[0]-2:y[0]+2,:].sum(axis=(0,1))
+edc = edc/np.max(edc)
+
+ax[0].plot(ax_E_offset, edc, color = 'red')
+ax[0].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 1)
+ax[0].axvline(1.55, color = 'black', linestyle = 'dashed', linewidth = 1)
+ax[0].axvline(-.9, color = 'black', linestyle = 'dashed', linewidth = 1)
+
+ax[0].set_xlim([-2, 2])
+
+ax[1].plot(ax_E_offset, edc, color = 'red')
+ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 1)
+ax[1].axvline(1.55, color = 'black', linestyle = 'dashed', linewidth = 1)
+ax[1].set_xlim([-0.1, 2])
+ax[1].set_ylim([0.0, 0.05])
+
+ax[2].imshow(np.transpose(I_Enhanced[x[0]-2:x[0]+2,:,:].sum(axis=(0))), aspect = 'auto', extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
+ax[2].imshow(np.transpose(I_Enhanced[:, y[0]-2:y[0]+2,:].sum(axis=(1))), aspect = 'auto', extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
+ax[2].set_extent=([ax_E_offset[0], ax_E_offset[-1], ax_kx[0], ax_kx[-1]])
+ax[2].invert_yaxis()
+ax[2].axhline(0, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[2].axhline(1.55, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[2].set_ylim([-1,2])
+
+fig.tight_layout()
+plt.show()
+
+#%%
+### User Inputs
+tMaps, tint  = [0, 1.5], 2
 
 #%%
 %matplotlib inline
@@ -148,7 +184,7 @@ import numpy as np
 from skimage.draw import disk
 
 tMaps, tint  = [1.55], 3
-window_k_width = .2
+window_k_width = .3
 circle_mask = False
 
 ### Plot
@@ -205,10 +241,28 @@ for i in np.arange(numPlots, dtype = int):
     
     k_points_y = [78, 100, 83, 39, 21, 41] 
     k_points_x = [24, 61, 95, 95, 61, 23]
+   
+    mask = np.zeros((len(ax_kx), len(ax_ky)))
+    
     for k in range(0,6):
         x = k_points_x[k] 
         y = k_points_y[k] 
         window_new[x-mi:x+mi,y-mi:y+mi] = window2d
+        
+        #Circular Mask
+        row = x
+        col = y
+        k_outer = np.abs((ax_kx - 1.75)).argmin()
+        k_inner = np.abs((ax_kx - 1.75)).argmin()
+        radius = 8#52 # 52
+        rr, cc = disk((row, col), radius)
+        mask[rr, cc] = 1
+    
+    window_new = mask
+        #rr, cc = disk((row, col), radius_2)
+        #mask[rr, cc] = 0
+        #window_new = mask
+    
     
     frame_sym = np.zeros(frame_diff.shape)
     frame_sym[:,:] = frame_diff[:,:]  + (frame_diff[:,::-1])    
