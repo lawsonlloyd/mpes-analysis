@@ -335,7 +335,7 @@ aaa = a/aa
 b = windowed_frame_symm[:,i-5:i+5].sum(axis=1)
 bb = np.max(abs(b))
 bbb = b/bb
-
+#lawson was here.
 c = window_new[:,i-5:i+5].sum(axis = 1)
 cc = np.max(abs(c))
 ccc = c/cc
