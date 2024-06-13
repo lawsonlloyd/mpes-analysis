@@ -208,7 +208,7 @@ for i in range(3):
 cmap = np.vstack(( lower, upper ))
 
 # convert to matplotlib colormap
-viridis_LTL = mpl.colors.ListedColormap(cmap, name='viridis_LTL', N=cmap.shape[0])
+cmap_LTL = mpl.colors.ListedColormap(cmap, name='viridis_LTL', N=cmap.shape[0])
 #%%
 %matplotlib inline
 
@@ -447,7 +447,10 @@ fig.tight_layout()
 
 
 #%%
+%matplotlib inline
+###
 # Window and Symmetrize MM for FFT
+###
 
 from scipy import signal
 from scipy.fft import fft, fftshift
@@ -464,7 +467,7 @@ plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
 sat = [1, 1, 1]
-for i in np.arange(numPlots, dtype = int):
+for i in np.arange(numPlots):
     tMap = tMaps[i]
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
@@ -483,21 +486,69 @@ for i in np.arange(numPlots, dtype = int):
     frame_diff = np.abs(frame_diff)
 
     frame_early = np.abs(np.transpose(I_Summed_early[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))))
-    ###
+    
+    ###                   ###
+    ### Do the Operations ###
+    ###                   ###  
     kspace_frame = frame_diff
     #kspace_frame = frame_pos #All Pos delays
     #kspace_frame = frame_early
+    
+    ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
+    fwhm = 0.063
+    fwhm_pixel = fwhm/dkx
+    sigma = fwhm_pixel/2.355
+    
+    gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
+    gaussian_kx = gaussian_kx/np.max(gaussian_kx)
+    gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
+    gaussian_ky = gaussian_ky/np.max(gaussian_ky)
+    
+    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
+    
+    #fig, ax = plt.subplots(1, 3)
+    #ax.flatten()
+    #ax[0].imshow(kspace_frame, cmap='terrain_r')
+    #ax[0].axhline(48)
+    #ax[0].axvline(55)
+
+    #i = 48
+    #j = 55
+    #kx_cut = kspace_frame[:,j-1:j+1].sum(axis=1)
+    #kx_cut = kx_cut/np.max(kx_cut)
+    #ky_cut = kspace_frame[i-1:i+1,:].sum(axis = 0)
+    #ky_cut = ky_cut/np.max(ky_cut)
+
+    #ax[1].plot(gaussian_kx, linestyle = 'dashed', color = 'green')
+    #ax[1].plot(kx_cut)
+    #ax[2].plot(gaussian_ky, linestyle = 'dashed', color = 'green')
+    #ax[2].plot(ky_cut)
+    #ax[1].set_xlim(30,70)
+    
+    #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
     
     #### Apply Symm and windows
     kspace_frame = kspace_frame/np.max(kspace_frame)
     window = np.zeros((kspace_frame.shape))
     window_2 = np.zeros((kspace_frame.shape))
+    
+    win_1 = np.zeros(kspace_frame.shape[0])
+    win_2 = np.zeros(kspace_frame.shape[1])
 
     k_i = (np.abs(ax_ky - k_i)).argmin()
     k_f = (np.abs(ax_ky - k_f)).argmin()
     k_i_2 = (np.abs(ax_kx - k_i_2)).argmin()
     k_f_2 = (np.abs(ax_kx - k_f_2)).argmin()
     
+    tuk_1 = signal.windows.tukey(k_f-k_i)
+    tuk_2 = signal.windows.tukey(k_f_2-k_i_2)
+   
+    win_1[k_i:k_f] = tuk_1
+    win_2[k_i_2:k_f_2] = tuk_2
+   
+    window_4 = np.outer(win_1, win_2)
+   
     for yy in range(0,window.shape[1]):
         window[k_i:k_f,yy] = signal.windows.tukey(k_f-k_i)
         window[k_i:k_f,yy] = np.ones(k_f-k_i)
@@ -507,6 +558,7 @@ for i in np.arange(numPlots, dtype = int):
         window_2[xx,k_i_2:k_f_2] = np.ones(k_f_2-k_i_2)
    
     window_3 = window*window_2
+    #window_3 = np.outer(signal.windows.tukey(k_f_2-k_i_2), signal.windows.tukey(k_f-k_i))
     #window[0:k_i,:] *= 0
     #window[k_f:-1,:] *= 0
     #window[:, 0:22] *= 0
@@ -517,8 +569,8 @@ for i in np.arange(numPlots, dtype = int):
     frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
     frame_sym =  frame_sym[:,:]/2
     
-    windowed_frame_symm = frame_sym*window_3
-    windowed_frame_nonsymm = kspace_frame*window_3
+    windowed_frame_symm = frame_sym*window_4
+    windowed_frame_nonsymm = kspace_frame*window_4
     #windowed_frame_symm = frame_sym
     
     #windowed_frame_symm = np.zeros(windowed_frame.shape)
@@ -530,7 +582,7 @@ im = ax[1].imshow(frame_sym, origin='lower', cmap=cmap_LTL, interpolation='none'
 im = ax[2].imshow(windowed_frame_symm, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
 
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
-for i in np.arange(3, dtype = int):
+for i in np.arange(3):
     ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
     ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
     ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
@@ -567,6 +619,78 @@ fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
 #fig.colorbar(im, fraction=0.046, pad=0.04)
 fig.tight_layout()
 plt.show()
+
+
+#%%
+
+#j = 48
+#i = 55
+
+a = frame_sym[:,i-5:i+5].sum(axis=1)
+aa = np.max(abs(a))
+aaa = a/aa
+
+b = windowed_frame_symm[:,i-5:i+5].sum(axis=1)
+bb = np.max(abs(b))
+bbb = b/bb
+#lawson was here.
+c = window_3[:,i-5:i+5].sum(axis = 1)
+cc = np.max(abs(c))
+ccc = c/cc
+
+cut = [aaa, bbb, ccc]
+titles = ['Frame Sym', 'Windowed', 'Tukey Win']
+
+plt.figure()
+for i in range(0,3):
+    plt.plot(cut[i])
+    ax[i].set_title(titles[i])
+fig.tight_layout()
+
+fig, ax = plt.subplots(1, 3, sharey=False)
+ax = ax.flatten()
+
+for i in range(0,3):
+    fr = cut[i]
+    fr = np.sqrt(fr)
+    fft_ = np.fft.fft(fr)
+    fft_ = np.fft.fftshift(fft_, axes = 0)
+    fft_ = np.abs(fft_)**2
+
+    ax[i].plot(np.real(fft_))
+    ax[i].plot(np.imag(fft_))
+    ax[i].set_title(titles[i])
+    #ax[i].plot(fftshift(fft(np.abs(cut[i]))))
+fig.tight_layout()
+
+fig, ax = plt.subplots(2, 3, sharey=False)
+ax = ax.flatten()
+
+cut = [frame_sym, windowed_frame_symm, window_3]
+
+for i in range(0,3):
+    
+    ax[i].imshow(cut[i])
+    ax[i].set_title(titles[i], fontsize = 12)
+
+for i in range(0,3):
+
+    fr = cut[i]
+    fr = np.sqrt(fr)
+    fft_ = np.fft.fft2(fr)
+    fft_ = np.fft.fftshift(fft_,  axes = (0,1))
+    fft_ = np.abs(fft_)**2
+    
+    ax[i+3].imshow(fft_)
+    ax[i+3].set_title('FT ' + titles[i], fontsize = 12)
+    ax[i+3].set_xlim(50,100)
+    ax[i+3].set_ylim(50,100)
+
+    #ax[i].plot(fftshift(fft(np.abs(cut[i]))))
+
+fig.tight_layout()
+plt.show()
+
 
 #%%
 
@@ -652,7 +776,7 @@ ax[1].set_xlim([0, 2])
 ax[1].set_ylim([-0.025, 1.025])
 ax[1].set_xlabel('$r$, nm', fontsize = 16)
 ax[1].set_ylabel('Norm. Int.', fontsize = 16)
-#ax[1].set_title('$r^*_a/r^*_b$ = ' + str(round(x_brad/y_brad,2)), fontsize = 16)
+ax[1].set_title('$r^*_a/r^*_b$ = ' + str(round(x_brad/y_brad,2)), fontsize = 16)
 ax[1].tick_params(axis='both', labelsize=14)
 ax[1].legend(frameon = False)
 
@@ -670,7 +794,6 @@ fig.tight_layout()
 plt.show()
 
 #%%
-
 
 I_Neg = I[:,:,:,6:t0-15]
 neg_len = I_Neg.shape[3]
@@ -692,6 +815,8 @@ I_Difference_Full = logic_mask * I_Difference_Full
 
 #%%
 
+
+#%%
 ## Make a video/gif of the Dynamics!
 
 #y = [y]
