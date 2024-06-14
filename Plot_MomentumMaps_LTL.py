@@ -26,7 +26,11 @@ pos_length = I_Summed_pos.shape[3]
 I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
 
 I_Summed_early = I[:,:,:,t0-2:t0+5].sum(axis=3)
-I_Summed_ = I[:,:,:,:].sum(axis=(3)) 
+I_Summed_ = I[:,:,:,:].sum(axis=(3))
+
+dE = (ax_E_offset[1] - ax_E_offset[0])
+dkx = (ax_kx[1] - ax_kx[0])
+dky = (ax_ky[1] - ax_ky[0]) 
 
 #%%
 
@@ -455,8 +459,8 @@ fig.tight_layout()
 from scipy import signal
 from scipy.fft import fft, fftshift
 
-tMaps, tint  = [1.3], 6
-k_i, k_f = -0.4, 0.6
+tMaps, tint  = [1.8], 6
+k_i, k_f = -0.6, 0.9 #-0.1, 0.475
 k_i_2, k_f_2 = -1.35, 1.35
 
 ### Plot
@@ -483,15 +487,15 @@ for i in np.arange(numPlots):
     cts_total = np.sum(frame_sum)
     
     frame_diff = frame_pos - frame_neg
-    frame_diff = np.abs(frame_diff)
+    frame_diff = (frame_diff)
 
     frame_early = np.abs(np.transpose(I_Summed_early[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))))
     
     ###                   ###
     ### Do the Operations ###
     ###                   ###  
-    kspace_frame = frame_diff
-    #kspace_frame = frame_pos #All Pos delays
+    #kspace_frame = np.abs(frame_diff)
+    kspace_frame = frame_pos #All Pos delays
     #kspace_frame = frame_early
     
     ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
@@ -623,33 +627,49 @@ plt.show()
 
 #%%
 
-#j = 48
-#i = 55
+xk = 48
+yk = 48
 
-a = frame_sym[:,i-5:i+5].sum(axis=1)
+a = frame_sym[:,xk-5:xk+5].sum(axis=1)
 aa = np.max(abs(a))
 aaa = a/aa
 
-b = windowed_frame_symm[:,i-5:i+5].sum(axis=1)
+b = windowed_frame_symm[:,xk-5:xk+5].sum(axis=1)
 bb = np.max(abs(b))
-bbb = b/bb
-#lawson was here.
-c = window_3[:,i-5:i+5].sum(axis = 1)
+bbb = b/aa
+c = window_4[:,xk-5:xk+5].sum(axis = 1)
 cc = np.max(abs(c))
 ccc = c/cc
 
+#####
+a = frame_sym[yk-5:yk+5,:].sum(axis=0)
+aa = np.max(abs(a))
+aaa_2 = a/aa
+
+b = windowed_frame_symm[yk-5:yk+5,:].sum(axis=0)
+bb = np.max(abs(b))
+bbb_2 = b/aa
+#lawson was here.
+c = window_4[yk-5:yk+5,:].sum(axis=0)
+cc = np.max(abs(c))
+ccc_2 = c/cc
+
 cut = [aaa, bbb, ccc]
+cut_2 = [aaa_2, bbb_2, ccc_2]
+
 titles = ['Frame Sym', 'Windowed', 'Tukey Win']
 
-plt.figure()
+fig, ax = plt.subplots(2, 1, sharey=False)
+ax = ax.flatten()
 for i in range(0,3):
-    plt.plot(cut[i])
-    ax[i].set_title(titles[i])
+    ax[0].plot(cut[i])
+    ax[0].set_title(titles[i])
+    ax[1].plot(cut_2[i])
+    ax[1].set_title(titles[i])    
 fig.tight_layout()
 
-fig, ax = plt.subplots(1, 3, sharey=False)
-ax = ax.flatten()
-
+#fig, ax = plt.subplots(1, 3, sharey=False)
+#ax = ax.flatten()
 for i in range(0,3):
     fr = cut[i]
     fr = np.sqrt(fr)
@@ -657,16 +677,17 @@ for i in range(0,3):
     fft_ = np.fft.fftshift(fft_, axes = 0)
     fft_ = np.abs(fft_)**2
 
-    ax[i].plot(np.real(fft_))
-    ax[i].plot(np.imag(fft_))
-    ax[i].set_title(titles[i])
+    #ax[i].plot(np.real(fft_))
+    #ax[i].plot(np.imag(fft_))
+    #ax[i].set_title(titles[i])
     #ax[i].plot(fftshift(fft(np.abs(cut[i]))))
-fig.tight_layout()
+#fig.tight_layout()
 
+################
 fig, ax = plt.subplots(2, 3, sharey=False)
 ax = ax.flatten()
 
-cut = [frame_sym, windowed_frame_symm, window_3]
+cut = [frame_sym, windowed_frame_symm, window_4]
 
 for i in range(0,3):
     
@@ -676,15 +697,15 @@ for i in range(0,3):
 for i in range(0,3):
 
     fr = cut[i]
-    fr = np.sqrt(fr)
+    #fr = np.sqrt(fr)
     fft_ = np.fft.fft2(fr)
     fft_ = np.fft.fftshift(fft_,  axes = (0,1))
     fft_ = np.abs(fft_)**2
     
     ax[i+3].imshow(fft_)
     ax[i+3].set_title('FT ' + titles[i], fontsize = 12)
-    ax[i+3].set_xlim(50,100)
-    ax[i+3].set_ylim(50,100)
+    ax[i+3].set_xlim(40,60)
+    ax[i+3].set_ylim(40,60)
 
     #ax[i].plot(fftshift(fft(np.abs(cut[i]))))
 
@@ -721,9 +742,8 @@ sat = [1, 1, 1]
 for i in np.arange(numPlots, dtype = int):
     
     ### Do the FFT operations to get --> |Psi(x,y)|^2
-    #frame_diff = np.abs(frame_diff)
-    #momentum_frame = momentum_frame - np.mean(momentum_frame)
-    momentum_frame = np.abs(momentum_frame)/np.max(momentum_frame)
+    momentum_frame = momentum_frame - np.mean(momentum_frame[30:45,30:45])
+    #momentum_frame = np.abs(momentum_frame)/np.max(momentum_frame)
     momentum_frame = np.sqrt(momentum_frame)
     fft_frame = np.fft.fft2(momentum_frame, [zplength, zplength])
     fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
@@ -779,6 +799,8 @@ ax[1].set_ylabel('Norm. Int.', fontsize = 16)
 ax[1].set_title('$r^*_a/r^*_b$ = ' + str(round(x_brad/y_brad,2)), fontsize = 16)
 ax[1].tick_params(axis='both', labelsize=14)
 ax[1].legend(frameon = False)
+plt.text(1, 0.58, '$r^*_b$ = ' + str(round(x_brad,2)) + ' nm', fontsize = 11, color = 'black', fontweight = 4)
+plt.text(1, 0.47, '$r^*_a$ = ' + str(round(y_brad,2)) + ' nm', fontsize = 11, color = 'red', fontweight = 4)
 
 ax[1].set_yticks(np.arange(-0,1.5,0.5))
 #for label in ax[1].yaxis.get_ticklabels()[1::2]:
