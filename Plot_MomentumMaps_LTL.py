@@ -460,7 +460,7 @@ from scipy import signal
 from scipy.fft import fft, fftshift
 
 tMaps, tint  = [1.8], 6
-k_i, k_f = -0.6, 0.9 #-0.1, 0.475
+k_i, k_f = -0.08, 0.42
 k_i_2, k_f_2 = -1.35, 1.35
 
 ### Plot
@@ -494,7 +494,7 @@ for i in np.arange(numPlots):
     ###                   ###
     ### Do the Operations ###
     ###                   ###  
-    #kspace_frame = np.abs(frame_diff)
+    kspace_frame = np.abs(frame_diff)
     kspace_frame = frame_pos #All Pos delays
     #kspace_frame = frame_early
     
@@ -545,8 +545,8 @@ for i in np.arange(numPlots):
     k_i_2 = (np.abs(ax_kx - k_i_2)).argmin()
     k_f_2 = (np.abs(ax_kx - k_f_2)).argmin()
     
-    tuk_1 = signal.windows.tukey(k_f-k_i)
-    tuk_2 = signal.windows.tukey(k_f_2-k_i_2)
+    tuk_1 = signal.windows.boxcar(k_f-k_i)
+    tuk_2 = signal.windows.boxcar(k_f_2-k_i_2)
    
     win_1[k_i:k_f] = tuk_1
     win_2[k_i_2:k_f_2] = tuk_2
@@ -719,6 +719,7 @@ plt.show()
 
 momentum_frame = windowed_frame_symm
 momentum_frame = windowed_frame_nonsymm
+momentum_frame = window_4
 
 k_step = np.abs((ax_kx[1] - ax_kx[0]))
 k_length = len(ax_kx)
@@ -742,8 +743,8 @@ sat = [1, 1, 1]
 for i in np.arange(numPlots, dtype = int):
     
     ### Do the FFT operations to get --> |Psi(x,y)|^2
-    momentum_frame = momentum_frame - np.mean(momentum_frame[30:45,30:45])
-    #momentum_frame = np.abs(momentum_frame)/np.max(momentum_frame)
+    #momentum_frame = momentum_frame - np.mean(momentum_frame[30:45,30:45])
+    momentum_frame = np.abs(momentum_frame)/np.max(momentum_frame)
     momentum_frame = np.sqrt(momentum_frame)
     fft_frame = np.fft.fft2(momentum_frame, [zplength, zplength])
     fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
