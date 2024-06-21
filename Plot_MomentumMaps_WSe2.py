@@ -184,7 +184,7 @@ import numpy as np
 from skimage.draw import disk
 
 tMaps, tint  = [1.55], 3
-window_k_width = .3
+window_k_width = .2
 circle_mask = False
 
 ### Plot
@@ -200,9 +200,10 @@ for i in np.arange(numPlots, dtype = int):
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
     frame_diff = np.abs(I[:,:,tMap-2:tMap+2,1:3].sum(axis=(2,3)))
-    #frame_diff = np.abs(I_Summed_pos[:,:,tMap-2:tMap+2].sum(axis=2))
+    frame_diff = np.abs(I_Summed_pos[:,:,tMap-2:tMap+2].sum(axis=2))
     #2D Tukey Window
     window_new = np.zeros((frame_diff.shape))
+    window_new_single = np.zeros((frame_diff.shape))
     k_step = np.abs((ax_kx[1] - ax_kx[0]))
     mi = int(window_k_width/k_step) # Half of window length along one direction
     window1d = np.abs(signal.windows.tukey(2*mi))
@@ -239,8 +240,8 @@ for i in np.arange(numPlots, dtype = int):
     k_points_y = [113, 73, 34, 34, 74, 113] 
     k_points_x = [53, 30, 52, 100, 122, 100]
     
-    k_points_y = [78, 100, 83, 39, 21, 41] 
-    k_points_x = [24, 61, 95, 95, 61, 23]
+    #k_points_y = [78, 100, 83, 39, 21, 41] 
+    #k_points_x = [24, 61, 95, 95, 61, 23]
    
     mask = np.zeros((len(ax_kx), len(ax_ky)))
     
@@ -249,6 +250,10 @@ for i in np.arange(numPlots, dtype = int):
         y = k_points_y[k] 
         window_new[x-mi:x+mi,y-mi:y+mi] = window2d
         
+        if k == 0:
+            window_new_single[x-mi:x+mi,y-mi:y+mi] = window2d
+            single_k = window_new_single
+            
         #Circular Mask
         row = x
         col = y
@@ -259,10 +264,10 @@ for i in np.arange(numPlots, dtype = int):
         mask[rr, cc] = 1
     
     window_new = mask
+    #window_new = single_k
         #rr, cc = disk((row, col), radius_2)
         #mask[rr, cc] = 0
         #window_new = mask
-    
     
     frame_sym = np.zeros(frame_diff.shape)
     frame_sym[:,:] = frame_diff[:,:]  + (frame_diff[:,::-1])    
@@ -272,6 +277,8 @@ for i in np.arange(numPlots, dtype = int):
         windowed_frame_symm = frame_diff*mask*window_new
     elif circle_mask is False:
         windowed_frame_symm = frame_diff*window_new
+        windowed_frame_symm_single = frame_diff*single_k
+
 
     #windowed_frame_symm = frame_sym*window_new
     
@@ -323,7 +330,7 @@ fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
 fig.tight_layout()
 plt.show()
 
-#%%
+
 
 j = 52
 i = 114
@@ -390,6 +397,117 @@ for i in range(0,3):
 
     #ax[i].plot(fftshift(fft(np.abs(cut[i]))))
 
+fig.tight_layout()
+plt.show()
+
+
+#%%
+
+# Plot FFT of MMs to obtain real space wavefxn
+
+momentum_frame = windowed_frame_symm
+#momentum_frame = windowed_frame_nonsymm
+#momentum_frame = window_4
+momentum_frame_single = windowed_frame_symm_single
+
+k_step = np.abs((ax_kx[1] - ax_kx[0]))
+k_length = len(ax_kx)
+
+k_step_y = np.abs((ax_ky[1] - ax_ky[0]))
+k_length_y = len(ax_ky)
+
+zplength = 5*k_length+1
+max_r = (1/2)*1/(k_step)
+r_axis = np.linspace(-max_r, max_r, num = k_length)
+r_axis = np.linspace(-max_r, max_r, num = zplength)
+
+### Plot
+numPlots = len(tMaps)
+
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+sat = [1, 1, 1]
+for i in np.arange(numPlots, dtype = int):
+    
+    ### Do the FFT operations to get --> |Psi(x,y)|^2
+    #momentum_frame = momentum_frame - np.mean(momentum_frame[30:45,30:45])
+    momentum_frame = np.abs(momentum_frame)/np.max(momentum_frame)
+    momentum_frame = np.sqrt(momentum_frame)
+    fft_frame = np.fft.fft2(momentum_frame, [zplength, zplength])
+    fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
+    fft_frame = np.abs(fft_frame)**2
+
+    momentum_frame_single = np.abs(momentum_frame_single)/np.max(momentum_frame_single)
+    momentum_frame_single = np.sqrt(momentum_frame_single)
+    fft_frame_s = np.fft.fft2(momentum_frame_single, [zplength, zplength])
+    fft_frame_s = np.fft.fftshift(fft_frame_s, axes = (0,1))
+    fft_frame_s = np.abs(fft_frame_s)**2
+    
+    ### Take x and y cuts and extract bohr radius
+    x_cut = fft_frame_s[:,int(zplength/2)-1]
+    y_cut = fft_frame_s[int(zplength/2)-1,:]
+    x_cut = x_cut/np.max(x_cut)
+    y_cut = y_cut/np.max(y_cut)
+    
+    x_brad = (np.abs(x_cut[int(zplength/2):-2] - 0.5)).argmin()
+    y_brad = (np.abs(y_cut[int(zplength/2):-2] - 0.5)).argmin()
+    x_brad = int(zplength/2) + x_brad
+    y_brad = int(zplength/2) + y_brad
+    x_brad = r_axis[x_brad]
+    y_brad = r_axis[y_brad]
+
+    im = ax[i].imshow(fft_frame, clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
+    
+    #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    ax[i].set_aspect(1)
+    #ax[0].axhline(y,color='black')
+    #ax[0].axvline(x,color='bl ack')
+    
+    ax[i].set_xticks(np.arange(-8,8.2,1))
+    for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[i].set_yticks(np.arange(-8,8.1,1))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    
+    ax[i].set_xlim(-4,4)
+    ax[i].set_ylim(-4,4)
+    #ax[0].set_box_aspect(1)
+    ax[i].set_xlabel('$r_a$, nm', fontsize = 16)
+    ax[i].set_ylabel('$r_b$, nm', fontsize = 16)
+    ax[i].tick_params(axis='both', labelsize=14)
+    ax[i].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
+    #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
+
+ax[1].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
+ax[1].plot(r_axis, y_cut/np.max(1), color = 'red', label = '$r_a$')
+#ax[1].axhline(0.5, linestyle = 'dashed', color = 'blue')
+#ax[1].axvline(0.0, linestyle = 'dashed', color = 'blue')
+ax[1].axvline(x_brad, linestyle = 'dashed', color = 'black', linewidth = 2)
+ax[1].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 2)
+ax[1].set_xlim([0, 3])
+ax[1].set_ylim([-0.025, 1.025])
+ax[1].set_xlabel('$r$, nm', fontsize = 16)
+ax[1].set_ylabel('Norm. Int.', fontsize = 16)
+ax[1].set_title('$r^*_a/r^*_b$ = ' + str(round(x_brad/y_brad,2)), fontsize = 16)
+ax[1].tick_params(axis='both', labelsize=14)
+ax[1].legend(frameon = False)
+plt.text(0.1, 0.5, '$r^*_b$ = ' + str(round(x_brad,2)) + ' nm', fontsize = 10, color = 'black', fontweight = 4)
+plt.text(0.1, 0.4, '$r^*_a$ = ' + str(round(y_brad,2)) + ' nm', fontsize = 10, color = 'red', fontweight = 4)
+
+ax[1].set_yticks(np.arange(-0,1.5,0.5))
+#for label in ax[1].yaxis.get_ticklabels()[1::2]:
+ #   label.set_visible(False)
+#ax[1].axvline(1.75, color='black')
+ax[1].set_aspect(3)
+ax[1].set_xlabel('r, nm')
+#fig.subplots_adjust(right=0.8)
+#cbar_ax = fig.add_axes([1, 0.2, 0.025, 0.6])
+#fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
+#fig.colorbar(im, fraction=0.046, pad=0.04)
 fig.tight_layout()
 plt.show()
 

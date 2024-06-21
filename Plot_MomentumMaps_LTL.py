@@ -577,6 +577,47 @@ for i in np.arange(numPlots):
     windowed_frame_nonsymm = kspace_frame*window_4
     #windowed_frame_symm = frame_sym
     
+    ####### WSe2
+    
+    circle_mask = False
+    
+    #Circular Mask
+    mask = np.zeros((len(ax_kx), len(ax_ky)))
+    row = int((len(ax_kx)/2))
+    col = row
+    k_outer = np.abs((ax_kx - 1.75)).argmin()
+    k_inner = np.abs((ax_kx - 1.75)).argmin()
+    radius = 48#52 # 52
+    radius_2 = 34#38 # 38
+    rr, cc = disk((row, col), radius)
+    mask[rr, cc] = 1
+    rr, cc = disk((row, col), radius_2)
+    mask[rr, cc] = 0
+    
+    wl = 6
+    k_points_y = [113, 73, 34, 34, 74, 113] 
+    k_points_x = [53, 30, 52, 100, 122, 100]
+    
+    #k_points_y = [78, 100, 83, 39, 21, 41] 
+    #k_points_x = [24, 61, 95, 95, 61, 23]
+   
+    mask = np.zeros((len(ax_kx), len(ax_ky)))
+    
+    for k in range(0,6):
+        x = k_points_x[k] 
+        y = k_points_y[k] 
+        window_new[x-mi:x+mi,y-mi:y+mi] = window2d
+        
+        #Circular Mask
+        row = x
+        col = y
+        k_outer = np.abs((ax_kx - 1.75)).argmin()
+        k_inner = np.abs((ax_kx - 1.75)).argmin()
+        radius = 8#52 # 52
+        rr, cc = disk((row, col), radius)
+        mask[rr, cc] = 1
+    ######## WSe2
+    
     #windowed_frame_symm = np.zeros(windowed_frame.shape)
     #windowed_frame_symm[:,:] = windowed_frame[:,:]  + (windowed_frame[:,::-1])
     #windowed_frame_symm = windowed_frame_symm/np.abs(windowed_frame_symm)
