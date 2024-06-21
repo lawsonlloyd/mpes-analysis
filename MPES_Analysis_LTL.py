@@ -18,15 +18,20 @@ from LoadData import LoadData
 #%% Load File in your path...
 
 #fn = 'your_data_file.h5'
-#I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
+I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 
+E_offset = 0
+delay_offset = 0
 #%%
 ### Transform Data, axes if needed...
 
-E_offset = -0.25 #Scan 163
-delay_offset = 100
+E_offset = +0.65 #Scan 160
+delay_offset = 0
 
-#E_offset = -0.3 #Scan 162
+#E_offset = -0.25 #Scan 163
+#delay_offset = 100
+
+#fE_offset = -0.3 #Scan 162
 #delay_offset = 85
 
 #E_offset = -0.2 #Scan 188
@@ -36,6 +41,8 @@ delay_offset = 100
 
 #E_offset = +0.5 #Scan 138
 #delay_offset = 0
+
+#%%
 
 ax_E_offset = ax_E + E_offset 
 ax_delay_offset = ax_delay + delay_offset
@@ -138,7 +145,7 @@ fig, ax = plt.subplots(nrows = 2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 
 
 fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
-cmap_to_use = viridis_LTL
+cmap_to_use = 'terrain_r'
 #fig.tight_layout()
 
 ### First Panel

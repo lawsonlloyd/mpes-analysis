@@ -760,7 +760,7 @@ plt.show()
 
 momentum_frame = windowed_frame_symm
 momentum_frame = windowed_frame_nonsymm
-momentum_frame = window_4
+#momentum_frame = window_4
 
 k_step = np.abs((ax_kx[1] - ax_kx[0]))
 k_length = len(ax_kx)
