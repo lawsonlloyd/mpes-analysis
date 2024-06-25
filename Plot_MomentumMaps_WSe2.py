@@ -135,7 +135,6 @@ ax[1].set_ylabel('Norm. Int.',  fontsize = 14)
 ax[1].set_title('EDC @ K Points')
 ax[1].annotate('x100', xy = (exciton+.1, 0.8), fontsize = 10, color = 'red')
 
-
 ax[2].imshow(np.transpose(I_Enhanced[y-2:y+2,:,:].sum(axis=(0))), cmap = cmap_to_use, extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
 ax[2].set_extent=([ax_E_offset[0], ax_E_offset[-1], ax_kx[0], ax_kx[-1]])
 ax[2].axvline(ax_ky[y], linestyle = 'dashed', color = 'green', linewidth = 1)
@@ -262,8 +261,8 @@ from skimage.draw import disk
 
 ######### User Inputs #########
 tMaps, tint_E  = [1.7], 0.2
-window_k_width = .225
-circle_mask = False
+window_k_width = .325
+circle_mask = True
 
 #LTL Bulk WSe2, XUV POL Integrated 
 k_points_y = [115, 73, 34, 34, 74, 115]
@@ -333,10 +332,10 @@ frame_sym =  frame_sym[:,:]/2
 if circle_mask is True:
     row = int(len(ax_kx)/2)
     col = int(len(ax_kx)/2)
-    k_inner = np.abs((ax_kx - 0.75)).argmin()
-    k_outer = np.abs((ax_kx - 1.75)).argmin()
-    k_inner = 1
-    k_outer = 1.4
+    #k_inner = np.abs((ax_kx - 0.75)).argmin()
+    #k_outer = np.abs((ax_kx - 1.7)).argmin()
+    k_inner = 0.95
+    k_outer = 1.35
     radius = round(window_k_width/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), round(k_outer/dkx))
     window_circle_mask[rr,cc] = 1

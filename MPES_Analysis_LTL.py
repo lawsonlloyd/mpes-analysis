@@ -28,7 +28,7 @@ delay_offset = 0
 E_offset = +0#ML Shuo Data
 delay_offset = 0
 
-E_offset = +0.65 #Scan 160
+E_offset = +0.8 # 0.65 Scan 160
 delay_offset = 0
 
 #E_offset = -0.25 #Scan 163
