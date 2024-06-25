@@ -4,7 +4,6 @@ LTL
 Import datay from H5 files for analysis...
 
 """
-
 def LoadData(filename):
     import h5py
     import numpy as np 

@@ -29,13 +29,13 @@ I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
 I_Summed_ = I[:,:,:,:].sum(axis=(3)) # Summ over all delay/ADC bins
 
 #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-mask_start = (np.abs(ax_E_offset - 1.0)).argmin()
+mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
 logicMask_Full = np.ones((I.shape))
 logicMask_Full[:,:,mask_start:] *= 200
 I_Enhanced_Full = logicMask_Full * I
 
 logicMask = np.ones((I_Summed.shape))
-logicMask[:,:,mask_start:] *= 50
+logicMask[:,:,mask_start:] *= 200
 I_Enhanced = logicMask * I_Summed
 #testP = testP - (testP[:,:,:,0:20].sum(axis=3))
 
@@ -49,60 +49,174 @@ I_Enhanced = logicMask * I_Summed
 %matplotlib inline
 # Plot EDCs
 
-fig, ax = plt.subplots(1,3, sharey=False)
+kspace_frame_full = np.abs(I[:,:,:,:].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
+
+tMapE = 1.7
+kx = -0.05
+ky = 0.025
+
+exciton = 1.7
+vbm_K = -0.5
+cmap_to_use = cmap_LTL
+
+######
+######
+
+tMap = (np.abs(ax_E_offset - tMapE)).argmin()
+x = (np.abs(ax_kx - kx)).argmin()
+y = (np.abs(ax_ky - ky)).argmin()
+
+window_full = np.zeros(I_Enhanced.shape)
+
+#LTL Bulk WSe2, XUV POL Integrated 
+k_points_y = [115, 73, 34, 34, 74, 115]
+k_points_x = [53, 30, 52, 100, 122, 98]
+
+# Window @K Points
+for k in range(0,6):
+    xc = k_points_x[k] 
+    yc = k_points_y[k] 
+    
+    #Circular Mask around each k Point
+    row = xc
+    col = yc
+    #k_outer = np.abs((ax_kx - 1.75)).argmin()
+    #k_inner = np.abs((ax_kx - 1.75)).argmin()
+    window_k_width = .1
+    radius = round(window_k_width/dkx) #8#52 # 52 #pixels
+    rr, cc = disk((row, col), radius)
+    window_full[rr, cc, :] = 1 #/np.max(kspace_frame_full[rr,cc])
+
+kspace_frame_full_windowed = kspace_frame_full*window_full
+
+edc = (kspace_frame_full_windowed[:,:,:]).sum(axis=(0,1))
+edc_mask = np.ones((edc.shape))
+edc_mask[mask_start:] *= 100
+edc = edc*edc_mask
+#edc = I_Enhanced[x-3:x+3,y-3:y+3,:].sum(axis=(0,1))
+edc = edc/np.max(edc[-120:])
+
+#mm = kspace_frame_full_windowed[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
+mm = (I[:,:,tMap-int(tint/2):tMap+int(tint/2),:].sum(axis=(2,3)))
+mm = mm/np.max(mm)
+
+fig, ax = plt.subplots(2,2,sharey=False)
+ax = ax.flatten()
 plt.gcf().set_dpi(300)
 
-edc = I_Summed_[x[0]-2:x[0]+2,y[0]-2:y[0]+2,:].sum(axis=(0,1))
-edc = edc/np.max(edc)
-
-ax[0].plot(ax_E_offset, edc, color = 'red')
-ax[0].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 1)
-ax[0].axvline(1.55, color = 'black', linestyle = 'dashed', linewidth = 1)
-ax[0].axvline(-.9, color = 'black', linestyle = 'dashed', linewidth = 1)
-
-ax[0].set_xlim([-2, 2])
+im = ax[0].imshow((mm), origin='lower', cmap=cmap_to_use, clim=None, extent=[ax_kx[0], ax_kx[-1], ax_ky[-1], ax_ky[0]]) #kx, ky, t
+ax[0].set_aspect(1)
+ax[0].axvline(ax_kx[x],color='green', linestyle = 'dashed', linewidth = 1)
+ax[0].axhline(ax_ky[y],color='purple', linestyle = 'dashed', linewidth = 1)
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(-2,2)
+ax[0].set_xticks(np.arange(-2,2.2,1))
+for label in ax[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)    
+ax[0].set_yticks(np.arange(-2,2.1,1))
+for label in ax[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[0].set_xlabel('$k_x$,  $\AA^{-1}$', fontsize = 14)
+ax[0].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 14)
+ax[0].tick_params(axis='both', labelsize=12)
+ax[0].set_title('$E$ = ' + str((tMapE)) + ' eV', fontsize = 16)
+#ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
 
 ax[1].plot(ax_E_offset, edc, color = 'red')
 ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 1)
-ax[1].axvline(1.55, color = 'black', linestyle = 'dashed', linewidth = 1)
-ax[1].set_xlim([-0.1, 2])
-ax[1].set_ylim([0.0, 0.05])
+ax[1].axvline(exciton, color = 'black', linestyle = 'dashed', linewidth = 1)
+#ax[1].axvline(vbm_K, color = 'black', linestyle = 'dashed', linewidth = 1)
+ax[1].set_xticks(np.arange(-2,2.2,1)) 
+ax[1].set_yticks(np.arange(-2,2.1,1))
+ax[1].set_xlim([-1, 2.5])
+ax[1].set_ylim([0,1.2])
+ax[1].set_xlabel('E, eV',  fontsize = 14)
+ax[1].set_ylabel('Norm. Int.',  fontsize = 14)
+ax[1].set_title('EDC @ K Points')
+ax[1].annotate('x100', xy = (exciton+.1, 0.8), fontsize = 10, color = 'red')
 
-ax[2].imshow(np.transpose(I_Enhanced[x[0]-2:x[0]+2,:,:].sum(axis=(0))), aspect = 'auto', extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
-ax[2].imshow(np.transpose(I_Enhanced[:, y[0]-2:y[0]+2,:].sum(axis=(1))), aspect = 'auto', extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
+
+ax[2].imshow(np.transpose(I_Enhanced[y-2:y+2,:,:].sum(axis=(0))), cmap = cmap_to_use, extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
 ax[2].set_extent=([ax_E_offset[0], ax_E_offset[-1], ax_kx[0], ax_kx[-1]])
-ax[2].invert_yaxis()
+ax[2].axvline(ax_ky[y], linestyle = 'dashed', color = 'green', linewidth = 1)
+#ax[2].axvline(kx, linestyle = 'dashed', color = 'purple', linewidth = 1)
 ax[2].axhline(0, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axhline(1.55, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].set_ylim([-1,2])
+#ax[2].axhline(vbm_K, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[2].axhline(exciton, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[2].invert_yaxis()
+ax[2].set_xlabel('$k_x$,  $\AA^{-1}$', fontsize = 14)
+ax[2].set_ylabel('E, eV', fontsize = 14)
+ax[2].set_xticks(np.arange(-2,2.2,1))
+for label in ax[2].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)    
+ax[2].set_yticks(np.arange(-2,2.1,1))
+for label in ax[2].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[2].set_ylim([-2,2.25])
+ax[2].set_xlim([-2,2])
+ax[2].set_aspect(0.5)
 
+ax[3].imshow(np.transpose(I_Enhanced[:,x-2:x+2,:].sum(axis=(1))), cmap = cmap_to_use, extent=[ax_kx[0], ax_kx[-1], ax_E_offset[-1], ax_E_offset[0]])
+ax[3].set_extent=([ax_E_offset[0], ax_E_offset[-1], ax_ky[0], ax_ky[-1]])
+ax[3].axvline(ax_kx[x], linestyle = 'dashed', color = 'purple', linewidth = 1)
+ax[3].axhline(0, linestyle = 'dashed', color = 'black', linewidth = 1)
+#ax[3].axhline(vbm_K, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[3].axhline(exciton, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[3].invert_yaxis()
+ax[3].set_ylim([-1.25,2.25])
+ax[3].set_aspect(.5)
+ax[3].set_xlabel('$k_y$,  $\AA^{-1}$', fontsize = 14)
+ax[3].set_ylabel('E, eV', fontsize = 14)
+ax[3].set_xticks(np.arange(-2,2.2,1))
+for label in ax[3].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)    
+ax[3].set_yticks(np.arange(-2,2.1,1))
+for label in ax[3].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[3].set_ylim([-2,2.25])
+ax[3].set_xlim([-2,2])
+ax[3].set_aspect(0.5)
+
+for a in ax[3:4]:
+    a.tick_params(color='green', labelcolor='black')
+    for spine in a.spines.values():
+        spine.set_edgecolor('green')
+        
+for a in ax[2:3]:
+    a.tick_params(color='purple', labelcolor='black')
+    for spine in a.spines.values():
+        spine.set_edgecolor('purple')
+                
+#ax[2].set_title('$k_{x}$')
+#ax[3].set_title('$k_{y}$')
 fig.tight_layout()
 plt.show()
 
 #%%
 ### User Inputs
-tMaps, tint  = [0, 1.5, 1.6, 1.7], 2
 
 #%%
 %matplotlib inline
 
 # Plot Momentum Maps at specified Energies
- 
+tMaps, tint  = [0, 1.5, 1.6, 1.7], 2
+
 ### Plot
 numPlots = len(tMaps)
 
 fig, ax = plt.subplots(1,numPlots, sharey=True)
+ax = ax.flatten()
 plt.gcf().set_dpi(300)
 
 #fig.set_size_inches(12, 6, forward=False)
-ax = ax.flatten()
 
 for i in np.arange(numPlots):
     tMap = tMaps[i]
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
+    #frame = np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2),4:6].sum(axis=(2,3)))
     frame = np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2),:].sum(axis=(2,3)))
     frame = frame/np.max(frame)
-    im = ax[i].imshow(frame, origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    im = ax[i].imshow(frame, origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[ax_kx[0], ax_kx[-1], ax_ky[-1], ax_ky[0]]) #kx, ky, t
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
     ax[i].set_aspect(1)
     #ax[0].axhline(y,color='black')
@@ -146,10 +260,24 @@ from scipy.fft import fft, fftshift
 import numpy as np
 from skimage.draw import disk
 
-tMaps, tint_E  = [1.55], 0.2
+######### User Inputs #########
+tMaps, tint_E  = [1.7], 0.2
 window_k_width = .225
 circle_mask = False
 
+#LTL Bulk WSe2, XUV POL Integrated 
+k_points_y = [115, 73, 34, 34, 74, 115]
+k_points_x = [53, 30, 52, 100, 122, 98]
+
+#Shuo ML WSe2
+#k_points_y = [78, 100, 83, 39, 21, 41] 
+#k_points_x = [24, 61, 95, 95, 61, 23]
+
+single_k = 0
+
+##############################################
+########## Perform the Operations ############
+##############################################
 tMap = tMaps[0]
 tMap = (np.abs(ax_E_offset - tMap)).argmin()
 
@@ -162,9 +290,9 @@ tint = Eint
 xint = round(xint_k/dkx)
 yint = round(yint_k/dky) 
 
-kspace_frame = np.abs(I[:,:,tMap-Eint:tMap+Eint,:].sum(axis=(2,3))) #Scan 160, XUV Pol
+kspace_frame = np.abs(I[:,:,tMap-Eint:tMap+Eint,:].sum(axis=(2,3))) #Scan 160, XUV Pol, Bulk LTL
+#kspace_frame = np.abs(I[:,:,tMap-Eint:tMap+Eint,2:4].sum(axis=(2,3))) #Scan ??, Delay, ML Shuo
 kspace_frame = kspace_frame/np.max(kspace_frame)
-#kspace_frame = np.abs(I_Summed_pos[:,:,tMap-2:tMap+2].sum(axis=2)) #Scan ??, Delay
 
 window_new = np.zeros((kspace_frame.shape))
 window_new_single = np.zeros((kspace_frame.shape))
@@ -176,15 +304,6 @@ window1d = np.abs(signal.windows.blackman(2*radius))
 window2d = np.sqrt(np.outer(window1d,window1d))
 window2d = window2d/np.max(window2d)
 
-#LTL Bulk WSe2, XUV POL Integrated 
-k_points_y = [115, 73, 34, 34, 74, 115]
-k_points_x = [53, 30, 52, 100, 122, 98]
-
-#Shuo ML WSe2
-k_points_y = [78, 100, 83, 39, 21, 41] 
-k_points_x = [24, 61, 95, 95, 61, 23]
-
-single_k = 2
 for k in range(0,6):
     x = k_points_x[k] 
     y = k_points_y[k] 
@@ -236,56 +355,6 @@ elif circle_mask is False:
     
     windowed_frame_nonsymm = kspace_frame*window_new
     windowed_frame_nonsymm_single = kspace_frame*window_new_single
-
-############
-### Plot ###
-############
-
-# =============================================================================
-# panel_titles = ['Data', 'Symmetrized', 'Windowed']
-# numPlots = len(tMaps)
-# fig, ax = plt.subplots(1, 3, sharey=False)
-# plt.gcf().set_dpi(300)
-# ax = ax.flatten()
-# 
-# im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
-# im = ax[1].imshow(frame_sym, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
-# im = ax[2].imshow(windowed_frame_symm, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
-# single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
-# ax[2].add_patch(single_k_circle)
-# 
-# #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
-# for i in np.arange(3):
-#     #ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-#     #ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-#     #ax[i].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-#     #ax[i].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-#     ax[i].set_aspect(1)
-#     
-#     ax[i].set_xticks(np.arange(-2,2.2,1))
-#     for label in ax[i].xaxis.get_ticklabels()[1::2]:
-#         label.set_visible(False)
-#         
-#     ax[i].set_yticks(np.arange(-2,2.1,1))
-#     for label in ax[i].yaxis.get_ticklabels()[1::2]:
-#         label.set_visible(False)
-#         
-#     ax[i].set_xlim(-2,2)
-#     ax[i].set_ylim(-2,2)
-#     #ax[0].set_box_aspect(1)
-#     ax[i].set_xlabel('$k_x$', fontsize = 14)
-#     ax[i].set_ylabel('$k_y$', fontsize = 14)
-#     ax[i].tick_params(axis='both', labelsize=12)
-#     ax[i].set_title(panel_titles[i], fontsize = 14)
-#     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
-# #cbar_ax = fig.add_axes([1, 0.2, 0.025, 0.6])
-# #fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
-# #fig.subplots_adjust(right=0.8, top = 0.3)
-# fig.tight_layout()
-# fig.suptitle('E = ' + str(tMaps[0]) + ' eV, $\Delta$E = ' + str(tint_E) + ' meV,  $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 18)
-# fig.subplots_adjust(top = 1.2)
-# plt.show()
-# =============================================================================
 
 #%%
 
@@ -370,8 +439,8 @@ fig.set_size_inches(6,8)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
-im00 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_kx[0], ax_kx[-1]])
-im0 = ax[1].imshow(momentum_frame/np.max(momentum_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_kx[0], ax_kx[-1]])
+im00 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
+im0 = ax[1].imshow(momentum_frame/np.max(momentum_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im = ax[2].imshow(fft_frame, clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
 single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
 ax[1].add_patch(single_k_circle)
@@ -442,7 +511,7 @@ ax[2].set_title('2D FFT', fontsize = 15)
 #ax[2].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
 #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
 
-ax#[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
+#ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
 ax[3].plot(r_axis, x_cut/np.max(1), color = 'red', label = '$r_a$')
 ax[3].plot(r_axis, r2_cut, color = 'blue')
 #ax[1].axhline(0.5, linestyle = 'dashed', color = 'blue')
@@ -459,6 +528,9 @@ ax[3].tick_params(axis='both', labelsize=10)
 ax[3].set_yticks(np.arange(-0,1.5,0.5))
 ax[3].set_aspect(3)
 ax[3].set_xlabel('$r$, nm')
+fig.subplots_adjust(right=0.58, top = 1.1)
+fig.tight_layout()
+plt.show()
 
 #ax[2].legend(frameon = False)
 #ax[3].annotate('$r^*_x$', xy = (x_brad+.2, 0.8), fontsize = 14, color = 'red', weight = 'bold')
@@ -473,12 +545,62 @@ ax[3].set_xlabel('$r$, nm')
 #cbar_ax = fig.add_axes([1, 0.2, 0.025, 0.6])
 #fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
 #fig.colorbar(im, fraction=0.046, pad=0.04)
-fig.subplots_adjust(right=0.58, top = 1.1)
-fig.tight_layout()
-plt.show()
 
-p#%%
 #%%
+
+
+############
+### Plot ###
+############
+
+# =============================================================================
+# panel_titles = ['Data', 'Symmetrized', 'Windowed']
+# numPlots = len(tMaps)
+# fig, ax = plt.subplots(1, 3, sharey=False)
+# plt.gcf().set_dpi(300)
+# ax = ax.flatten()
+# 
+# im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
+# im = ax[1].imshow(frame_sym, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
+# im = ax[2].imshow(windowed_frame_symm, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
+# single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
+# ax[2].add_patch(single_k_circle)
+# 
+# #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+# for i in np.arange(3):
+#     #ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
+#     #ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
+#     #ax[i].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
+#     #ax[i].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
+#     ax[i].set_aspect(1)
+#     
+#     ax[i].set_xticks(np.arange(-2,2.2,1))
+#     for label in ax[i].xaxis.get_ticklabels()[1::2]:
+#         label.set_visible(False)
+#         
+#     ax[i].set_yticks(np.arange(-2,2.1,1))
+#     for label in ax[i].yaxis.get_ticklabels()[1::2]:
+#         label.set_visible(False)
+#         
+#     ax[i].set_xlim(-2,2)
+#     ax[i].set_ylim(-2,2)
+#     #ax[0].set_box_aspect(1)
+#     ax[i].set_xlabel('$k_x$', fontsize = 14)
+#     ax[i].set_ylabel('$k_y$', fontsize = 14)
+#     ax[i].tick_params(axis='both', labelsize=12)
+#     ax[i].set_title(panel_titles[i], fontsize = 14)
+#     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
+# #cbar_ax = fig.add_axes([1, 0.2, 0.025, 0.6])
+# #fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
+# #fig.subplots_adjust(right=0.8, top = 0.3)
+# fig.tight_layout()
+# fig.suptitle('E = ' + str(tMaps[0]) + ' eV, $\Delta$E = ' + str(tint_E) + ' meV,  $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 18)
+# fig.subplots_adjust(top = 1.2)
+# plt.show()
+# =============================================================================
+
+#%%
+p#%#%%
 j = 52
 i = 114
 
