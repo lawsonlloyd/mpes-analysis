@@ -63,10 +63,12 @@ def LoadData(filename):
         elif 'ax3' in list(f[a_group_key]):
             ax_ADC = f['axes/ax3'][()]  # returns as a numpy array
             ax_ADC = ax_ADC.astype(np.float32)    
-        
+            
             I = np.zeros((len(ax_kx), len(ax_ky), len(ax_E), len(ax_ADC)), dtype='float32') # Initialize the data cube
             I = np.squeeze(I.astype(np.float32))
             
+            #print(I.shape)
+            #print(i_data.shape)
             I[:,:,:,:] = i_data #np.transpose(i_data, (3, 0, 1, 2)) 
     
         else:
