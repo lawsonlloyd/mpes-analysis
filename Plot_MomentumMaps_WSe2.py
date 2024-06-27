@@ -8,6 +8,11 @@ Created on Fri Aug 18 10:44:11 2023
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+from scipy import signal
+from scipy.fft import fft, fftshift
+import numpy as np
+from skimage.draw import disk
+
 
 #%%
 
@@ -31,11 +36,11 @@ I_Summed_ = I[:,:,:,:].sum(axis=(3)) # Summ over all delay/ADC bins
 #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
 logicMask_Full = np.ones((I.shape))
-logicMask_Full[:,:,mask_start:] *= 200
+logicMask_Full[:,:,mask_start:] *= 25
 I_Enhanced_Full = logicMask_Full * I
 
 logicMask = np.ones((I_Summed.shape))
-logicMask[:,:,mask_start:] *= 200
+logicMask[:,:,mask_start:] *= 10
 I_Enhanced = logicMask * I_Summed
 #testP = testP - (testP[:,:,:,0:20].sum(axis=3))
 
@@ -49,11 +54,15 @@ I_Enhanced = logicMask * I_Summed
 %matplotlib inline
 # Plot EDCs
 
-kspace_frame_full = np.abs(I[:,:,:,:].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
+kspace_frame_full = np.abs(I[:,:,:,0:2].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
 
 tMapE = 1.7
 kx = -0.05
 ky = 0.025
+
+#tMapE = 1.6
+#kx = 0.68
+#ky = 1.1
 
 exciton = 1.7
 vbm_K = -0.5
@@ -72,6 +81,10 @@ window_full = np.zeros(I_Enhanced.shape)
 k_points_y = [115, 73, 34, 34, 74, 115]
 k_points_x = [53, 30, 52, 100, 122, 98]
 
+#Shuo ML WSe2
+k_points_y = [78, 100, 83, 39, 21, 41] 
+k_points_x = [24, 61, 95, 95, 61, 23]
+
 # Window @K Points
 for k in range(0,6):
     xc = k_points_x[k] 
@@ -82,7 +95,7 @@ for k in range(0,6):
     col = yc
     #k_outer = np.abs((ax_kx - 1.75)).argmin()
     #k_inner = np.abs((ax_kx - 1.75)).argmin()
-    window_k_width = .1
+    window_k_width = .1 #0.2
     radius = round(window_k_width/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), radius)
     window_full[rr, cc, :] = 1 #/np.max(kspace_frame_full[rr,cc])
@@ -96,7 +109,7 @@ edc = edc*edc_mask
 #edc = I_Enhanced[x-3:x+3,y-3:y+3,:].sum(axis=(0,1))
 edc = edc/np.max(edc[-120:])
 
-#mm = kspace_frame_full_windowed[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
+mm = kspace_frame_full_windowed[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
 mm = (I[:,:,tMap-int(tint/2):tMap+int(tint/2),:].sum(axis=(2,3)))
 mm = mm/np.max(mm)
 
@@ -247,30 +260,23 @@ fig.tight_layout()
 #fig.savefig(image_name, format=image_format, dpi=600)
 
 #%%
-%matplotlib auto
-plt.imshow(frame_diff)
 
 #%%
 # Window and Symmetrize MM for FFT
 %matplotlib inline
 
-from scipy import signal
-from scipy.fft import fft, fftshift
-import numpy as np
-from skimage.draw import disk
-
 ######### User Inputs #########
 tMaps, tint_E  = [1.7], 0.2
-window_k_width = .325
-circle_mask = True
+window_k_width = .225
+circle_mask = False
 
 #LTL Bulk WSe2, XUV POL Integrated 
-k_points_y = [115, 73, 34, 34, 74, 115]
+k_points_y = [114, 73, 34, 34, 74, 115]
 k_points_x = [53, 30, 52, 100, 122, 98]
 
 #Shuo ML WSe2
-#k_points_y = [78, 100, 83, 39, 21, 41] 
-#k_points_x = [24, 61, 95, 95, 61, 23]
+k_points_y = [78, 100, 83, 39, 21, 41] 
+k_points_x = [24, 61, 95, 95, 61, 23]
 
 single_k = 0
 
@@ -315,6 +321,13 @@ for k in range(0,6):
     radius = round(window_k_width/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), radius)
     window_new[rr, cc] = 1/np.max(kspace_frame[rr,cc])
+   
+    rad = radius
+    window1d = np.abs(signal.windows.blackman(2*radius))
+    window2d = np.sqrt(np.outer(window1d,window1d))
+    window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
+    
+    #window_new[x-radius:x+radius,y-radius:y+radius] = window2d
     
     if k == single_k:
         window_new_single[rr, cc] = 1/np.max(kspace_frame[rr,cc])
@@ -322,9 +335,16 @@ for k in range(0,6):
         single_ky = ax_ky[y]
         single_rad = window_k_width
         #window_new_single = np.zeros((kspace_frame.shape))
+       # window_new_single[x-radius:x+radius,y-radius:y+radius] = window2d
+        
+        rad = radius
+        window1d = np.abs(signal.windows.blackman(2*radius))
+        window2d = np.sqrt(np.outer(window1d,window1d))
+        window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
+        
+        #window_new_single = np.zeros((kspace_frame.shape))
         #window_new_single[x-radius:x+radius,y-radius:y+radius] = window2d
         
-
 frame_sym = np.zeros(kspace_frame.shape)
 frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
 frame_sym =  frame_sym[:,:]/2
@@ -334,8 +354,8 @@ if circle_mask is True:
     col = int(len(ax_kx)/2)
     #k_inner = np.abs((ax_kx - 0.75)).argmin()
     #k_outer = np.abs((ax_kx - 1.7)).argmin()
-    k_inner = 0.95
-    k_outer = 1.35
+    k_inner = 0.98
+    k_outer = 1.38
     radius = round(window_k_width/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), round(k_outer/dkx))
     window_circle_mask[rr,cc] = 1
@@ -396,7 +416,7 @@ r_axis = r_axis/(1)
 ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
 momentum_frame_ = np.abs(momentum_frame)/np.max(momentum_frame)
 momentum_frame_ = np.sqrt(momentum_frame_)
-fft_frame = np.fft.fft2(momentum_frame, [zplength, zplength])
+fft_frame = np.fft.ifft2(momentum_frame, [zplength, zplength])
 fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
 fft_frame = np.abs(fft_frame)
 fft_frame = np.square(fft_frame)

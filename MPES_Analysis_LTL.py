@@ -134,11 +134,11 @@ dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
 dky = (ax_ky[1] - ax_ky[0])
 
-Eint = round(tint_E/dE)
-tint = Eint
-xint = round(xint_k/dkx)
-yint = round(yint_k/dky) 
-
+Eint = int(np.round(tint_E/dE))
+tint = int(Eint)
+xint = np.round(xint_k/dkx)
+yint = np.round(yint_k/dky) 
+xint, yint = int(xint), int(yint)
 ##########################################
 ############### Plotting #################
 ##########################################
@@ -614,4 +614,4 @@ delay_factor_.on_changed(update)
 plt.subplots_adjust(hspace = 0.3)
 plt.show()
 
-f#%%
+#%%
