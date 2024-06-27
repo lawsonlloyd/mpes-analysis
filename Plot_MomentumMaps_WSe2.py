@@ -54,7 +54,7 @@ I_Enhanced = logicMask * I_Summed
 %matplotlib inline
 # Plot EDCs
 
-kspace_frame_full = np.abs(I[:,:,:,0:2].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
+kspace_frame_full = np.abs(I[:,:,:,t0-5:t0+5].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
 
 tMapE = 1.7
 kx = -0.05
@@ -64,13 +64,14 @@ ky = 0.025
 #kx = 0.68
 #ky = 1.1
 
-exciton = 1.7
+exciton = 1.5
 vbm_K = -0.5
 cmap_to_use = cmap_LTL
 
 ######
 ######
 
+cb_factor = 20
 tMap = (np.abs(ax_E_offset - tMapE)).argmin()
 x = (np.abs(ax_kx - kx)).argmin()
 y = (np.abs(ax_ky - ky)).argmin()
@@ -84,6 +85,10 @@ k_points_x = [53, 30, 52, 100, 122, 98]
 #Shuo ML WSe2
 k_points_y = [78, 100, 83, 39, 21, 41] 
 k_points_x = [24, 61, 95, 95, 61, 23]
+
+#Shuo Dataset WSe2 Matlab
+k_points_y = [58, 84, 84, 56, 28, 29] 
+k_points_x = [27, 43, 76, 92, 75, 42]
 
 # Window @K Points
 for k in range(0,6):
@@ -104,7 +109,7 @@ kspace_frame_full_windowed = kspace_frame_full*window_full
 
 edc = (kspace_frame_full_windowed[:,:,:]).sum(axis=(0,1))
 edc_mask = np.ones((edc.shape))
-edc_mask[mask_start:] *= 100
+edc_mask[mask_start:] *= cb_factor
 edc = edc*edc_mask
 #edc = I_Enhanced[x-3:x+3,y-3:y+3,:].sum(axis=(0,1))
 edc = edc/np.max(edc[-120:])
@@ -277,6 +282,10 @@ k_points_x = [53, 30, 52, 100, 122, 98]
 #Shuo ML WSe2
 k_points_y = [78, 100, 83, 39, 21, 41] 
 k_points_x = [24, 61, 95, 95, 61, 23]
+
+#Shuo Dataset WSe2
+k_points_y = [58, 84, 84, 56, 28, 29] 
+k_points_x = [27, 43, 76, 92, 75, 42]
 
 single_k = 0
 
