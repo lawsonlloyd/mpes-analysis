@@ -774,3 +774,35 @@ fig.tight_layout()
 plt.show()
 
 #%%
+
+
+import numpy             as np
+import matplotlib        as mpl
+import matplotlib.pyplot as plt
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# create colormap
+# ---------------
+
+# create a colormap that consists of
+# - 1/5 : custom colormap, ranging from white to the first color of the colormap
+# - 4/5 : existing colormap
+
+# set upper part: 4 * 256/4 entries
+upper = mpl.cm.viridis(np.arange(256))
+#upper = mpl.cm.jet(np.arange(256))
+
+# set lower part: 1 * 256/4 entries
+# - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
+lower = np.ones((int(256/9),4))
+# - modify the first three columns (RGB):
+#   range linearly between white (1,1,1) and the first color of the upper colormap
+for i in range(3):
+  lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
+
+# combine parts of colormap
+cmap = np.vstack(( lower, upper ))
+
+# convert to matplotlib colormap
+cmap_LTL = mpl.colors.ListedColormap(cmap, name='viridis_LTL', N=cmap.shape[0])
