@@ -100,6 +100,19 @@ def apply_tukey_window(data, alpha, sigma):
     window2d = window2d/np.max(window2d)
     window_zp[(int(l/2)-w):(int(l/2)+w), (int(l/2)-w):(int(l/2)+w)] = window
     
+    xc = k_points_x[k] 
+    yc = k_points_y[k] 
+    
+    #Circular Mask around each k Point
+    row = xc
+    col = yc
+    #k_outer = np.abs((ax_kx - 1.75)).argmin()
+    #k_inner = np.abs((ax_kx - 1.75)).argmin()
+    window_k_width = .1 #0.2
+    radius = round(window_k_width/dkx) #8#52 # 52 #pixels
+    rr, cc = disk((row, col), radius)
+    window_full[rr, cc, :] = 1 #/np.max(kspace_frame_full[rr,cc])
+    
     return data*window_zp, window_zp #data * window, 
     #return data * window, window
 
@@ -137,10 +150,10 @@ mean = (128, 128)
 sigma = (10, 10)
 
 # Tukey Window
-alpha = 0.75
+alpha = 0.5
 
 # Generate 2D Gaussian
-gaussian = gaussian_2d(shape, mean, sigma)
+gaussian = gaussian_2d(shape, mean, sigma)+rand
 
 # Apply Tukey window
 windowed_gaussian, window = apply_tukey_window(gaussian, alpha, sigma)
@@ -172,7 +185,7 @@ plt.plot(window[center_y, :], 'r-', label='Tukey Window')
 plt.plot(gaussian[center_y, :], 'k-', label='Gaussian')
 plt.plot(windowed_gaussian[center_y, :], 'r--', label='Windowed Gaussian')
 plt.title('X Line Cuts', fontsize=16)
-plt.legend(frameon=False)
+#plt.legend(frameon=False)
 plt.xlabel('X', fontsize=14)
 plt.ylabel('Amplitude', fontsize=14)
 
@@ -182,7 +195,7 @@ plt.plot(fft_gaussian[center_y_zp, :], 'k-', label='FFT of Gaussian')
 plt.plot(fft_windowed_gaussian[center_y_zp, :], 'r--', label='FFT of Windowed Gaussian')
 plt.plot(fft_window[center_y_zp, :], 'r-', label='FFT of Tukey Window')
 plt.title('X Line Cuts of FFTs', fontsize=16)
-plt.legend(frameon=False)
+#plt.legend(frameon=False)
 plt.xlabel('Frequency', fontsize=14)
 plt.ylabel('Log Amplitude', fontsize=14)
 plt.xlim([200,300])
