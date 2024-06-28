@@ -91,7 +91,7 @@ def apply_tukey_window(data, alpha, sigma):
     - The Tukey window itself
     """
     window = tukey((data.shape[0]//2), alpha).reshape(-1, 1) * tukey((data.shape[1]//2), alpha).reshape(1, -1)
-    w = 4*sigma[0]
+    wc = 6*sigma[0]
     w = window.shape[0]//2
     l = data.shape[0] #data.shape[0]
     window_zp = np.zeros(data.shape)
@@ -100,20 +100,21 @@ def apply_tukey_window(data, alpha, sigma):
     window2d = window2d/np.max(window2d)
     window_zp[(int(l/2)-w):(int(l/2)+w), (int(l/2)-w):(int(l/2)+w)] = window
     
-    xc = k_points_x[k] 
-    yc = k_points_y[k] 
+    xc = l//2
+    yc = l//2
     
     #Circular Mask around each k Point
+    window_new = np.zeros((data.shape))
     row = xc
     col = yc
     #k_outer = np.abs((ax_kx - 1.75)).argmin()
     #k_inner = np.abs((ax_kx - 1.75)).argmin()
-    window_k_width = .1 #0.2
-    radius = round(window_k_width/dkx) #8#52 # 52 #pixels
+    window_k_width = wc #0.2
+    radius = wc ; #round(window_k_width/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), radius)
-    window_full[rr, cc, :] = 1 #/np.max(kspace_frame_full[rr,cc])
+    window_new[rr, cc] = 1 #/np.max(kspace_frame_full[rr,cc])
     
-    return data*window_zp, window_zp #data * window, 
+    return data*window_new, window_new #data * window, 
     #return data * window, window
 
 
@@ -153,7 +154,9 @@ sigma = (10, 10)
 alpha = 0.5
 
 # Generate 2D Gaussian
-gaussian = gaussian_2d(shape, mean, sigma)+rand
+gaussian = gaussian_2d(shape, mean, sigma) + 0.1*np.random.rand(shape[0],shape[1])
+gaussian = gaussian - np.mean(gaussian[0:80,0:80])
+gaussian = gaussian/np.max(gaussian)
 
 # Apply Tukey window
 windowed_gaussian, window = apply_tukey_window(gaussian, alpha, sigma)
