@@ -272,7 +272,7 @@ fig.tight_layout()
 
 ######### User Inputs #########
 tMaps, tint_E  = [1.7], 0.2
-window_k_width = .65
+window_k_width = .325
 circle_mask = False
 
 #LTL Bulk WSe2, XUV POL Integrated 
@@ -280,12 +280,12 @@ k_points_y = [114, 73, 34, 34, 74, 115]
 k_points_x = [53, 30, 52, 100, 122, 98]
 
 #Shuo ML WSe2
-k_points_y = [78, 100, 83, 39, 21, 41] 
-k_points_x = [24, 61, 95, 95, 61, 23]
+#k_points_y = [78, 100, 83, 39, 21, 41] 
+#k_points_x = [24, 61, 95, 95, 61, 23]
 
 #Shuo Dataset WSe2
-k_points_y = [58, 84, 84, 56, 28, 29] 
-k_points_x = [27, 43, 76, 92, 75, 42]
+#k_points_y = [58, 84, 84, 56, 28, 29] 
+#k_points_x = [27, 43, 76, 92, 75, 42]
 
 single_k = 0
 
@@ -316,7 +316,7 @@ window_circle_mask = np.zeros((kspace_frame.shape))
 
 #2D Tukey Window
 radius = round(window_k_width/dkx) #8#52 # 52 #pixels
-window1d = np.abs(signal.windows.blackman(2*radius))
+window1d = np.abs(signal.windows.blackman(3*radius))
 window2d = np.sqrt(np.outer(window1d,window1d))
 window2d = window2d/np.max(window2d)
 
@@ -349,14 +349,14 @@ for k in range(0,6):
        # window_new_single[x-radius:x+radius,y-radius:y+radius] = window2d
         
         rad = radius
-        window1d = np.abs(signal.windows.blackman(2*radius))
+        window1d = np.abs(signal.windows.tukey(2*radius))
         window2d = np.sqrt(np.outer(window1d,window1d))
         window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
         
         roi_cut = kspace_frame[x-1:x+1,:].sum(axis=0)
         win_cut = window_new_single[x-1:x+1,:].sum(axis=0)
-        #window_new_single = np.zeros((kspace_frame.shape))
-        #window_new_single[x-radius:x+radius,y-radius:y+radius] = window2d
+        window_2d_full = np.zeros((kspace_frame.shape))
+        window_2d_full[x-radius:x+radius,y-radius:y+radius] = window2d
         
 frame_sym = np.zeros(kspace_frame.shape)
 frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
@@ -385,9 +385,71 @@ elif circle_mask is False:
     windowed_frame_symm = frame_sym*window_new
     windowed_frame_symm_single = frame_sym*window_new_single
     
-    windowed_frame_nonsymm = kspace_frame*window_new
-    windowed_frame_nonsymm_single = kspace_frame*window_new_single
+    windowed_frame_nonsymm = kspace_frame*window_new*window_2d_full
+    windowed_frame_nonsymm_single = kspace_frame*window_new_single*window_2d_full
 
+
+#%%
+### Quality Control ###
+
+window_test = np.zeros((kspace_frame.shape))
+win = np.zeros((kspace_frame.shape))
+window_k_width_test = 0.25
+x = k_points_x[0] 
+y = k_points_y[0] 
+row = x
+col = y
+radius = round(window_k_width_test/dkx) #8#52 # 52 #pixels
+rr, cc = disk((row, col), radius)
+win[rr, cc] = 1/np.max(kspace_frame[rr,cc])
+
+window_k_width_test = 0.25
+radius = round(window_k_width_test/dkx) #8#52 # 52 #pixels
+
+window1d = np.abs(signal.windows.tukey(2*radius))
+window2d = np.sqrt(np.outer(window1d,window1d))
+window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
+
+roi_cut = kspace_frame[x-1:x+1,:].sum(axis=0)
+win_cut = window_new_single[x-1:x+1,:].sum(axis=0)
+window_2d_full = np.zeros((kspace_frame.shape))
+window_2d_full[x-radius:x+radius,y-radius:y+radius] = window2d
+        
+window_test[x-radius:x+radius, y-radius:y+radius] = window2d
+window_test = win*window_2d_full #win
+
+roi_cut = (kspace_frame*window_test)[x-1:x+1,:].sum(axis=0)
+roi_cut = roi_cut - np.mean(roi_cut[y-30:y-10])
+roi_cut = roi_cut/np.max(roi_cut)
+
+win_cut = window_test[x-1:x+1,:].sum(axis=0)
+windowed_full = (kspace_frame*window_test)*window_2d_full #windowed_frame_nonsymm_single #*window_test
+windowed_cut = roi_cut*win_cut
+
+fft_windowed_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(windowed_cut)/np.max(windowed_cut))))
+fft_roi_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(roi_cut)/np.max(roi_cut))))
+fft_win_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(win_cut)/np.max(win_cut))))
+
+plt.subplot(2, 2, 1)
+plt.imshow(kspace_frame, cmap = cmap_LTL)
+
+plt.subplot(2, 2, 2)
+plt.imshow(windowed_full, cmap = cmap_LTL)
+plt.axhline(x)
+
+plt.subplot(2, 2, 3)
+plt.plot(roi_cut/np.max(roi_cut), 'k')
+plt.plot(windowed_cut/np.max(windowed_cut), 'r--')
+plt.plot(win_cut/np.max(win_cut),'r')
+plt.xlim([y-20,y+20])
+
+plt.subplot(2, 2, 4)
+plt.plot(fft_roi_cut/np.max(fft_roi_cut), 'k')
+plt.plot(fft_windowed_cut/np.max(fft_windowed_cut), 'r--')
+plt.plot(fft_win_cut/np.max(fft_win_cut),'r')
+plt.tight_layout()
+
+### ^^^ Quality Control ^^^ ###
 #%%
 
 #####                                              #####
@@ -412,7 +474,7 @@ k_length = len(ax_kx)
 k_step_y = np.abs((ax_ky[1] - ax_ky[0]))
 k_length_y = len(ax_ky)
 
-zplength = 2048 #5*k_length+1
+zplength = 512 #5*k_length+1
 max_r = (1/2)*1/(k_step)
 
 #r_axis = np.linspace(-max_r, max_r, num = k_length)
@@ -441,55 +503,6 @@ fft_frame_s = np.fft.fftshift(fft_frame_s, axes = (0,1))
 fft_frame_rsq = (fft_frame_s) 
 fft_frame_s = np.abs(fft_frame_s)
 fft_frame_s = np.square(fft_frame_s)
-
-### Quality Control ###
-window_test = np.zeros((kspace_frame.shape))
-win = np.zeros((kspace_frame.shape))
-window_k_width = 0.65
-x = k_points_x[0] 
-y = k_points_y[0] 
-row = x
-col = y
-radius = round(window_k_width/dkx) #8#52 # 52 #pixels
-rr, cc = disk((row, col), radius)
-win[rr, cc] = 1/np.max(kspace_frame[rr,cc])
-window1d = np.abs(signal.windows.tukey(2*radius))
-window2d = np.sqrt(np.outer(window1d,window1d))
-window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
-
-window_test[x-radius:x+radius, y-radius:y+radius] = window2d
-#window_test = win
-
-roi_cut = kspace_frame[x-1:x+1,:].sum(axis=0)
-#roi_cut = roi_cut - np.mean(roi_cut[0:45])
-roi_cut = roi_cut/np.max(roi_cut)
-win_cut = window_test[x-1:x+1,:].sum(axis=0)
-windowed_full = kspace_frame*window_test
-windowed_cut = roi_cut*win_cut
-fft_windowed_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(windowed_cut)/np.max(windowed_cut))))
-fft_roi_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(roi_cut)/np.max(roi_cut))))
-fft_win_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(win_cut)/np.max(win_cut))))
-
-plt.subplot(2, 2, 1)
-plt.imshow(kspace_frame)
-
-plt.subplot(2, 2, 2)
-plt.imshow(windowed_full)
-plt.axhline(x)
-
-plt.subplot(2, 2, 3)
-plt.plot(roi_cut/np.max(roi_cut), 'k')
-plt.plot(windowed_cut/np.max(windowed_cut), 'r--')
-plt.plot(win_cut/np.max(win_cut),'r')
-plt.xlim([35,85])
-
-plt.subplot(2, 2, 4)
-plt.plot(fft_roi_cut/np.max(fft_roi_cut), 'k')
-plt.plot(fft_windowed_cut/np.max(fft_windowed_cut), 'r--')
-plt.plot(fft_win_cut/np.max(fft_win_cut),'r')
-plt.tight_layout()
-
-### Quality Control ###
 
 ### Take x and y cuts and extract bohr radius
 x_cut = fft_frame_s[:,int(zplength/2)-1]

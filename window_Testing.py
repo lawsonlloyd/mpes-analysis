@@ -13,7 +13,7 @@ mu = 0
 sigma = 0.2
 x = np.linspace(-2,2,100)
 dx = x[1] - x[0]
-wl = 22
+wl = 22 #signal size
 
 max_r = 1/(2*dx)
 r = np.linspace(-max_r,max_r,512) 
