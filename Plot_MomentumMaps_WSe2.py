@@ -13,7 +13,6 @@ from scipy.fft import fft, fftshift
 import numpy as np
 from skimage.draw import disk
 
-
 #%%
 
 ### Transform Data if needed....
@@ -64,7 +63,7 @@ ky = 0.025
 #kx = 0.68
 #ky = 1.1
 
-exciton = 1.5
+exciton = 1.7
 vbm_K = -0.5
 cmap_to_use = cmap_LTL
 
@@ -82,13 +81,13 @@ window_full = np.zeros(I_Enhanced.shape)
 k_points_y = [115, 73, 34, 34, 74, 115]
 k_points_x = [53, 30, 52, 100, 122, 98]
 
-#Shuo ML WSe2
-k_points_y = [78, 100, 83, 39, 21, 41] 
-k_points_x = [24, 61, 95, 95, 61, 23]
+# #Shuo ML WSe2
+# k_points_y = [78, 100, 83, 39, 21, 41] 
+# k_points_x = [24, 61, 95, 95, 61, 23]
 
-#Shuo Dataset WSe2 Matlab
-k_points_y = [58, 84, 84, 56, 28, 29] 
-k_points_x = [27, 43, 76, 92, 75, 42]
+# #Shuo Dataset WSe2 Matlab
+# k_points_y = [58, 84, 84, 56, 28, 29] 
+# k_points_x = [27, 43, 76, 92, 75, 42]
 
 # Window @K Points
 for k in range(0,6):
@@ -210,10 +209,9 @@ fig.tight_layout()
 plt.show()
 
 #%%
-### User Inputs
-
-#%%
 %matplotlib inline
+
+import skimage
 
 # Plot Momentum Maps at specified Energies
 tMaps, tint  = [0, 1.5, 1.6, 1.7], 2
@@ -266,28 +264,28 @@ fig.tight_layout()
 
 #%%
 
-#%%
 # Window and Symmetrize MM for FFT
 %matplotlib inline
 
 ######### User Inputs #########
 tMaps, tint_E  = [1.7], 0.2
-window_k_width = .325
-circle_mask = False
+window_k_width_circle = .35
+window_k_width_window = 0.325
+ring_mask = False
 
 #LTL Bulk WSe2, XUV POL Integrated 
-k_points_y = [114, 73, 34, 34, 74, 115]
+k_points_y = [115, 73, 34, 34, 74, 115]
 k_points_x = [53, 30, 52, 100, 122, 98]
 
 #Shuo ML WSe2
-#k_points_y = [78, 100, 83, 39, 21, 41] 
-#k_points_x = [24, 61, 95, 95, 61, 23]
+k_points_y = [78, 100, 83, 39, 21, 41] 
+k_points_x = [24, 61, 95, 95, 61, 23]
 
 #Shuo Dataset WSe2
 #k_points_y = [58, 84, 84, 56, 28, 29] 
 #k_points_x = [27, 43, 76, 92, 75, 42]
 
-single_k = 0
+single_k = 2
 
 ##############################################
 ########## Perform the Operations ############
@@ -304,22 +302,26 @@ tint = Eint
 xint = round(xint_k/dkx)
 yint = round(yint_k/dky) 
 
+# Define k-space frame and Windows to Apply
 kspace_frame = np.abs(I[:,:,tMap-Eint:tMap+Eint,:].sum(axis=(2,3))) #Scan 160, XUV Pol, Bulk LTL
 #kspace_frame = np.abs(I[:,:,tMap-Eint:tMap+Eint,2:4].sum(axis=(2,3))) #Scan ??, Delay, ML Shuo
 
 #kspace_frame = kspace_frame - np.mean(kspace_frame)
 kspace_frame = kspace_frame/np.max(kspace_frame)
 
-window_new = np.zeros((kspace_frame.shape))
-window_new_single = np.zeros((kspace_frame.shape))
-window_circle_mask = np.zeros((kspace_frame.shape))
+# Initialize Circle Windows, 2D Windows, and Ring Masks
+window_ring_mask = np.zeros((kspace_frame.shape))
+window_circles = np.zeros((kspace_frame.shape))
+window_2D_full = np.zeros((kspace_frame.shape))
 
-#2D Tukey Window
-radius = round(window_k_width/dkx) #8#52 # 52 #pixels
-window1d = np.abs(signal.windows.blackman(3*radius))
-window2d = np.sqrt(np.outer(window1d,window1d))
-window2d = window2d/np.max(window2d)
+window_circles_single = np.zeros((kspace_frame.shape))
+window_2D_full_single = np.zeros((kspace_frame.shape))
 
+# 2D Window
+radius = round(window_k_width_window/dkx) #8#52 # 52 #pixels
+window_2D = skimage.filters.window('tukey', (2*radius, 2*radius))
+
+# Build up Windows at the K Points
 for k in range(0,6):
     x = k_points_x[k] 
     y = k_points_y[k] 
@@ -329,127 +331,126 @@ for k in range(0,6):
     col = y
     #k_outer = np.abs((ax_kx - 1.75)).argmin()
     #k_inner = np.abs((ax_kx - 1.75)).argmin()
-    radius = round(window_k_width/dkx) #8#52 # 52 #pixels
+    radius = round(window_k_width_circle/dkx) #8#52 # 52 #pixels
     rr, cc = disk((row, col), radius)
-    window_new[rr, cc] = 1/np.max(kspace_frame[rr,cc])
-   
-    rad = radius
-    window1d = np.abs(signal.windows.blackman(2*radius))
-    window2d = np.sqrt(np.outer(window1d,window1d))
-    window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
+    window_circles[rr, cc] = 1/np.max(kspace_frame[rr,cc])
+
+    #Place 2D window (e.g. Tukey) in the full window
+    win_length = window_2D.shape[0]
+    win_length = win_length//2
+    window_2D_full[x-win_length:x+win_length,y-win_length:y+win_length] = window_2D
     
-    #window_new[x-radius:x+radius,y-radius:y+radius] = window2d
-    
+    # Do separately for a single K Point    
     if k == single_k:
-        window_new_single[rr, cc] = 1/np.max(kspace_frame[rr,cc])
-        single_kx = ax_kx[x]
+        single_kx = ax_kx[x] # Save x,y, and rad for plotting later.
         single_ky = ax_ky[y]
-        single_rad = window_k_width
-        #window_new_single = np.zeros((kspace_frame.shape))
-       # window_new_single[x-radius:x+radius,y-radius:y+radius] = window2d
-        
-        rad = radius
-        window1d = np.abs(signal.windows.tukey(2*radius))
-        window2d = np.sqrt(np.outer(window1d,window1d))
-        window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
-        
-        roi_cut = kspace_frame[x-1:x+1,:].sum(axis=0)
-        win_cut = window_new_single[x-1:x+1,:].sum(axis=0)
-        window_2d_full = np.zeros((kspace_frame.shape))
-        window_2d_full[x-radius:x+radius,y-radius:y+radius] = window2d
-        
+        single_rad = window_k_width_circle
+        window_circles_single[rr, cc] = 1/np.max(kspace_frame[rr,cc])
+
+        #Place 2D window (e.g. Tukey) in the full window
+        win_length = window_2D.shape[0]
+        win_length = win_length//2
+        window_2D_full_single[x-win_length:x+win_length,y-win_length:y+win_length] = window_2D/np.max(kspace_frame[rr,cc])
+
+# Define Ring Mask to isolate K Points (Alternative Method)
+row = int(len(ax_kx)/2)
+col = int(len(ax_kx)/2)
+#k_inner = np.abs((ax_kx - 0.75)).argmin()
+#k_outer = np.abs((ax_kx - 1.7)).argmin()
+k_inner = 0.98
+k_outer = 1.38
+radius = round(window_k_width/dkx) #8#52 # 52 #pixels
+rr, cc = disk((row, col), round(k_outer/dkx))
+window_ring_mask[rr,cc] = 1
+rr, cc = disk((row, col), round(k_inner/dkx))
+window_ring_mask[rr,cc] = 0
+    
+# Symmetrize the Data         
 frame_sym = np.zeros(kspace_frame.shape)
 frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
 frame_sym =  frame_sym[:,:]/2
 
-if circle_mask is True:
-    row = int(len(ax_kx)/2)
-    col = int(len(ax_kx)/2)
-    #k_inner = np.abs((ax_kx - 0.75)).argmin()
-    #k_outer = np.abs((ax_kx - 1.7)).argmin()
-    k_inner = 0.98
-    k_outer = 1.38
-    radius = round(window_k_width/dkx) #8#52 # 52 #pixels
-    rr, cc = disk((row, col), round(k_outer/dkx))
-    window_circle_mask[rr,cc] = 1
-    rr, cc = disk((row, col), round(k_inner/dkx))
-    window_circle_mask[rr,cc] = 0
-    
-    windowed_frame_symm = frame_sym*window_circle_mask
-    windowed_frame_symm_single = frame_sym*window_circle_mask*window_new_single
+if ring_mask is True:
 
-    windowed_frame_nonsymm = kspace_frame*window_circle_mask
-    windowed_frame_nonsymm_single = kspace_frame*window_circle_mask*window_new_single
-    
-elif circle_mask is False:
-    windowed_frame_symm = frame_sym*window_new
-    windowed_frame_symm_single = frame_sym*window_new_single
-    
-    windowed_frame_nonsymm = kspace_frame*window_new*window_2d_full
-    windowed_frame_nonsymm_single = kspace_frame*window_new_single*window_2d_full
+    windowed_frame_symm = frame_sym*window_ring_mask
+    windowed_frame_symm_single = frame_sym*window_ring_mask*window_circles
 
+    windowed_frame_nonsymm = kspace_frame*window_ring_mask
+    windowed_frame_nonsymm_single = kspace_frame*window_ring_mask*window_circles_single
+    
+elif ring_mask is False:
+    
+    windowed_frame_symm = frame_sym*window_circles
+    windowed_frame_symm_single = frame_sym*window_circles
+    
+    windowed_frame_nonsymm = kspace_frame*window_circles*window_2D_full
+    windowed_frame_nonsymm_single = kspace_frame*window_circles_single*window_2D_full_single
+    windowed_frame_nonsymm_single = kspace_frame*1*window_2D_full_single
 
 #%%
-### Quality Control ###
+from scipy.optimize import curve_fit
 
-window_test = np.zeros((kspace_frame.shape))
-win = np.zeros((kspace_frame.shape))
-window_k_width_test = 0.25
-x = k_points_x[0] 
-y = k_points_y[0] 
-row = x
-col = y
-radius = round(window_k_width_test/dkx) #8#52 # 52 #pixels
-rr, cc = disk((row, col), radius)
-win[rr, cc] = 1/np.max(kspace_frame[rr,cc])
+### Quality Control: Testing and Inspecting ###
+window_k_width_test = 0.35 # Truncate for plotting FFT comparison
 
-window_k_width_test = 0.25
-radius = round(window_k_width_test/dkx) #8#52 # 52 #pixels
+x = k_points_x[single_k]
+y = k_points_y[single_k]
 
-window1d = np.abs(signal.windows.tukey(2*radius))
-window2d = np.sqrt(np.outer(window1d,window1d))
-window2d = window2d/np.max(kspace_frame[x-radius:x+radius,y-radius:y+radius])
+window_circles_test = np.zeros(kspace_frame.shape) # Truncate 1D data for FFT comparison
+radius = round(window_k_width_test/dkx)
+rr, cc = disk((x, y), radius)
+window_circles_test[rr, cc] = 1/np.max(kspace_frame[rr,cc])
 
-roi_cut = kspace_frame[x-1:x+1,:].sum(axis=0)
-win_cut = window_new_single[x-1:x+1,:].sum(axis=0)
-window_2d_full = np.zeros((kspace_frame.shape))
-window_2d_full[x-radius:x+radius,y-radius:y+radius] = window2d
-        
-window_test[x-radius:x+radius, y-radius:y+radius] = window2d
-window_test = win*window_2d_full #win
+window_test = window_2D_full_single # window_circles_single*window_2D_full_single
+    
+data_cut = (kspace_frame)[x-1:x+1,:].sum(axis=0)
+data_cut = data_cut - np.mean(data_cut[y+10:y+30])
+data_cut = data_cut/np.max(data_cut)
 
-roi_cut = (kspace_frame*window_test)[x-1:x+1,:].sum(axis=0)
-roi_cut = roi_cut - np.mean(roi_cut[y-30:y-10])
-roi_cut = roi_cut/np.max(roi_cut)
+window_cut = window_test[x-1:x+1,:].sum(axis=0)
+windoweddata_cut = data_cut*window_cut
 
-win_cut = window_test[x-1:x+1,:].sum(axis=0)
-windowed_full = (kspace_frame*window_test)*window_2d_full #windowed_frame_nonsymm_single #*window_test
-windowed_cut = roi_cut*win_cut
+###
+fft_data_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(data_cut)/np.max(data_cut))))
+fft_window_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(window_cut)/np.max(window_cut))))
+fft_windoweddata_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(windoweddata_cut)/np.max(windoweddata_cut))))
 
-fft_windowed_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(windowed_cut)/np.max(windowed_cut))))
-fft_roi_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(roi_cut)/np.max(roi_cut))))
-fft_win_cut = np.abs(np.fft.fftshift(np.fft.fft(np.abs(win_cut)/np.max(win_cut))))
+### Fit
+def Gaussian_fxn(xdata, amplitude, mean, stddev):
+    return amplitude * np.exp(-(xdata - mean)**2/(2*stddev**2))
 
+x_data = np.linspace(0,data_cut.shape[0],data_cut.shape[0])
+
+p0 = [1, y, 10]
+popt, pcov = curve_fit(Gaussian_fxn, x_data, windoweddata_cut/np.max(windoweddata_cut), p0=p0)
+amp_fit, mu_fit, sig_fit = popt
+
+fit_y = Gaussian_fxn(x_data, amp_fit, mu_fit, sig_fit)
+
+# Quality Control Plots
 plt.subplot(2, 2, 1)
 plt.imshow(kspace_frame, cmap = cmap_LTL)
 
 plt.subplot(2, 2, 2)
-plt.imshow(windowed_full, cmap = cmap_LTL)
+plt.imshow(windowed_frame_nonsymm_single, cmap = cmap_LTL)
 plt.axhline(x)
+plt.axvline(y)
 
 plt.subplot(2, 2, 3)
-plt.plot(roi_cut/np.max(roi_cut), 'k')
-plt.plot(windowed_cut/np.max(windowed_cut), 'r--')
-plt.plot(win_cut/np.max(win_cut),'r')
+plt.plot(data_cut/np.max(data_cut), 'k')
+plt.plot(windoweddata_cut/np.max(windoweddata_cut), 'r--')
+plt.plot(window_cut/np.max(window_cut),'r')
 plt.xlim([y-20,y+20])
+plt.plot(fit_y, 'b-', label='fit ' + str(round(sig_fit,4)), linewidth = 1)
+plt.legend(frameon=False, loc = 'best')
 
 plt.subplot(2, 2, 4)
-plt.plot(fft_roi_cut/np.max(fft_roi_cut), 'k')
-plt.plot(fft_windowed_cut/np.max(fft_windowed_cut), 'r--')
-plt.plot(fft_win_cut/np.max(fft_win_cut),'r')
+plt.plot(fft_data_cut/np.max(fft_data_cut), 'k')
+plt.plot(fft_windoweddata_cut/np.max(fft_windoweddata_cut), 'r--', label = '--> ' + str(round(0.1/(dkx*sig_fit),2)))
+plt.plot(fft_window_cut/np.max(fft_window_cut),'r')
+plt.legend(frameon=False, loc = 'best')
 plt.tight_layout()
 
-### ^^^ Quality Control ^^^ ###
 #%%
 
 #####                                              #####
@@ -491,7 +492,7 @@ r_axis = r_axis/(1)
 ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
 momentum_frame_ = np.abs(momentum_frame)/np.max(momentum_frame)
 momentum_frame_ = np.sqrt(momentum_frame_)
-fft_frame = np.fft.ifft2(momentum_frame, [zplength, zplength])
+fft_frame = np.fft.fft2(momentum_frame, [zplength, zplength])
 fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
 fft_frame = np.abs(fft_frame)
 fft_frame = np.square(fft_frame)
@@ -500,7 +501,7 @@ momentum_frame_single = np.abs(momentum_frame_single)/np.max(momentum_frame_sing
 momentum_frame_single = np.sqrt(momentum_frame_single)
 fft_frame_s = np.fft.fft2(momentum_frame_single, [zplength, zplength])
 fft_frame_s = np.fft.fftshift(fft_frame_s, axes = (0,1))
-fft_frame_rsq = (fft_frame_s) 
+fft_frame_rsq = np.abs(fft_frame_s) 
 fft_frame_s = np.abs(fft_frame_s)
 fft_frame_s = np.square(fft_frame_s)
 
@@ -511,7 +512,7 @@ x_cut = x_cut/np.max(x_cut)
 y_cut = y_cut/np.max(y_cut)
 
 r2_cut = fft_frame_rsq[:,int(zplength/2)-1]
-r2_cut = np.abs(r2_cut*r_axis)**2
+r2_cut = (np.abs(r2_cut*r_axis))**2
 r2_cut = r2_cut/np.max(r2_cut)
 
 rdist_brad = np.argmax(r2_cut)
@@ -593,7 +594,7 @@ ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
 ax[1].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
 ax[1].tick_params(axis='both', labelsize=10)
 #ax[1].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
-ax[1].set_title('Window: $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 15)
+ax[1].set_title('Window: $\Delta$$k_{rad}$ = ' + str(window_k_width_window) + ' $\AA^{-1}$', fontsize = 15)
  
 ax[2].set_xlim(-4,4)
 ax[2].set_ylim(-4,4)
@@ -617,7 +618,7 @@ ax[3].set_xlim([0, 3])
 ax[3].set_ylim([-0.025, 1.025])
 ax[3].set_xlabel('$r$, nm', fontsize = 16)
 ax[3].set_ylabel('Norm. Int.', fontsize = 16)
-ax[3].set_title('$r^*_x$ = ' + str(round(rdist_brad,2)), fontsize = 16)
+ax[3].set_title('$r^*_x$ = ' + str(round(rdist_brad,3)), fontsize = 16)
 ax[3].tick_params(axis='both', labelsize=10)
 ax[3].set_yticks(np.arange(-0,1.5,0.5))
 ax[3].set_aspect(3)
