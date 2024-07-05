@@ -53,7 +53,7 @@ I_Enhanced = logicMask * I_Summed
 %matplotlib inline
 # Plot EDCs
 
-kspace_frame_full = np.abs(I[:,:,:,t0-5:t0+5].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
+kspace_frame_full = np.abs(I[:,:,:,0:-1].sum(axis=(3))) #Scan 160, XUV Pol, Bulk LTL
 
 tMapE = 1.7
 kx = -0.05
@@ -63,14 +63,14 @@ ky = 0.025
 #kx = 0.68
 #ky = 1.1
 
-exciton = 1.7
+exciton = 1.67
 vbm_K = -0.5
 cmap_to_use = cmap_LTL
 
 ######
 ######
 
-cb_factor = 20
+cb_factor = 100
 tMap = (np.abs(ax_E_offset - tMapE)).argmin()
 x = (np.abs(ax_kx - kx)).argmin()
 y = (np.abs(ax_ky - ky)).argmin()
@@ -86,8 +86,12 @@ k_points_x = [53, 30, 52, 100, 122, 98]
 # k_points_x = [24, 61, 95, 95, 61, 23]
 
 # #Shuo Dataset WSe2 Matlab
-# k_points_y = [58, 84, 84, 56, 28, 29] 
-# k_points_x = [27, 43, 76, 92, 75, 42]
+k_points_y = [58, 84, 84, 56, 28, 29] 
+k_points_x = [27, 43, 76, 92, 75, 42]
+
+# #Shuo Dataset PAPER
+k_points_y = [143, 100, 145, 57, 60, 100] 
+k_points_x = [74, 145, 126, 125, 76, 50]
 
 # Window @K Points
 for k in range(0,6):
@@ -111,7 +115,7 @@ edc_mask = np.ones((edc.shape))
 edc_mask[mask_start:] *= cb_factor
 edc = edc*edc_mask
 #edc = I_Enhanced[x-3:x+3,y-3:y+3,:].sum(axis=(0,1))
-edc = edc/np.max(edc[-120:])
+edc = edc/np.max(edc[:])
 
 mm = kspace_frame_full_windowed[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
 mm = (I[:,:,tMap-int(tint/2):tMap+int(tint/2),:].sum(axis=(2,3)))
@@ -270,7 +274,7 @@ fig.tight_layout()
 ######### User Inputs #########
 tMaps, tint_E  = [1.7], 0.2
 window_k_width_circle = .35
-window_k_width_window = 0.325
+window_k_width_window = 0.275
 ring_mask = False
 
 #LTL Bulk WSe2, XUV POL Integrated 
@@ -285,7 +289,11 @@ k_points_x = [24, 61, 95, 95, 61, 23]
 #k_points_y = [58, 84, 84, 56, 28, 29] 
 #k_points_x = [27, 43, 76, 92, 75, 42]
 
-single_k = 2
+# #Shuo Dataset PAPER
+k_points_y = [143, 100, 145, 57, 60, 100] 
+k_points_x = [74, 145, 126, 125, 76, 50]
+
+single_k = 0
 
 ##############################################
 ########## Perform the Operations ############
@@ -385,7 +393,7 @@ elif ring_mask is False:
     
     windowed_frame_nonsymm = kspace_frame*window_circles*window_2D_full
     windowed_frame_nonsymm_single = kspace_frame*window_circles_single*window_2D_full_single
-    windowed_frame_nonsymm_single = kspace_frame*1*window_2D_full_single
+    #windowed_frame_nonsymm_single = kspace_frame*1*window_2D_full_single
 
 #%%
 from scipy.optimize import curve_fit
