@@ -7,6 +7,7 @@ Created on Fri Aug 18 10:44:11 2023
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+from matplotlib.patches import Rectangle
 
 #%%
 ### Transform Data if needed....
@@ -48,7 +49,8 @@ I_Enhanced_Full = logicMask_Full * I
 #ax_E = ax_E + 0.05
 
 #%%
-### User Inputs
+### User Inputs for Plotting MM 
+
 tMaps, tint  = [1.3, 1.6], 5
 
 adcs = [0, 1.5]
@@ -116,10 +118,13 @@ fig.tight_layout()
 
 tMaps, tint  = [1.25, 2], 4
 
+cmapPLOTTING = 'bone_r'#'bone_r' # cmap_LTL
+
+difference_FRAMES = np.zeros((numPlots,I_Summed_pos.shape[0],I_Summed_pos.shape[1]))
 ### Plot
 numPlots = len(tMaps)
 
-fig, ax = plt.subplots(1, numPlots, sharey=True)
+fig, ax = plt.subplots(1, numPlots+1, sharey=False)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
@@ -145,8 +150,9 @@ for i in np.arange(numPlots, dtype = int):
     #frame_diff = frame_diff/(cts_total)
     #frame_diff = np.divide(frame_diff, frame_sum)
     frame_diff = frame_diff/np.max(np.abs(frame_diff))
-    
-    im = ax[i].imshow(frame_diff, origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    difference_FRAMES[i,:,:] = frame_diff    
+        
+    im = ax[i].imshow(frame_diff, origin='lower', cmap=cmapPLOTTING, clim=[0,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
     
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
 
@@ -169,9 +175,34 @@ for i in np.arange(numPlots, dtype = int):
     ax[i].set_xlabel('$k_x$, $A^{-1}$', fontsize = 14)
     ax[i].set_ylabel('$k_y$, $A^{-1}$', fontsize = 14)
     ax[i].tick_params(axis='both', labelsize=12)
-    ax[i].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
+    ax[i].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 14)
     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
 
+delta_MM = difference_FRAMES[0,:,:] - difference_FRAMES[1,:,:]
+delta_MM = delta_MM/np.max(np.abs(delta_MM))
+
+i = 2
+im = ax[i].imshow(delta_MM, origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+
+ax[i].set_aspect(1)
+#ax[0].axhline(y,color='black')
+#ax[0].axvline(x,color='bl ack')
+ax[i].set_xlim(-2,2)
+ax[i].set_ylim(-2,2)
+
+ax[i].set_xticks(np.arange(-2,2.2,1))
+for label in ax[i].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+ax[i].set_yticks(np.arange(-2,2.1,1))
+for label in ax[i].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+#ax[0].set_box_aspect(1)
+ax[i].set_xlabel('$k_x$, $A^{-1}$', fontsize = 14)
+ax[i].set_ylabel('$k_y$, $A^{-1}$', fontsize = 14)
+ax[i].tick_params(axis='both', labelsize=12)
+ax[i].set_title('$\\Delta$MM ', fontsize = 14)
 
 fig.subplots_adjust(right=0.8)
 cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
@@ -180,7 +211,6 @@ fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
 #fig.colorbar(im, fraction=0.046, pad=0.04)
 fig.tight_layout()
 plt.show()
-
 
 #%%
 import numpy             as np
@@ -213,17 +243,19 @@ cmap = np.vstack(( lower, upper ))
 
 # convert to matplotlib colormap
 cmap_LTL = mpl.colors.ListedColormap(cmap, name='viridis_LTL', N=cmap.shape[0])
+
 #%%
 %matplotlib inline
 
 # Plot Angle Integrated Dynamics
 
-fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1.5, 1.5], 'height_ratios':[1]})
-fig.set_size_inches(12 , 4, forward=False)
+E_trace = [1.15, 1.9, 2.2] # Energies for Plotting
 
-ax = ax.flatten()
+################################
+# Operations to Extract Traces #
+################################
 
-cmap_plot = cmap_LTL
+### Negative Delays Background Subtraction
 edc_neg = I_Summed_neg.sum(axis=(0,1))
 edc_pos = I_Summed_pos.sum(axis=(0,1))
 
@@ -236,7 +268,7 @@ edc_pos = edc_pos/norm_neg
 edc_diff = edc_pos - edc_neg
 #edc_diff = .1*edc_diff/np.max(edc_diff)
 
-ang_int = I[:,:,:,:].sum(axis=(0,1))
+ang_int = I[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
 n = np.max(ang_int)
 ang_int = ang_int/np.max(ang_int)
 
@@ -248,9 +280,8 @@ diff_ang = ang_int - ang_int_neg
 diff_ang = diff_ang/np.max(diff_ang)
 #ang_int = I[55:75,48:58,:,:].sum(axis=(0,1))
 
-E_trace = [1.2, 2.1, 2.2]
+# Extract Traces for At Different Energies
 E_ = [0, 0, 0]
-
 E_[0] = np.abs(ax_E_offset - E_trace[0]).argmin()    
 E_[1] = np.abs(ax_E_offset - E_trace[1]).argmin()
 E_[2] = np.abs(ax_E_offset - E_trace[2]).argmin()      
@@ -260,15 +291,23 @@ trace_2 = ang_int[E_[1]-1:E_[1]+1,:].sum(axis=0)
 trace_3 = ang_int[E_[2]-1:E_[2]+1,:].sum(axis=0)
 
 trace_1 = trace_1 - np.mean(trace_1[3:t0-5])
-trace_1 = trace_1/np.max(trace_1)
 trace_2 = trace_2 - np.mean(trace_2[3:t0-5])
-trace_2 = trace_2/np.max(trace_2)
-
 trace_3 = trace_3 - np.mean(trace_3[3:t0-5])
+
+trace_2 = trace_2/np.max(trace_2)
+trace_1 = trace_1/np.max(trace_1)
 trace_3 = trace_3/np.max(trace_3)
 
-# Plotting #
-###
+#######################
+### Do the Plotting ###
+#######################
+
+fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1.5, 1.5], 'height_ratios':[1]})
+fig.set_size_inches(12 , 4, forward=False)
+
+ax = ax.flatten()
+cmap_plot = cmap_LTL
+
 im = ax[0].plot(ax_E_offset, edc_neg, color = 'grey', label = 't < 0 fs')
 im = ax[0].plot(ax_E_offset, edc_pos, color = 'red', label = 't > 0 fs')
 im = ax[0].plot(ax_E_offset, edc_diff, color = 'green', label = 'Difference', linestyle = 'dashed')
@@ -287,17 +326,18 @@ for label in ax[0].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
 color_max = 0.0
-waterfall = ax[1].imshow(ang_int, clim = [0, .02], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-#waterfall = ax[1].imshow(diff_ang, clim = [-.05,.05], origin = 'lower', cmap = 'seismic', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-ax[1].set_xlim(-170,800)
+#waterfall = ax[1].imshow(ang_int, clim = [0, .02], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+waterfall = ax[1].imshow(diff_ang, clim = [-.05,.05], origin = 'lower', cmap = 'seismic', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+ax[1].set_xlim(-200,1050)
 ax[1].set_ylim(-0.5, 3)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
 ax[1].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
 ax[1].set_yticks(np.arange(-1,3.5,0.5))
+
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[1].set_aspect(250)
+ax[1].set_aspect(300)
 
 ax[1].axhline(E_trace[0], linestyle = 'dashed', color = 'red')
 ax[1].axhline(E_trace[1], linestyle = 'dashed', color = 'black')
@@ -308,8 +348,9 @@ ax[2].plot(ax_delay_offset, trace_1, color = 'red', label = str(E_trace[0]) + ' 
 ax[2].plot(ax_delay_offset, trace_2, color = 'black', label = str(E_trace[1]) + ' eV')
 #ax[2].plot(ax_delay_offset, trace_3, color = 'grey', label = str(E_trace[2]) + ' eV')
 
-ax[2].set_xlim(-150,800)
-ax[2].set_ylim(-0.5, 1.1)
+ax[2].set_xlim(-300,1050)
+ax[2].set_ylim(-0.1, 1.1)
+ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
 ax[2].legend(frameon = False)
 
@@ -322,6 +363,88 @@ fig.tight_layout()
 #ax[1].set_tick_params(axis='both', labelsize=16)
 #plt.gca().set_aspect(200)
 
+#%%
+# Plot Dynamics at Distinct Momenta and/or Energy Points
+
+kx_traces, ky_traces = [-1.7, -1.0, -1.0, -1.7], [-0.08] # kx, ky for plotting
+E_traces = [1.15, 1.15, 1.9, 1.9] # Energies for Plotting
+kx_int, ky_int, E_int  = 0.4, 0.6, 0.2 #Integration Ranges
+
+trace_colors = ['black', 'green', 'purple', 'blue']
+
+################################
+# Operations to Extract Traces #
+################################
+
+## Extract Traces for At Different Energies with Background Subtraction
+traces = np.zeros((4,I.shape[3]))
+E_int, kx_int, ky_int = E_int/2, kx_int/2, ky_int/2
+
+for t in range(4):
+    xi = (np.abs(ax_kx - (kx_traces[t]-kx_int))).argmin()
+    xf = (np.abs(ax_kx - (kx_traces[t]+kx_int))).argmin()
+    yi = (np.abs(ax_ky - (ky_traces[0]-ky_int))).argmin()
+    yf = (np.abs(ax_ky - (ky_traces[0]+ky_int))).argmin()
+    Ei = np.abs(ax_E_offset - (E_traces[t]-E_int)).argmin()  
+    Ef = np.abs(ax_E_offset - (E_traces[t]+E_int)).argmin()  
+    trace = I[xi:xf, yi:yf, Ei:Ef,:].sum(axis=(0,1,2))
+    trace = trace/np.max(trace)
+    trace = trace - np.mean(trace[3:t0-5])
+    traces[t,:] = trace/np.max(trace)
+
+kx_diff = I_2_N - I_1_N
+#######################
+### Do the Plotting ###
+#######################
+
+fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1.5, 1.5], 'height_ratios':[1]})
+fig.set_size_inches(12 , 4, forward=False)
+
+ax = ax.flatten()
+cmap_plot = cmap_LTL
+
+### kx Difference Plot
+ax[0].imshow(np.transpose(kx_diff), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
+ax[0].set_yticks(np.arange(-0.5,2.25,0.25))
+for label in ax[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[0].set_xticks(np.arange(-2,2.1,1))
+for label in ax[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)          
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(ylim[0],ylim[1])
+ax[0].set_ylabel('$E - E_{VBM}$, eV', fontsize = 20)
+ax[0].set_xlabel('$k_x, A^{-1}$', fontsize = 20)
+ax[0].set_title('Difference', fontsize = 24)
+ax[0].tick_params(axis='both', labelsize=18)
+ax[0].set_aspect(2.5)
+
+### Time Traces    
+for t in range(4):
+    rect = (Rectangle((kx_traces[t]-kx_int, E_traces[t]-E_int), 2*kx_int, 2*E_int, linewidth=1.5, \
+                      edgecolor=trace_colors[t], facecolor='None'))
+    ax[0].add_patch(rect)
+
+for t in [0,1]:
+    ax[1].plot(ax_delay_offset, traces[t,:], color = trace_colors[t], \
+               label = str(E_traces[t]) + ' eV, ' + str(kx_traces[t]) + ' A^-1')
+
+for t in [2,3]:
+    ax[2].plot(ax_delay_offset, traces[t,:], color = trace_colors[t], \
+               label = str(E_traces[t]) + ' eV, ' + str(kx_traces[t]) + ' A^-1')
+
+for f in range(1,3):
+    ax[f].set_xlim(-300,1050)
+    ax[f].set_ylim(-0.2, 1.1)
+    ax[f].set_ylabel('Norm. Int.', fontsize = 18)
+    ax[f].set_xlabel('Delay, fs', fontsize = 18)
+    #ax[f].legend(frameon = False)
+
+params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+
+plt.rcParams.update(params)
+fig.tight_layout()
 
 #%%
 %matplotlib inline
@@ -329,6 +452,9 @@ fig.tight_layout()
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+y = [48,46]
+x = [75]
 
 start = 5
 stop = t0-17
@@ -397,8 +523,8 @@ plt.axvline(x[0]+xint)
 
 ylim = [0.75,2.25]
 
+###
 fig, ax = plt.subplots(nrows = 2, ncols=3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1, 1]})
-
 fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
 
@@ -448,7 +574,6 @@ fig.tight_layout()
 #fig.colorbar(im_4,fraction=0.046, pad=0.04)
 
 #fig.savefig(image_name, format=image_format, dpi=600
-
 
 #%%
 %matplotlib inline
@@ -876,7 +1001,6 @@ logic_mask = np.ones((I_Difference_Full.shape))
 logic_mask[:,:,mask_start:,:] *= scale_factor
 I_Difference_Full = logic_mask * I_Difference_Full
     
-
 #%%
 
 
