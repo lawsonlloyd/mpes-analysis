@@ -54,9 +54,11 @@ I_Enhanced_Full = logicMask_Full * I
 
 # Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
 
-kx, ky = 1.8, .16
-kx_int, ky_int = .1 , .1
-O = .2
+kx, ky = -1.75, 0.0
+kx_int, ky_int = .16 , .16
+O = .25 #Scan 163
+O = -0.2 #Scan 162
+O = +0.072 #Scan 188
 
 xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
 xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
@@ -71,29 +73,58 @@ edc_neg = edc_neg/np.max(edc_neg)
 edc_pos = edc_pos/np.max(edc_pos)
 
 ###
-fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, .2], 'height_ratios':[1]})
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
 fig.set_size_inches(12 , 4, forward=False)
 ax = ax.flatten()
 
-im = ax[0].plot(ax_E_offset+O, edc_neg, color = 'grey', label = 't < 0 fs')
-im = ax[0].plot(ax_E_offset+O, 1*edc_pos, color = 'red', label = 't > 0 fs')
-im = ax[0].plot(ax_E_offset+O, 1*edc_diff, color = 'green', label = 'Difference', linestyle = 'dashed')
-
-ax[0].axvline(-0, color = 'black', linestyle = 'dashed')\
-#ax[0].axvline(1.55, color = 'grey', linestyle = 'dashed')
-ax[0].axvline(1.35, color = 'black', linestyle = 'dashed')
-
-#ax[0].axvline(2, color = 'black', linestyle = 'dashed')
-
-ax[0].set_ylim(0,1.1)
-ax[0].set_xlim(-0.5,3)
-ax[0].set_xlabel('Energy, eV', fontsize = 18)
-ax[0].set_ylabel('Norm. Int.', fontsize = 18 )
-ax[0].legend(frameon=False)
-ax[0].set_xticks(np.arange(-1,3.5,0.5))
+tMap = (np.abs(ax_E+O - 0)).argmin()
+frame = (I_Summed_[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+frame = frame/np.max(frame)
+im0 = ax[0].imshow(np.transpose((frame)), origin='lower', cmap='terrain_r', vmax=1, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
+#im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+R = (Rectangle((kx-kx_int, ky-ky_int), 2*kx_int, 2*ky_int, linewidth=1, \
+                   edgecolor='black', facecolor='None', linestyle = 'dashed'))
+ax[0].axhline(ky,color='black', linestyle = 'dashed', linewidth = 1.5)
+ax[0].axvline(kx,color='black', linestyle = 'dashed', linewidth = 1.5)
+ax[0].add_patch(R)
+ax[0].set_aspect(1)
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(-2,2)
+ax[0].set_xticks(np.arange(-2,2.2,0.5))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
+ax[0].set_yticks(np.arange(-2,2.1,0.5))
+for label in ax[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
 
+#ax[0].set_box_aspect(1)
+ax[0].set_xlabel('$k_x$', fontsize = 14)
+ax[0].set_ylabel('$k_y$', fontsize = 14)
+ax[0].tick_params(axis='both', labelsize=12)
+ax[0].set_title('$E$ = ' + str(0) + ' eV', fontsize = 16)
+
+###
+im = ax[1].plot(ax_E+O, edc_neg, color = 'grey', label = 't < 0 fs')
+im = ax[1].plot(ax_E+O, 1*edc_pos, color = 'red', label = 't > 0 fs')
+#im = ax[1].plot(ax_E_offset+O, 1*edc_diff, color = 'green', label = 'Difference', linestyle = 'dashed')
+
+ax[1].axvline(-0, color = 'black', linestyle = 'dashed')\
+#ax[0].axvline(1.55, color = 'grey', linestyle = 'dashed')
+ax[1].axvline(1.375, color = 'black', linestyle = 'dashed')
+
+ax[1].set_xlabel('Energy, eV', fontsize = 18)
+ax[1].set_ylabel('Norm. Int.', fontsize = 18 )
+ax[1].legend(frameon=False)
+ax[1].set_xticks(np.arange(-1,3.5,0.5))
+for label in ax[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[1].set_ylim(0,1.1)
+ax[1].set_xlim(-0.5,2.5)    
+ax[1].set_title('$k_{x}$ = ' + str(kx) + ' $A^{-1}$' + ', $k_{y}$= ' + str(ky) + ' $A^{-1}$', fontsize = 16)
+
+#%%
+
+ax_E_offset = ax_E + O
 
 #%%
 ### User Inputs for Plotting MM 
@@ -117,10 +148,8 @@ ax = ax.flatten()
 sat = [1, 1]
 for i in np.arange(numPlots, dtype = int):
     tMap = tMaps[i]
-    tMap = (np.abs(ax_E_offset+O - tMap)).argmin()
+    tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
-    adc = adcs[i]
-    adc = (np.abs(ax_delay_offset - adc)).argmin()
     frame = np.transpose(I_Summed_[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
     frame = frame/np.max(frame)
     im = ax[i].imshow((frame), origin='lower', cmap='terrain_r', vmax=sat[i], clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
@@ -155,15 +184,14 @@ fig.tight_layout()
 
 #fig.savefig(image_name, format=image_format, dpi=600)
 
-
 #%%
 # Plot Difference MMs of t < 0 and t > 0 fs
 
 %matplotlib inline
 
-tMaps, tint  = [1.25, 2], 4
+tMaps, tint  = [1.4, 2.4], 6
 
-cmapPLOTTING = 'bone_r'#'bone_r' # cmap_LTL
+cmapPLOTTING = cmap_LTL#'bone_r' # cmap_LTL
 
 difference_FRAMES = np.zeros((numPlots,I_Summed_pos.shape[0],I_Summed_pos.shape[1]))
 
@@ -173,7 +201,7 @@ frame_pos = (I_Summed_pos[:,:,:])
 #frame_neg = frame_neg/(np.max(frame_neg))
 #frame_pos = frame_pos/(np.max(frame_pos))
 frame_neg = frame_neg/((neg_length))
-frame_pos = frame_pos/((pos_length))
+frame_pos = frame_pos#/((pos_length))
 frame_sum = frame_neg + frame_pos
 
 #cts_pos = np.sum(frame_pos[:,:])
@@ -188,7 +216,7 @@ for m in np.arange(frame_diff.shape[2]):
 #frame_diff = frame_diff/(cts_total)
 #frame_diff = np.divide(frame_diff, frame_sum)
 frame_differences = np.divide(frame_diff,  frame_maxes)
-    
+
 ### Plot
 numPlots = len(tMaps)
 
@@ -201,17 +229,13 @@ for i in np.arange(numPlots, dtype = int):
     tMap = tMaps[i]
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
-    frame_neg = np.transpose(I_Summed_neg[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
-    frame_pos = np.transpose(I_Summed_pos[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
-    
     frame = frame_differences[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
     frame = frame/np.max(frame)
     difference_FRAMES[i,:,:] = frame    
-        
+
     im = ax[i].imshow(np.transpose(frame), origin='lower', cmap=cmapPLOTTING, clim=[0,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
     
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
-
     ax[i].set_aspect(1)
     #ax[0].axhline(y,color='black')
     #ax[0].axvline(x,color='bl ack')
@@ -306,13 +330,17 @@ cmap_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
 
 # Plot Angle Integrated Dynamics
 
-E_trace = [1.15, 1.9, 2.2] # Energies for Plotting
+E_trace = [1.4, 2.25, 2.2] # Energies for Plotting
+clim = [-.2, .2]
 
 ################################
 # Operations to Extract Traces #
 ################################
 
 ### Negative Delays Background Subtraction
+e_ = 0.5
+e = np.abs(ax_E_offset - e_).argmin()
+
 edc_neg = I_Summed_neg.sum(axis=(0,1))
 edc_pos = I_Summed_pos.sum(axis=(0,1))
 
@@ -325,16 +353,16 @@ edc_pos = edc_pos/norm_neg
 edc_diff = edc_pos - edc_neg
 #edc_diff = .1*edc_diff/np.max(edc_diff)
 
-ang_int = I[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
+ang_int = I_Enhanced_Full[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
 n = np.max(ang_int)
 ang_int = ang_int/np.max(ang_int)
 
 ang_int_neg = ang_int[:,5:t0-10].sum(axis=1)
 ang_int_neg = np.expand_dims(ang_int_neg, axis=-1) # Add an extra dimension in the last axis.
-ang_int_neg = ang_int_neg/np.max(ang_int_neg)
+ang_int_neg = ang_int_neg/(t0-10-5)#np.max(ang_int_neg)
 
 diff_ang = ang_int - ang_int_neg
-diff_ang = diff_ang/np.max(diff_ang)
+diff_ang = diff_ang/np.max(diff_ang[:,e:])
 #ang_int = I[55:75,48:58,:,:].sum(axis=(0,1))
 
 # Extract Traces for At Different Energies
@@ -384,7 +412,7 @@ for label in ax[0].xaxis.get_ticklabels()[1::2]:
 
 color_max = 0.0
 #waterfall = ax[1].imshow(ang_int, clim = [0, .02], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-waterfall = ax[1].imshow(diff_ang, clim = [-.05,.05], origin = 'lower', cmap = 'seismic', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = 'seismic', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 ax[1].set_xlim(-200,1050)
 ax[1].set_ylim(-0.5, 3)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
@@ -421,18 +449,149 @@ fig.tight_layout()
 #plt.gca().set_aspect(200)
 
 #%%
+%matplotlib inline
+# Plot kx, ky cuts Pos/Neg Difference Plots
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+kx_traces, ky_traces = [-1.1, 0.2, -1.1, -1.8], [0.0] # kx, ky for plotting
+E_traces = [2.25, 2.25, 1.3, 1.3] # Energies for Plotting
+kx_int, ky_int, E_int  = .2, .4, 0.4 #Integration Ranges
+
+start = 5
+stop = t0-17
+
+start2 = t0
+stop2 = -1
+
+I_Summed = (I[:,:,:,start:stop]) #Sum over delay/theta/ADC for Plotting...
+len_1 = I_Summed.shape[3]
+I_Summed = I_Summed.sum(axis=3)/len_1
+
+I_Summed_2 = (I[:,:,:,start2:stop2])
+len_2 = I_Summed_2.shape[3]              
+I_Summed_2 = I_Summed_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotting...
+
+  #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+  #I_Rot = I
+  #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+  #I_derivative = 
+
+I_Enhanced = logicMask * I_Summed
+I_Enhanced_2 = logicMask * I_Summed_2
+
+#fig.tight_layout()
+e_ = 0.75
+e = np.abs(ax_E_offset - e_).argmin()
+slice_E_k_1 = I_Enhanced[:,y[0]:y[0]+yint,e:].sum(axis=(1))
+norm_1 = np.max(slice_E_k_1)
+slice_E_k_1 = slice_E_k_1/norm_1
+
+slice_E_k_2 = I_Enhanced_2[:,y[0]:y[0]+yint,e:].sum(axis=(1))
+slice_E_k_2 = slice_E_k_2/norm_1
+
+slice_E_k_3 = I_Enhanced[x[0]:x[0]+xint,:,e:].sum(axis=(0))
+norm_3 = np.max(slice_E_k_3)
+slice_E_k_3 = slice_E_k_3/norm_3
+
+slice_E_k_4 = I_Enhanced_2[x[0]:x[0]+xint,:,e:].sum(axis=(0))
+slice_E_k_4 = slice_E_k_4/norm_3
+
+I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
+I_2_N = slice_E_k_2/np.max(np.abs(slice_E_k_2))
+
+I_3_N = slice_E_k_3/np.max(np.abs(slice_E_k_3))
+I_4_N = slice_E_k_4/np.max(np.abs(slice_E_k_4))
+
+I_dif = I_2_N - I_1_N
+I_dif_ = I_4_N - I_3_N
+
+#I_dif = I_dif/np.max(I_dif)
+#I_dif_ = I_dif_/np.max(I_dif_)
+
+#line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
+#line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
+#line_cut_t_ind = (np.abs(ax_E_offset - E_AOI)).argmin()
+#line_cut_1 = I_Enhanced[line_cut_x_ind-1:line_cut_x_ind+1,line_cut_y_ind-1:line_cut_y_ind+1,:].sum(axis=(0,1))
+
+### Panels
+###################################33
+
+plt.figure()
+plt.imshow(np.transpose(I_Enhanced[:,:,110:170].sum(axis=2)))
+plt.axhline(y[0], color = 'black')
+plt.axhline(y[0]+yint, color = 'black')
+plt.axvline(x[0])
+plt.axvline(x[0]+xint)
+
+ylim = [1,2.75]
+
+###
+fig, ax = plt.subplots(nrows = 2, ncols=3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1, 1]})
+fig.set_size_inches(15, 10, forward=False)
+ax = ax.flatten()
+
+map_1 = 'terrain_r'
+im_2 = ax[0].imshow(np.transpose(slice_E_k_1), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
+im_3 = ax[1].imshow(np.transpose(slice_E_k_2), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
+im_4 = ax[2].imshow(np.transpose(I_dif), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
+im_4 = ax[3].imshow(np.transpose(slice_E_k_3), origin='lower', cmap=map_1, vmax = None, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
+im_5 = ax[4].imshow(np.transpose(slice_E_k_4), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
+im_6 = ax[5].imshow(np.transpose(I_dif_), origin='lower', cmap='seismic', clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
+ylim_E = -2.5
+
+for i in range(0,6):
+        
+    ax[i].set_yticks(np.arange(-0.5,3,0.25))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    
+    ax[i].set_xticks(np.arange(-2,2.1,1))
+    for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)          
+    
+    ax[i].set_xlim(-2,2)
+    ax[i].set_ylim(ylim[0],ylim[1])
+    ax[i].set_ylabel('$E - E_{VBM}$, eV', fontsize = 32)
+    ax[i].tick_params(axis='both', labelsize=24)
+    ax[i].set_aspect(2.5)
+
+for i in range(0,3):
+    ax[i].set_xlabel('$k_x, A^{-1}$', fontsize = 32)
+    
+for i in range(3,6):
+    ax[i].set_xlabel('$k_y, A^{-1}$', fontsize = 32)
+
+for i in [0,3]:
+    ax[i].set_title('Int. t < 0 fs', fontsize = 32)    
+    
+for i in [1,4]:
+    ax[i].set_title('Int. t > 0 fs', fontsize = 32)   
+    
+for i in [2,5]:
+    ax[i].set_title('Difference', fontsize = 32)  
+       
+fig.tight_layout()
+
+#fig.colorbar(im, ax=fig.get_axes())
+#fig.colorbar(im_4,fraction=0.046, pad=0.04)
+
+#fig.savefig(image_name, format=image_format, dpi=600
+
+#%%
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [-1.1, 0.2, -0.2, 1.1], [0.15] # kx, ky for plotting
-E_traces = [1.9, 1.9, 1.15, 1.15] # Energies for Plotting
-kx_int, ky_int, E_int  = .6, .8, 0.2 #Integration Ranges
+kx_traces, ky_traces = [0.3, 1.2, -1, -1.7], [0] # kx, ky for plotting
+E_traces = [2.3, 2.3, 2.3, 2.3] # Energies for Plotting
+kx_int, ky_int, E_int  = .5, .5, 0.2 #Integration Ranges
 
 trace_colors = ['black', 'green', 'purple', 'blue']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
 clim = [-0.1, 1]
-
+delay_lim = [-250, 1000]
 ################################
 # Operations to Extract Traces #
 ################################
@@ -453,10 +612,25 @@ for t in range(4):
     trace = trace - np.mean(trace[3:t0-5])
     traces[t,:] = trace/np.max(trace)
 
+# MM Frame Difference
 MM_frame_diff = frame_differences[:,:,Ei:Ef].sum(axis=(2))
 MM_frame_diff = MM_frame_diff/np.max(MM_frame_diff)
+
+# Kx Frame Difference
+e_ = 0.9
+e = np.abs(ax_E_offset - e_).argmin()
+slice_E_k_1 = I_Enhanced[:,yi:yf,e:].sum(axis=(1))
+norm_1 = np.max(slice_E_k_1)
+slice_E_k_1 = slice_E_k_1/norm_1
+
+slice_E_k_2 = I_Enhanced_2[:,yi:yf,e:].sum(axis=(1))
+slice_E_k_2 = slice_E_k_2/norm_1
+
+I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
+I_2_N = slice_E_k_2/np.max(np.abs(slice_E_k_2))
+
 kx_diff = I_2_N - I_1_N
-ky_diff = I_4_N - I_3_N
+kx_diff = kx_diff/np.max(kx_diff)
 
 #######################
 ### Do the Plotting ###
@@ -489,17 +663,17 @@ ax[0].set_aspect(1)
 
 ### kx Difference Plot
 i = 2
-ax[2].imshow(np.transpose(kx_diff), origin='lower', cmap=cmap_to_plot, clim=clim, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1]]\
-             ,vmin = clim[0], vmax=clim[1]) #kx, ky, t
+ax[2].imshow(np.transpose(kx_diff), origin='lower', cmap=cmap_to_plot, clim=clim, interpolation='none',\
+             extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1]],vmin = clim[0], vmax=clim[1]) #kx, ky, t
 plt.colorbar(im, ax = ax[2], ticks = [])
-ax[2].set_yticks(np.arange(-0.5,2.25,0.25))
+ax[2].set_yticks(np.arange(-0.5,3,0.25))
 for label in ax[2].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax[2].set_xticks(np.arange(-2,2.1,1))
 for label in ax[2].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)          
 ax[2].set_xlim(-2,2)
-ax[2].set_ylim(0.75, 2.25)
+ax[2].set_ylim(1, 2.5)
 ax[2].set_ylabel('$E - E_{VBM}$, eV', fontsize = 20)
 ax[2].set_xlabel('$k_x, A^{-1}$', fontsize = 20)
 ax[2].set_title('', fontsize = 20)
@@ -548,7 +722,7 @@ for f in [1,3]:
     ax[f].set_xticks(np.arange(-500,1200,250))
     for label in ax[f].xaxis.get_ticklabels()[1::2]:
         label.set_visible(False) 
-    ax[f].set_xlim(-300,1050)
+    ax[f].set_xlim(delay_lim[0],delay_lim[1])
     ax[f].set_ylim(-0.2, 1.1)
 #    ax[f].set_aspect(500)
 
@@ -559,135 +733,6 @@ params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 
 plt.rcParams.update(params)
 fig.tight_layout()
-
-#%%
-%matplotlib inline
-# Plot kx, ky cuts Pos/Neg Difference Plots
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-y = [48,46]
-x = [75]
-
-start = 5
-stop = t0-17
-
-start2 = t0
-stop2 = -1
-
-I_Summed = (I[:,:,:,start:stop]) #Sum over delay/theta/ADC for Plotting...
-len_1 = I_Summed.shape[3]
-I_Summed = I_Summed.sum(axis=3)/len_1
-
-I_Summed_2 = (I[:,:,:,start2:stop2])
-len_2 = I_Summed_2.shape[3]              
-I_Summed_2 = I_Summed_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotting...
-
-  #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-  #I_Rot = I
-  #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-  #I_derivative = 
-
-I_Enhanced = logicMask * I_Summed
-I_Enhanced_2 = logicMask * I_Summed_2
-
-#fig.tight_layout()
-e = 100
-slice_E_k_1 = I_Enhanced[:,y[0]:y[0]+yint,e:].sum(axis=(1))
-norm_1 = np.max(slice_E_k_1)
-slice_E_k_1 = slice_E_k_1/norm_1
-
-slice_E_k_2 = I_Enhanced_2[:,y[0]:y[0]+yint,e:].sum(axis=(1))
-slice_E_k_2 = slice_E_k_2/norm_1
-
-slice_E_k_3 = I_Enhanced[x[0]:x[0]+xint,:,e:].sum(axis=(0))
-norm_3 = np.max(slice_E_k_3)
-slice_E_k_3 = slice_E_k_3/norm_3
-
-slice_E_k_4 = I_Enhanced_2[x[0]:x[0]+xint,:,e:].sum(axis=(0))
-slice_E_k_4 = slice_E_k_4/norm_3
-
-I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
-I_2_N = slice_E_k_2/np.max(np.abs(slice_E_k_2))
-
-I_3_N = slice_E_k_3/np.max(np.abs(slice_E_k_3))
-I_4_N = slice_E_k_4/np.max(np.abs(slice_E_k_4))
-
-I_dif = I_2_N - I_1_N
-I_dif_ = I_4_N - I_3_N
-
-#I_dif = I_dif/np.max(I_dif)
-#I_dif_ = I_dif_/np.max(I_dif_)
-
-#line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
-#line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
-#line_cut_t_ind = (np.abs(ax_E_offset - E_AOI)).argmin()
-#line_cut_1 = I_Enhanced[line_cut_x_ind-1:line_cut_x_ind+1,line_cut_y_ind-1:line_cut_y_ind+1,:].sum(axis=(0,1))
-
-### Panels
-###################################33
-
-plt.figure()
-plt.imshow(np.transpose(I_Enhanced[:,:,110:170].sum(axis=2)))
-plt.axhline(y[0], color = 'black')
-plt.axhline(y[0]+yint, color = 'black')
-plt.axvline(x[0])
-plt.axvline(x[0]+xint)
-
-ylim = [0.75,2.25]
-
-###
-fig, ax = plt.subplots(nrows = 2, ncols=3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1, 1]})
-fig.set_size_inches(15, 10, forward=False)
-ax = ax.flatten()
-
-map_1 = 'terrain_r'
-im_2 = ax[0].imshow(np.transpose(slice_E_k_1), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_3 = ax[1].imshow(np.transpose(slice_E_k_2), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_4 = ax[2].imshow(np.transpose(I_dif), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
-im_4 = ax[3].imshow(np.transpose(slice_E_k_3), origin='lower', cmap=map_1, vmax = None, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_5 = ax[4].imshow(np.transpose(slice_E_k_4), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_6 = ax[5].imshow(np.transpose(I_dif_), origin='lower', cmap='seismic', clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
-ylim_E = -2.5
-
-for i in range(0,6):
-        
-    ax[i].set_yticks(np.arange(-0.5,2.25,0.25))
-    for label in ax[i].yaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    
-    ax[i].set_xticks(np.arange(-2,2.1,1))
-    for label in ax[i].xaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)          
-    
-    ax[i].set_xlim(-2,2)
-    ax[i].set_ylim(ylim[0],ylim[1])
-    ax[i].set_ylabel('$E - E_{VBM}$, eV', fontsize = 32)
-    ax[i].tick_params(axis='both', labelsize=24)
-    ax[i].set_aspect(2.5)
-
-for i in range(0,3):
-    ax[i].set_xlabel('$k_x, A^{-1}$', fontsize = 32)
-    
-for i in range(3,6):
-    ax[i].set_xlabel('$k_y, A^{-1}$', fontsize = 32)
-
-for i in [0,3]:
-    ax[i].set_title('Int. t < 0 fs', fontsize = 32)    
-    
-for i in [1,4]:
-    ax[i].set_title('Int. t > 0 fs', fontsize = 32)   
-    
-for i in [2,5]:
-    ax[i].set_title('Difference', fontsize = 32)  
-       
-fig.tight_layout()
-
-#fig.colorbar(im, ax=fig.get_axes())
-#fig.colorbar(im_4,fraction=0.046, pad=0.04)
-
-#fig.savefig(image_name, format=image_format, dpi=600
 
 #%%
 %matplotlib inline
