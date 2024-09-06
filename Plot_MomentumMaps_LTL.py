@@ -616,13 +616,14 @@ fig.tight_layout()
 #fig.savefig(image_name, format=image_format, dpi=600
 
 #%%
+
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [0, 0, 0, 0], [0] # kx, ky for plotting
+kx_traces, ky_traces = [0.25, 0.25, -1, -1.], [0] # kx, ky for plotting
 E_traces = [2.05, 1.3, 1.3, 2.05] # Energies for Plotting
-kx_int, ky_int, E_int  = 3.9, .8, 0.2 #Integration Ranges
+kx_int, ky_int, E_int  = .5, .5, 0.2 #Integration Ranges
 
-trace_colors = ['red', 'black', 'black', 'red']
+trace_colors = ['red', 'black', 'grey', 'pink']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
