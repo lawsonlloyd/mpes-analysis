@@ -14,21 +14,27 @@ from matplotlib.ticker import FormatStrFormatter
 ### Transform Data if needed....
 #I = np.transpose(I, (0,2,1,3))
 
-t0 = (np.abs(ax_delay_offset - 0)).argmin()
-dt = ax_delay_offset[10]-ax_delay_offset[9]
+if I.ndim > 3:
+    t0 = (np.abs(ax_delay_offset - 0)).argmin()
+    dt = ax_delay_offset[10]-ax_delay_offset[9]
+    
+    I_Summed_neg = I[:,:,:,5:t0-6] #Sum over delay/polarization/theta...
+    neg_length = I_Summed_neg.shape[3]
+    I_Summed_neg = I_Summed_neg.sum(axis=(3))
+        
+    I_Summed_pos = I[:,:,:,t0+1:]
+    pos_length = I_Summed_pos.shape[3]
+    I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
+    
+    I_Summed_early = I[:,:,:,t0-2:t0+5].sum(axis=3)
+    I_Summed_ = I[:,:,:,:].sum(axis=(3))    
 
-#t0 = (np.abs(ax_delay_offset - 0)).argmin()
+else:
+    I_Summed_neg = I[:,:,:] #Sum over delay/polarization/theta...
+    dt = 1
+    I_Summed_pos = I[:,:,:]
+    I_Summed_ = I
 
-I_Summed_neg = I[:,:,:,5:t0-10] #Sum over delay/polarization/theta...
-neg_length = I_Summed_neg.shape[3]
-I_Summed_neg = I_Summed_neg.sum(axis=(3)) 
-
-I_Summed_pos = I[:,:,:,t0+1:]
-pos_length = I_Summed_pos.shape[3]
-I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
-
-I_Summed_early = I[:,:,:,t0-2:t0+5].sum(axis=3)
-I_Summed_ = I[:,:,:,:].sum(axis=(3))
 
 dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
@@ -37,7 +43,7 @@ dky = (ax_ky[1] - ax_ky[0])
 #%%
 
 #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-mask_start = (np.abs(ax_E_offset - 0.5)).argmin()
+mask_start = (np.abs(ax_E_offset - 0.7)).argmin()
 logicMask_Full = np.ones((I.shape))
 logicMask_Full[:,:,mask_start:] *= 300
 I_Enhanced_Full = logicMask_Full * I
@@ -56,9 +62,11 @@ I_Enhanced_Full = logicMask_Full * I
 
 kx, ky = -1.75, 0.0
 kx_int, ky_int = .16 , .16
+
 O = .25 #Scan 163
 O = -0.2 #Scan 162
-O = +0.072 #Scan 188
+#O = +0.072 #Scan 188
+#O = 0.27 #Scan 062
 
 xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
 xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
@@ -110,7 +118,7 @@ im = ax[1].plot(ax_E+O, 1*edc_pos, color = 'red', label = 't > 0 fs')
 
 ax[1].axvline(-0, color = 'black', linestyle = 'dashed')\
 #ax[0].axvline(1.55, color = 'grey', linestyle = 'dashed')
-ax[1].axvline(1.375, color = 'black', linestyle = 'dashed')
+ax[1].axvline(1.35, color = 'black', linestyle = 'dashed')
 
 ax[1].set_xlabel('Energy, eV', fontsize = 18)
 ax[1].set_ylabel('Norm. Int.', fontsize = 18 )
@@ -131,18 +139,56 @@ ax_E_offset = ax_E + O
 
 tMaps, tint  = [0, 1.3], 5
 
+#%% #DEFINE CUSTOM COLORMAP
+
+import numpy             as np
+import matplotlib        as mpl
+import matplotlib.pyplot as plt
+
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# create colormap
+# ---------------
+
+# create a colormap that consists of
+# - 1/5 : custom colormap, ranging from white to the first color of the colormap
+# - 4/5 : existing colormap
+
+# set upper part: 4 * 256/4 entries
+upper = mpl.cm.viridis(np.arange(256))
+upper = upper[56:,:]
+#upper = mpl.cm.jet(np.arange(256))
+#upper = mpl.cm.magma_r(np.arange(256))
+
+# set lower part: 1 * 256/4 entries
+# - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
+lower = np.ones((int(200/3),4))
+# - modify the first three columns (RGB):
+#   range linearly between white (1,1,1) and the first color of the upper colormap
+for i in range(3):
+  lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
+
+# combine parts of colormap
+cmap = np.vstack(( lower, upper ))
+
+# convert to matplotlib colormap
+cmap_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
+
 #%%
 %matplotlib inline
 
 # Plot Momentum Maps at specified Energies
- 
+
+cmap = cmap_LTL 
+#cmap = 'viridis'
 ### Plot
 numPlots = len(tMaps)
 
+frame_plot = I_Summed_
+
+#### 
 fig, ax = plt.subplots(1,2, sharey=True)
 plt.gcf().set_dpi(300)
-
-#fig.set_size_inches(12, 6, forward=False)
 ax = ax.flatten()
 
 sat = [1, 1]
@@ -150,9 +196,9 @@ for i in np.arange(numPlots, dtype = int):
     tMap = tMaps[i]
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
-    frame = np.transpose(I_Summed_[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+    frame = np.transpose(frame_plot[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
     frame = frame/np.max(frame)
-    im = ax[i].imshow((frame), origin='lower', cmap='terrain_r', vmax=sat[i], clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    im = ax[i].imshow((frame), origin='lower', cmap=cmap, vmax=sat[i], clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
 
     ax[i].set_aspect(1)
@@ -176,7 +222,9 @@ for i in np.arange(numPlots, dtype = int):
     ax[i].tick_params(axis='both', labelsize=12)
     ax[i].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
-    
+    cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
+    fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
+
 fig.tight_layout()
 
 #image_format = 'svg' # e.g .png, .svg, etc.
@@ -189,7 +237,7 @@ fig.tight_layout()
 
 %matplotlib inline
 
-tMaps, tint  = [1.4, 2.4], 6
+tMaps, tint  = [1.35, 2], 6
 
 cmapPLOTTING = cmap_LTL#'bone_r' # cmap_LTL
 
@@ -230,7 +278,9 @@ for i in np.arange(numPlots, dtype = int):
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
     frame = frame_differences[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
+    frame = frame - np.min(frame)
     frame = frame/np.max(frame)
+    frame = abs(frame)
     difference_FRAMES[i,:,:] = frame    
 
     im = ax[i].imshow(np.transpose(frame), origin='lower', cmap=cmapPLOTTING, clim=[0,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
@@ -293,45 +343,12 @@ fig.tight_layout()
 plt.show()
 
 #%%
-import numpy             as np
-import matplotlib        as mpl
-import matplotlib.pyplot as plt
-
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-# create colormap
-# ---------------
-
-# create a colormap that consists of
-# - 1/5 : custom colormap, ranging from white to the first color of the colormap
-# - 4/5 : existing colormap
-
-# set upper part: 4 * 256/4 entries
-upper = mpl.cm.viridis(np.arange(256))
-upper = mpl.cm.jet(np.arange(256))
-upper = mpl.cm.magma_r(np.arange(256))
-
-# set lower part: 1 * 256/4 entries
-# - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
-lower = np.ones((int(256/9),4))
-# - modify the first three columns (RGB):
-#   range linearly between white (1,1,1) and the first color of the upper colormap
-for i in range(3):
-  lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
-
-# combine parts of colormap
-cmap = np.vstack(( lower, upper ))
-
-# convert to matplotlib colormap
-cmap_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
-
-#%%
 %matplotlib inline
 
 # Plot Angle Integrated Dynamics
 
-E_trace = [1.4, 2.25, 2.2] # Energies for Plotting
-clim = [-.2, .2]
+E_trace = [1.3, 2, 0.6] # Energies for Plotting
+thirdtrace = 0
 
 ################################
 # Operations to Extract Traces #
@@ -353,7 +370,7 @@ edc_pos = edc_pos/norm_neg
 edc_diff = edc_pos - edc_neg
 #edc_diff = .1*edc_diff/np.max(edc_diff)
 
-ang_int = I_Enhanced_Full[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
+ang_int = I[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
 n = np.max(ang_int)
 ang_int = ang_int/np.max(ang_int)
 
@@ -362,8 +379,14 @@ ang_int_neg = np.expand_dims(ang_int_neg, axis=-1) # Add an extra dimension in t
 ang_int_neg = ang_int_neg/(t0-10-5)#np.max(ang_int_neg)
 
 diff_ang = ang_int - ang_int_neg
-diff_ang = diff_ang/np.max(diff_ang[:,e:])
-#ang_int = I[55:75,48:58,:,:].sum(axis=(0,1))
+diff_ang = diff_ang/np.max(diff_ang)
+
+mask_start = (np.abs(ax_E_offset - 0.95)).argmin()
+sat_start = (np.abs(ax_E_offset - 0.5)).argmin()
+
+diff_ang[:,:] *= 1/np.max(diff_ang[mask_start:,:])
+satmax = np.max(diff_ang[sat_start:,:])
+clim = [0, 1]
 
 # Extract Traces for At Different Energies
 E_ = [0, 0, 0]
@@ -371,16 +394,16 @@ E_[0] = np.abs(ax_E_offset - E_trace[0]).argmin()
 E_[1] = np.abs(ax_E_offset - E_trace[1]).argmin()
 E_[2] = np.abs(ax_E_offset - E_trace[2]).argmin()      
 
-trace_1 = ang_int[E_[0]-1:E_[0]+1,:].sum(axis=0)
-trace_2 = ang_int[E_[1]-1:E_[1]+1,:].sum(axis=0)
-trace_3 = ang_int[E_[2]-1:E_[2]+1,:].sum(axis=0)
+trace_1 = ang_int[E_[0]-2:E_[0]+3,:].sum(axis=0)
+trace_2 = ang_int[E_[1]-2:E_[1]+3,:].sum(axis=0)
+trace_3 = ang_int[E_[2]-2:E_[2]+3,:].sum(axis=0)
 
 trace_1 = trace_1 - np.mean(trace_1[3:t0-5])
 trace_2 = trace_2 - np.mean(trace_2[3:t0-5])
 trace_3 = trace_3 - np.mean(trace_3[3:t0-5])
 
-trace_2 = trace_2/np.max(trace_2)
 trace_1 = trace_1/np.max(trace_1)
+trace_2 = trace_2/np.max(trace_2)
 trace_3 = trace_3/np.max(trace_3)
 
 #######################
@@ -402,38 +425,41 @@ im = ax[0].plot(ax_E_offset, edc_diff, color = 'green', label = 'Difference', li
 #ax[0].axvline(2, color = 'black', linestyle = 'dashed')
 
 ax[0].set_ylim(0,0.002)
-ax[0].set_xlim(-0.5,3)
 ax[0].set_xlabel('Energy, eV', fontsize = 18)
 ax[0].set_ylabel('Norm. Int.', fontsize = 18 )
 ax[0].legend(frameon=False)
 ax[0].set_xticks(np.arange(-1,3.5,0.5))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
+ax[0].set_xlim(-0.1,3)
 
-color_max = 0.0
+color_max = 1
 #waterfall = ax[1].imshow(ang_int, clim = [0, .02], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = 'seismic', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-ax[1].set_xlim(-200,1050)
-ax[1].set_ylim(-0.5, 3)
+waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+ax[1].set_xlim(-150,820)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
 ax[1].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
 ax[1].set_yticks(np.arange(-1,3.5,0.5))
+ax[1].set_ylim(-.1, 3)
 
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
 ax[1].set_aspect(300)
 
-ax[1].axhline(E_trace[0], linestyle = 'dashed', color = 'red')
-ax[1].axhline(E_trace[1], linestyle = 'dashed', color = 'black')
-#ax[1].axhline(E_trace[2], linestyle = 'dashed', color = 'grey')
+ax[1].axhline(E_trace[0], linestyle = 'dashed', color = 'black')
+ax[1].axhline(E_trace[1], linestyle = 'dashed', color = 'red')
+
 fig.colorbar(waterfall, ax=ax[1], shrink = 0.8, ticks = [0, color_max/2, color_max])
 
-ax[2].plot(ax_delay_offset, trace_1, color = 'red', label = str(E_trace[0]) + ' eV')
-ax[2].plot(ax_delay_offset, trace_2, color = 'black', label = str(E_trace[1]) + ' eV')
-#ax[2].plot(ax_delay_offset, trace_3, color = 'grey', label = str(E_trace[2]) + ' eV')
+ax[2].plot(ax_delay_offset, trace_1, color = 'black', label = str(E_trace[0]) + ' eV')
+ax[2].plot(ax_delay_offset, trace_2, color = 'red', label = str(E_trace[1]) + ' eV')
 
-ax[2].set_xlim(-300,1050)
+if thirdtrace:
+    ax[1].axhline(E_trace[2], linestyle = 'dashed', color = 'purple')
+    ax[2].plot(ax_delay_offset, trace_3, color = 'purple', label = str(E_trace[2]) + ' eV')
+
+ax[2].set_xlim(-150,820)
 ax[2].set_ylim(-0.1, 1.1)
 ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
@@ -448,6 +474,7 @@ fig.tight_layout()
 #ax[1].set_tick_params(axis='both', labelsize=16)
 #plt.gca().set_aspect(200)
 
+
 #%%
 %matplotlib inline
 # Plot kx, ky cuts Pos/Neg Difference Plots
@@ -455,9 +482,14 @@ fig.tight_layout()
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-kx_traces, ky_traces = [-1.1, 0.2, -1.1, -1.8], [0.0] # kx, ky for plotting
-E_traces = [2.25, 2.25, 1.3, 1.3] # Energies for Plotting
-kx_int, ky_int, E_int  = .2, .4, 0.4 #Integration Ranges
+
+kx, ky = 0, 0.0
+kx_int, ky_int = .25 , 0.5
+
+xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
+xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
+yi = (np.abs(ax_ky - (ky-ky_int))).argmin()
+yf = (np.abs(ax_ky - (ky+ky_int))).argmin()
 
 start = 5
 stop = t0-17
@@ -478,24 +510,26 @@ I_Summed_2 = I_Summed_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotti
   #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
   #I_derivative = 
 
-I_Enhanced = logicMask * I_Summed
-I_Enhanced_2 = logicMask * I_Summed_2
+I_Enhanced = 1 * I_Summed
+I_Enhanced_2 = 1 * I_Summed_2
 
 #fig.tight_layout()
-e_ = 0.75
+
+e_ = 1
 e = np.abs(ax_E_offset - e_).argmin()
-slice_E_k_1 = I_Enhanced[:,y[0]:y[0]+yint,e:].sum(axis=(1))
+
+slice_E_k_1 = I_Enhanced[:,yi:yf,e:].sum(axis=(1))
 norm_1 = np.max(slice_E_k_1)
 slice_E_k_1 = slice_E_k_1/norm_1
 
-slice_E_k_2 = I_Enhanced_2[:,y[0]:y[0]+yint,e:].sum(axis=(1))
+slice_E_k_2 = I_Enhanced_2[:,yi:yf,e:].sum(axis=(1))
 slice_E_k_2 = slice_E_k_2/norm_1
 
-slice_E_k_3 = I_Enhanced[x[0]:x[0]+xint,:,e:].sum(axis=(0))
+slice_E_k_3 = I_Enhanced[xi:xf,:,e:].sum(axis=(0))
 norm_3 = np.max(slice_E_k_3)
 slice_E_k_3 = slice_E_k_3/norm_3
 
-slice_E_k_4 = I_Enhanced_2[x[0]:x[0]+xint,:,e:].sum(axis=(0))
+slice_E_k_4 = I_Enhanced_2[xi:xf,:,e:].sum(axis=(0))
 slice_E_k_4 = slice_E_k_4/norm_3
 
 I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
@@ -507,8 +541,8 @@ I_4_N = slice_E_k_4/np.max(np.abs(slice_E_k_4))
 I_dif = I_2_N - I_1_N
 I_dif_ = I_4_N - I_3_N
 
-#I_dif = I_dif/np.max(I_dif)
-#I_dif_ = I_dif_/np.max(I_dif_)
+I_dif = I_dif/np.max(I_dif)
+I_dif_ = I_dif_/np.max(I_dif)
 
 #line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
 #line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
@@ -518,14 +552,15 @@ I_dif_ = I_4_N - I_3_N
 ### Panels
 ###################################33
 
-plt.figure()
-plt.imshow(np.transpose(I_Enhanced[:,:,110:170].sum(axis=2)))
-plt.axhline(y[0], color = 'black')
-plt.axhline(y[0]+yint, color = 'black')
-plt.axvline(x[0])
-plt.axvline(x[0]+xint)
+# plt.figure()
+# plt.imshow(np.transpose(I_Enhanced[:,:,110:170].sum(axis=2)))
+# plt.axhline(y[0], color = 'black')
+# plt.axhline(y[0]+yint, color = 'black')
+# plt.axvline(x[0])
+# plt.axvline(x[0]+xint)
 
-ylim = [1,2.75]
+ylim = [1,2.5]
+vmin, vmax = 0, 1
 
 ###
 fig, ax = plt.subplots(nrows = 2, ncols=3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1, 1]})
@@ -533,17 +568,18 @@ fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
 
 map_1 = 'terrain_r'
+map_2 = cmap_LTL
 im_2 = ax[0].imshow(np.transpose(slice_E_k_1), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
 im_3 = ax[1].imshow(np.transpose(slice_E_k_2), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_4 = ax[2].imshow(np.transpose(I_dif), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
+im_4 = ax[2].imshow(np.transpose(I_dif), origin='lower', cmap=cmap_LTL, clim=[-1,1], interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = vmin, vmax=vmax) #kx, ky, t
 im_4 = ax[3].imshow(np.transpose(slice_E_k_3), origin='lower', cmap=map_1, vmax = None, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
 im_5 = ax[4].imshow(np.transpose(slice_E_k_4), origin='lower', cmap=map_1, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ]) #kx, ky, t
-im_6 = ax[5].imshow(np.transpose(I_dif_), origin='lower', cmap='seismic', clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = -1, vmax=1) #kx, ky, t
+im_6 = ax[5].imshow(np.transpose(I_dif_), origin='lower', cmap=cmap_LTL, clim=None, interpolation='none', extent=[ax_ky[0],ax_ky[-1],ax_E_offset[e], ax_E_offset[-1] ],vmin = vmin, vmax=vmax) #kx, ky, t
 ylim_E = -2.5
 
 for i in range(0,6):
         
-    ax[i].set_yticks(np.arange(-0.5,3,0.25))
+    ax[i].set_yticks(np.arange(-0.5,3.5,0.25))
     for label in ax[i].yaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
     
@@ -582,16 +618,16 @@ fig.tight_layout()
 #%%
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [0.3, 1.2, -1, -1.7], [0] # kx, ky for plotting
-E_traces = [2.3, 2.3, 2.3, 2.3] # Energies for Plotting
-kx_int, ky_int, E_int  = .5, .5, 0.2 #Integration Ranges
+kx_traces, ky_traces = [0, 0, 0, 0], [0] # kx, ky for plotting
+E_traces = [2.05, 1.3, 1.3, 2.05] # Energies for Plotting
+kx_int, ky_int, E_int  = 3.9, .8, 0.2 #Integration Ranges
 
-trace_colors = ['black', 'green', 'purple', 'blue']
+trace_colors = ['red', 'black', 'black', 'red']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
 clim = [-0.1, 1]
-delay_lim = [-250, 1000]
+delay_lim = [-160, 820]
 ################################
 # Operations to Extract Traces #
 ################################
@@ -719,7 +755,7 @@ for f in [1,3]:
 
     ax[f].set_ylabel('Norm. Int.', fontsize = 18)
     ax[f].set_xlabel('Delay, fs', fontsize = 18)
-    ax[f].set_xticks(np.arange(-500,1200,250))
+    ax[f].set_xticks(np.arange(-600,1200,100))
     for label in ax[f].xaxis.get_ticklabels()[1::2]:
         label.set_visible(False) 
     ax[f].set_xlim(delay_lim[0],delay_lim[1])

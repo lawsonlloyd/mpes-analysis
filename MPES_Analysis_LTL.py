@@ -20,7 +20,7 @@ from LoadData import LoadData
 #fn = 'your_data_file.h5'
 I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 
-E_offset = 0
+E_offset = 0.2
 delay_offset = 0
 #%%
 ### Transform Data, axes if needed...
@@ -31,14 +31,14 @@ delay_offset = 0
 E_offset = +0.8 # 0.65 Scan 160
 delay_offset = 0
 
-E_offset = -0.25 #Scan 163
+E_offset = 0.25 #Scan 163
 delay_offset = 100
 
 E_offset = -0.3 #Scan 162
 delay_offset = 85
 
-E_offset = -0.2 #Scan 188
-delay_offset = +60
+#E_offset = -0.2 #Scan 188
+#delay_offset = +60
 
 #E_offset = 0.0 #Scan 062
 
@@ -51,17 +51,17 @@ ax_E_offset = ax_E + E_offset
 ax_delay_offset = ax_delay + delay_offset
 
 t0 = (np.abs(ax_delay_offset - 0)).argmin()
-mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
+mask_start = (np.abs(ax_E_offset - 0.8)).argmin()
 
 #%%
 ### User Inputs
 
 points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics and traces
 
-tMap_E, tint_E = [1.55, 1.2], 0.15 #Energy and E integration for traces
+tMap_E, tint_E = [1.55, 1.2], 0.08 #Energy and E integration for traces
 xint_k, yint_k = 0.5, 0.5 #Total momentum integration range for kx, ky
 
-ylim_E = -2.25 #Energy minimum for k cut plots
+ylim_E = -3.25 #Energy minimum for k cut plots
 
 #%%
 
@@ -74,13 +74,13 @@ if np.ndim(I) > 3:
     #I_Rot = I
     #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
     #I_derivative = 
-   
     logicMask = np.ones((I_Summed.shape))
-    logicMask[:,:,mask_start:] *= 200
+    mask_max = np.max(I_Summed[:,:,mask_start:])
+    logicMask[:,:,mask_start:] *= 1/mask_max
     I_Enhanced = logicMask * I_Summed
     
     logicMask_Full = np.ones((I.shape))
-    logicMask_Full[:,:,mask_start:] *= 200
+    logicMask_Full[:,:,mask_start:,:] *= mask_max
     I_Enhanced_Full = logicMask_Full * I
 
 elif np.ndim(I) == 3:
@@ -100,6 +100,10 @@ elif np.ndim(I) == 3:
 
 #%%
 ### Interactive Plot!
+
+cmap_to_use = 'terrain_r'
+cmap_to_use = cmap_LTL
+cmap_to_use = 'bone_r'
 
 %matplotlib auto
 
@@ -128,8 +132,12 @@ t[1] = (np.abs(ax_E_offset - tMap_E[1])).argmin()
 E = t[0]
 
 t0 = (np.abs(ax_delay_offset - 0)).argmin()
-dt = ax_delay_offset[1] - ax_delay_offset[0]
 
+if I.ndim > 3:
+    dt = ax_delay_offset[1] - ax_delay_offset[0]
+else:
+    dt = 1
+    
 dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
 dky = (ax_ky[1] - ax_ky[0])
@@ -139,6 +147,7 @@ tint = int(Eint)
 xint = np.round(xint_k/dkx)
 yint = np.round(yint_k/dky) 
 xint, yint = int(xint), int(yint)
+
 ##########################################
 ############### Plotting #################
 ##########################################
@@ -148,7 +157,6 @@ fig, ax = plt.subplots(nrows = 2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 
 
 fig.set_size_inches(15, 10, forward=False)
 ax = ax.flatten()
-cmap_to_use = 'terrain_r'
 #fig.tight_layout()
 
 ### First Panel
@@ -205,6 +213,11 @@ ax[0].set_aspect(1)
     
 slice_E_k_1 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1))
 slice_E_k_2 = I_Enhanced[x[0]:x[0]+xint,:,:].sum(axis=(0))
+
+slice_E_k_1 = slice_E_k_1/np.max(slice_E_k_1)
+slice_E_k_2 = slice_E_k_2/np.max(slice_E_k_2)
+slice_E_k_1[:,mask_start:] *= 1/np.max(slice_E_k_1[:,mask_start:])
+slice_E_k_2[:,mask_start:] *= 1/np.max(slice_E_k_2[:,mask_start:])
 
 #line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
 #line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
