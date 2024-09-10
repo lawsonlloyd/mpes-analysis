@@ -37,6 +37,10 @@ delay_offset = 100
 E_offset = -0.3 #Scan 162
 delay_offset = 85
 
+E_offset = +7.25
+delay_offset = 85
+
+
 #E_offset = -0.2 #Scan 188
 #delay_offset = +60
 

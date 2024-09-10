@@ -58,6 +58,7 @@ I_Enhanced_Full = logicMask_Full * I
 
 #%%
 
+%matplotlib inline
 # Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
 
 kx, ky = -1.75, 0.0
@@ -67,6 +68,8 @@ O = .25 #Scan 163
 O = -0.2 #Scan 162
 #O = +0.072 #Scan 188
 #O = 0.27 #Scan 062
+O = 7.28 #Scan 383
+
 
 xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
 xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
@@ -137,7 +140,7 @@ ax_E_offset = ax_E + O
 #%%
 ### User Inputs for Plotting MM 
 
-tMaps, tint  = [0, 1.3], 5
+tMaps, tint  = [0.1, 1.3], 5
 
 #%% #DEFINE CUSTOM COLORMAP
 
@@ -619,11 +622,11 @@ fig.tight_layout()
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [0.25, 0.25, -1, -1.], [0] # kx, ky for plotting
-E_traces = [2.05, 1.3, 1.3, 2.05] # Energies for Plotting
-kx_int, ky_int, E_int  = .5, .5, 0.2 #Integration Ranges
+kx_traces, ky_traces = [0, 0, 0, 0], [0] # kx, ky for plotting
+E_traces = [1.3, 1.3, 1.3, 1.3] # Energies for Plotting
+kx_int, ky_int, E_int  = 4, .55, 0.2 #Integration Ranges
 
-trace_colors = ['red', 'black', 'grey', 'pink']
+trace_colors = ['red', 'black', 'grey', 'black']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
