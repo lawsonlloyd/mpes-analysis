@@ -471,7 +471,7 @@ plt.tight_layout()
 #momentum_frame_single = windowed_frame_symm_single
 
 momentum_frame = windowed_frame_nonsymm
-momentum_frame_single = windowed_frame_nonsymm_single
+momentum_frame_single = windowed_frame_nonsymm #windowed_frame_nonsymm_single
 
 #momentum_frame = window_new_single
 #momentum_frame_single = window_new_single
@@ -545,8 +545,8 @@ ax = ax.flatten()
 im00 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im0 = ax[1].imshow(momentum_frame/np.max(momentum_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im = ax[2].imshow(fft_frame, clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
-single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
-ax[1].add_patch(single_k_circle)
+#single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
+a#x[1].add_patch(single_k_circle)
 
 #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
 ax[0].set_aspect(1)
