@@ -798,8 +798,8 @@ from scipy import signal
 from scipy.fft import fft, fftshift
 
 tMaps, tint  = [1.35], 6
-k_i, k_f = -1, 1 #ky
-k_i_2, k_f_2 = -1, 1 #kx
+k_i, k_f = -.4, .4 #ky
+k_i_2, k_f_2 = -0, 1 #kx
 
 #window_choice = 
 
@@ -834,8 +834,14 @@ for i in np.arange(numPlots):
     ###                   ###
     ### Do the Operations ###
     ###                   ###  
-    kspace_frame = np.abs(frame_diff)
-    kspace_frame = frame_pos #All Pos delays
+    
+    kspace_frame = frame_diff
+    
+    mn = np.mean(kspace_frame[:,25:35])
+    kspace_frame = kspace_frame - mn
+    kspace_frame[kspace_frame<0] = 0
+    
+    #kspace_frame = frame_pos #All Pos delays
     #kspace_frame = frame_early
     
     ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
@@ -879,6 +885,8 @@ for i in np.arange(numPlots):
     
     win_1 = np.zeros(kspace_frame.shape[0])
     win_2 = np.zeros(kspace_frame.shape[1])
+    win_1_box = np.zeros(kspace_frame.shape[0])
+    win_2_box = np.zeros(kspace_frame.shape[1])
 
     k_i = (np.abs(ax_ky - k_i)).argmin()
     k_f = (np.abs(ax_ky - k_f)).argmin()
@@ -886,13 +894,21 @@ for i in np.arange(numPlots):
     k_f_2 = (np.abs(ax_kx - k_f_2)).argmin()
     
     tuk_1 = signal.windows.tukey(k_f-k_i)
+    box_1 = signal.windows.boxcar(k_f-k_i)
+
     tuk_2 = signal.windows.tukey(k_f_2-k_i_2)
-   
+    box_2 = signal.windows.boxcar(k_f_2-k_i_2)
+
     win_1[k_i:k_f] = tuk_1
+    win_1_box[k_i:k_f] = box_1
+
     win_2[k_i_2:k_f_2] = tuk_2
-   
+    win_2_box[k_i_2:k_f_2] = box_2
+
     window_4 = np.outer(win_1, win_2)
-   
+    window_5 = np.outer(win_1_box, win_2_box)
+    window_6 = np.outer(win_1_box, win_2)
+    
     for yy in range(0,window.shape[1]):
         window[k_i:k_f,yy] = signal.windows.tukey(k_f-k_i)
         window[k_i:k_f,yy] = np.ones(k_f-k_i)
@@ -901,15 +917,6 @@ for i in np.arange(numPlots):
         window_2[xx,k_i_2:k_f_2] = signal.windows.tukey(k_f_2-k_i_2)
         window_2[xx,k_i_2:k_f_2] = np.ones(k_f_2-k_i_2)
    
-    window_3 = window*window_2
-    window_5 = np.zeros(kspace_frame.shape)
-    window_5[k_i:k_f,k_i_2:k_f_2] = np.ones((k_f-k_i,k_f_2-k_i_2))
-    #window_3 = np.outer(signal.windows.tukey(k_f_2-k_i_2), signal.windows.tukey(k_f-k_i))
-    #window[0:k_i,:] *= 0
-    #window[k_f:-1,:] *= 0
-    #window[:, 0:22] *= 0
-    #window[:,80:-1] *= 0
-    
     ### Symmetrize Data
     frame_sym = np.zeros(kspace_frame.shape)
     frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
@@ -919,10 +926,6 @@ for i in np.arange(numPlots):
     windowed_frame_nonsymm = kspace_frame*window_5
     #windowed_frame_symm = frame_sym
     
-    #k_points_y = [78, 100, 83, 39, 21, 41] 
-    #k_points_x = [24, 61, 95, 95, 61, 23]
-   
-    mask = np.zeros((len(ax_kx), len(ax_ky)))
     
 im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
 im = ax[1].imshow(frame_sym, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
@@ -979,11 +982,14 @@ momentum_frame = windowed_frame_symm
 #momentum_frame = windowed_frame_nonsymm
 
 #momentum_frame = window_4
-#momentum_frame = window_5
+#momentum_frame = window_6
+
+#momentum_frame = momentum_frame - np.mean(momentum_frame)
 
 ##########################
 ##########################
 ### Define real-space axis
+
 k_step = np.abs((ax_kx[1] - ax_kx[0]))
 k_length = len(ax_kx)
 
@@ -1006,24 +1012,29 @@ r_axis = r_axis/(1)
 
 ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
 momentum_frame_ = np.abs(momentum_frame)/np.max(momentum_frame)
-momentum_frame_ = np.sqrt(momentum_frame_)
-fft_frame = np.fft.fft2(momentum_frame_, [zplength, zplength])
+momentum_frame_sqrt = np.sqrt(momentum_frame_)
+fft_frame = np.fft.fft2(momentum_frame_sqrt, [zplength, zplength])
 fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
 
 fft_frame_rsq = np.abs(fft_frame) 
 fft_frame_s = np.square(np.abs(fft_frame))
 
 ### Take x and y cuts and extract bohr radius
+kx_cut = momentum_frame_[:,int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4].sum(axis=1)
+kx_cut = kx_cut/np.max(kx_cut)
+ky_cut = momentum_frame_[int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4,:].sum(axis=0)
+ky_cut = ky_cut/np.max(ky_cut)
+
 x_cut = fft_frame_s[:,int(zplength/2)-1]
 y_cut = fft_frame_s[int(zplength/2)-1,:]
 x_cut = x_cut/np.max(x_cut)
 y_cut = y_cut/np.max(y_cut)
 
-r2_cut_x = fft_frame_rsq[int(zplength/2)-1,:]
+r2_cut_x = fft_frame_rsq[:,int(zplength/2)-1]
 r2_cut_x = np.square(np.abs(r2_cut_x*r_axis))
 r2_cut_x = r2_cut_x/np.max(r2_cut_x)
 
-r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1]
+r2_cut_y = fft_frame_rsq[int(zplength/2)-1,:]
 r2_cut_y = np.square(np.abs(r2_cut_y*r_axis))
 r2_cut_y = r2_cut_y/np.max(r2_cut_y)
 
@@ -1125,21 +1136,22 @@ ax[2].set_title('2D FFT', fontsize = 15)
 
 #ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
 ax[3].plot(r_axis, x_cut/np.max(x_cut), color = 'black', label = '$r_x$')
-#ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
+ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
 
 ax[3].plot(r_axis, y_cut/np.max(y_cut), color = 'red', label = '$r_y$')
-#ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
-ax[3].axvline(x_brad, linestyle = 'dashed', color = 'black', linewidth = 1.5)
-ax[3].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
 
-#ax[3].axvline(rdist_brad, linestyle = 'dashed', color = 'blue', linewidth = 2)
+ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = 1.5)
+ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+
 #ax[3].annotate('$r^*_x$', xy = (rdist_brad+.15, 0.5), fontsize = 14, color = 'blue', weight = 'bold')
 ax[3].set_xlim([0, 2])
 ax[3].set_ylim([-0.025, 1.025])
 ax[3].set_xlabel('$r$, nm', fontsize = 16)
 ax[3].set_ylabel('Norm. Int.', fontsize = 16)
-ax[3].set_title(('$r^*_x$ = ' + str(round(rdist_brad_x,2)) + ' nm' + ', $r^*_y$ = ' + str(round(rdist_brad_y,1))) + ' nm', fontsize = 14)
-ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + ', $r^*_y$ = ' + str(round(y_brad,2))) + ' nm', fontsize = 14)
+ax[3].set_title(('$r^*_x$ = ' + str(round(rdist_brad_x,2)) + ' nm' + \
+                 ', $r^*_y$ = ' + str(round(y_brad,1))) + ' nm', fontsize = 14)
+#ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + ', $r^*_y$ = ' + str(round(y_brad,2))) + ' nm', fontsize = 14)
 ax[3].tick_params(axis='both', labelsize=10)
 ax[3].set_yticks(np.arange(-0,1.5,0.5))
 ax[3].set_aspect(2)
