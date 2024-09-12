@@ -799,7 +799,7 @@ from scipy.fft import fft, fftshift
 
 tMaps, tint  = [1.35], 6
 k_i, k_f = -.4, .4 #ky
-k_i_2, k_f_2 = -0, 1 #kx
+k_i_2, k_f_2 = -2, -0.8 #kx
 
 #window_choice = 
 
@@ -979,7 +979,7 @@ plt.show()
 #####                                              #####
 
 momentum_frame = windowed_frame_symm
-#momentum_frame = windowed_frame_nonsymm
+momentum_frame = windowed_frame_nonsymm
 
 #momentum_frame = window_4
 #momentum_frame = window_6
@@ -1136,20 +1136,23 @@ ax[2].set_title('2D FFT', fontsize = 15)
 
 #ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
 ax[3].plot(r_axis, x_cut/np.max(x_cut), color = 'black', label = '$r_x$')
-ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
+#ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
 
 ax[3].plot(r_axis, y_cut/np.max(y_cut), color = 'red', label = '$r_y$')
-ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
+#ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
 
-ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = 1.5)
-ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+ax[3].axvline(x_brad, linestyle = 'dashed', color = 'black', linewidth = 1.5)
+ax[3].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+
+#ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = 1.5)
+#ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = 1.5)
 
 #ax[3].annotate('$r^*_x$', xy = (rdist_brad+.15, 0.5), fontsize = 14, color = 'blue', weight = 'bold')
 ax[3].set_xlim([0, 2])
 ax[3].set_ylim([-0.025, 1.025])
 ax[3].set_xlabel('$r$, nm', fontsize = 16)
 ax[3].set_ylabel('Norm. Int.', fontsize = 16)
-ax[3].set_title(('$r^*_x$ = ' + str(round(rdist_brad_x,2)) + ' nm' + \
+ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + \
                  ', $r^*_y$ = ' + str(round(y_brad,1))) + ' nm', fontsize = 14)
 #ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + ', $r^*_y$ = ' + str(round(y_brad,2))) + ' nm', fontsize = 14)
 ax[3].tick_params(axis='both', labelsize=10)
