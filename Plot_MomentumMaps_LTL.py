@@ -175,14 +175,14 @@ for i in range(3):
 cmap = np.vstack(( lower, upper ))
 
 # convert to matplotlib colormap
-cmap_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
+viridis_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
 
 #%%
 %matplotlib inline
 
 # Plot Momentum Maps at specified Energies
 
-cmap = cmap_LTL 
+cmap = viridis_LTL 
 #cmap = 'viridis'
 ### Plot
 numPlots = len(tMaps)

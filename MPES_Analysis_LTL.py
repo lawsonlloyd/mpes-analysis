@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
 from scipy import ndimage, misc
 from LoadData import LoadData
+from generate_custom_colormap import custom_colormap
 
 #%% Load File in your path...
 
@@ -22,6 +23,7 @@ I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 
 E_offset = 0.2
 delay_offset = 0
+
 #%%
 ### Transform Data, axes if needed...
 
@@ -40,7 +42,6 @@ delay_offset = 85
 E_offset = +7.25
 delay_offset = 85
 
-
 #E_offset = -0.2 #Scan 188
 #delay_offset = +60
 
@@ -48,14 +49,6 @@ delay_offset = 85
 
 #E_offset = +0.5 #Scan 138
 #delay_offset = 0
-
-#%%
-
-ax_E_offset = ax_E + E_offset 
-ax_delay_offset = ax_delay + delay_offset
-
-t0 = (np.abs(ax_delay_offset - 0)).argmin()
-mask_start = (np.abs(ax_E_offset - 0.8)).argmin()
 
 #%%
 ### User Inputs
@@ -67,49 +60,25 @@ xint_k, yint_k = 0.5, 0.5 #Total momentum integration range for kx, ky
 
 ylim_E = -3.25 #Energy minimum for k cut plots
 
-#%%
-
-### Enhances CB features for plotting.
-
-if np.ndim(I) > 3:
-    I_Summed = (I[:,:,:,:].sum(axis=(3))) #Sum over delay/theta/ADC for Plotting...
-    #I_Summed = (I[:,:,:,0:t0-10].sum(axis=(3))) #Sum over delay/theta/ADC for Plotting...
-    #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-    #I_Rot = I
-    #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-    #I_derivative = 
-    logicMask = np.ones((I_Summed.shape))
-    mask_max = np.max(I_Summed[:,:,mask_start:])
-    logicMask[:,:,mask_start:] *= 1/mask_max
-    I_Enhanced = logicMask * I_Summed
-    
-    logicMask_Full = np.ones((I.shape))
-    logicMask_Full[:,:,mask_start:,:] *= mask_max
-    I_Enhanced_Full = logicMask_Full * I
-
-elif np.ndim(I) == 3:
-    I_Summed = (I[:,:,:]) #Sum over delay/theta/ADC for Plotting...
-    #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-    #I_Rot = I
-    #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-    #I_Summed  =
-    
-    logicMask = np.ones((I_Summed.shape))
-    logicMask[:,:,mask_start:] *= 200
-    I_Enhanced = logicMask * I_Summed
-    
-    logicMask_Full = np.ones((I.shape))
-    logicMask_Full[:,:,mask_start:] *= 200
-    I_Enhanced_Full = logicMask_Full * I
+mask_start = 0.8
 
 #%%
-### Interactive Plot!
-
-cmap_to_use = 'terrain_r'
-cmap_to_use = cmap_LTL
-cmap_to_use = 'bone_r'
 
 %matplotlib auto
+
+#########################
+### Interactive Plot! ###
+#########################
+
+ax_E_offset = ax_E + E_offset 
+ax_delay_offset = ax_delay + delay_offset
+
+t0 = (np.abs(ax_delay_offset - 0)).argmin()
+mask_start = (np.abs(ax_E_offset - mask_start)).argmin() #Enhanced CB
+
+cmap_to_use = 'terrain_r'
+cmap_to_use = custom_colormap('Lawson', 'viridis')
+#cmap_to_use = 'bone_r'
 
 global new_x, new_y
 
@@ -166,7 +135,7 @@ ax = ax.flatten()
 ### First Panel
 extentImage = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]]
 
-firstPanel = I_Summed[:,:,E:(E+Eint)].sum(axis=(2))
+firstPanel = I[:,:,E:(E+Eint),:].sum(axis=(2,3))
 
 im_1 = ax[0].imshow(np.transpose(firstPanel), origin='lower', cmap=cmap_to_use, clim=None, interpolation='none', extent=extentImage) #kx, ky, t
 line_horizontal = ax[0].axhline(points[0,1], color='black', linestyle = 'dashed')
@@ -215,8 +184,8 @@ ax[0].set_aspect(1)
 #ax[0].add_patch(Rectangle((points[1,0]-xint_k/2, points[1,1]-yint_k/2), xint_k, yint_k, edgecolor='blue',facecolor='none',lw=2))
 ###
     
-slice_E_k_1 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1))
-slice_E_k_2 = I_Enhanced[x[0]:x[0]+xint,:,:].sum(axis=(0))
+slice_E_k_1 = I[:,y[0]:y[0]+yint,:,:].sum(axis=(1,3))
+slice_E_k_2 = I[x[0]:x[0]+xint,:,:,:].sum(axis=(0,3))
 
 slice_E_k_1 = slice_E_k_1/np.max(slice_E_k_1)
 slice_E_k_2 = slice_E_k_2/np.max(slice_E_k_2)
@@ -226,7 +195,6 @@ slice_E_k_2[:,mask_start:] *= 1/np.max(slice_E_k_2[:,mask_start:])
 #line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
 #line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
 #line_cut_t_ind = (np.abs(ax_E_offset - E_AOI)).argmin()
-#line_cut_1 = I_Enhanced[line_cut_x_ind-1:line_cut_x_ind+1,line_cut_y_ind-1:line_cut_y_ind+1,:].sum(axis=(0,1))
 
 ### Second and Third Panels
 x_i = int(2)
@@ -377,20 +345,20 @@ def update(val):
     dtp = round((current_v_d_int/dt)/2)
     
     tint_ = int(tint/2)
-    new_to_plot = I_Summed[:,:,E-tint_:E+tint_].sum(axis=(2)) #Time delay integrated
-    new_to_plot2 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1)) #Integrates all
-    new_to_plot3 = I_Enhanced[x[0]:x[0]+xint,:].sum(axis=(0))
+    new_to_plot = I[:,:,E-tint_:E+tint_].sum(axis=(2,3)) #Time delay integrated
+    new_to_plot2 = I[:,y[0]:y[0]+yint,:].sum(axis=(1,3)) #Integrates all
+    new_to_plot3 = I[x[0]:x[0]+xint,:].sum(axis=(0,3))
     
     if diff_box.get_status()[0] is True:
         #new_to_plot = I[:,:,E_new:(E_new+tint),dt:dt+1].sum(axis=(2,3))
         tp = delay_point
-        neg_frames_map = I_Enhanced_Full[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
-        neg_frames_x = I_Enhanced_Full[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
-        neg_frames_y = I_Enhanced_Full[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
+        neg_frames_map = I[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
+        neg_frames_x = I[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
+        neg_frames_y = I[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
         
-        new_to_plot = I_Enhanced_Full[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp+1) - neg_frames_map
-        new_to_plot2 = I_Enhanced_Full[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
-        new_to_plot3 = I_Enhanced_Full[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
+        new_to_plot = I[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp+1) - neg_frames_map
+        new_to_plot2 = I[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
+        new_to_plot3 = I[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
 
         new_to_plot = new_to_plot/np.max(np.abs(new_to_plot))
         new_to_plot2 = new_to_plot2/np.max(np.abs(new_to_plot2))
@@ -402,11 +370,11 @@ def update(val):
     if np.ndim(I) > 3:
 
         newtrace = I[x[0]:x[0]+xint,y[0]:y[0]+yint,E-(tint_):E+(tint_),:].sum(axis=(0,1,2))
-        newtrace = newtrace - np.mean(newtrace[2:12])
+        newtrace = newtrace - np.mean(newtrace[2:t0-10])
         newtrace = newtrace/np.max(newtrace)
         
         newtrace_2 = I[x[1]:x[1]+xint,y[1]:y[1]+yint,E_2-tint_:E_2+tint_,:].sum(axis=(0,1,2))
-        newtrace_2 = newtrace_2 - np.mean(newtrace_2[2:12])
+        newtrace_2 = newtrace_2 - np.mean(newtrace_2[2:t0-10])
         newtrace_2 = newtrace_2/np.max(newtrace_2)
         
         im4.set_ydata(newtrace)
@@ -559,20 +527,20 @@ def on_motion(event):
     dtp = round((current_v_d_int/dt)/2)
     
     tint_ = int(tint/2)
-    new_to_plot = I_Summed[:,:,E-tint_:E+tint_].sum(axis=(2)) #Time delay integrated
-    new_to_plot2 = I_Enhanced[:,y[0]:y[0]+yint,:].sum(axis=(1)) #Integrates all
-    new_to_plot3 = I_Enhanced[x[0]:x[0]+xint,:].sum(axis=(0))
+    new_to_plot = I[:,:,E-tint_:E+tint_,:].sum(axis=(2,3)) #Time delay integrated
+    new_to_plot2 = I[:,y[0]:y[0]+yint,:,:].sum(axis=(1,3)) #Integrates all
+    new_to_plot3 = I[x[0]:x[0]+xint,:,:,:].sum(axis=(0,3))
     
     if diff_box.get_status()[0] is True:
         #new_to_plot = I[:,:,E_new:(E_new+tint),dt:dt+1].sum(axis=(2,3))
         tp = delay_point
-        neg_frames_map = I_Enhanced_Full[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
-        neg_frames_x = I_Enhanced_Full[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
-        neg_frames_y = I_Enhanced_Full[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
+        neg_frames_map = I[:,:,E-tint_:E+tint_,4:t0-10].sum(axis=(2,3))/(t0-10-4)
+        neg_frames_x = I[x[0]:x[0]+xint,:,:,4:t0-10].sum(axis=(0,3))/(t0-10-4)
+        neg_frames_y = I[:,y[0]:y[0]+yint,:,4:t0-10].sum(axis=(1,3))/(t0-10-4)
         
-        new_to_plot = I_Enhanced_Full[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp) - neg_frames_map
-        new_to_plot2 = I_Enhanced_Full[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
-        new_to_plot3 = I_Enhanced_Full[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
+        new_to_plot = I[:,:,E-tint_:E+tint_,tp-dtp:tp+dtp].sum(axis=(2,3))/(2*dtp) - neg_frames_map
+        new_to_plot2 = I[:,y[0]:y[0]+yint,:,tp-dtp:tp+dtp].sum(axis=(1,3))/(2*dtp) - neg_frames_y
+        new_to_plot3 = I[x[0]:x[0]+xint,:,:,tp-dtp:tp+dtp].sum(axis=(0,3))/(2*dtp) - neg_frames_x
 
         new_to_plot = new_to_plot/np.max(np.abs(new_to_plot))
         new_to_plot2 = new_to_plot2/np.max(np.abs(new_to_plot2))
@@ -584,11 +552,11 @@ def on_motion(event):
     if np.ndim(I) > 3:
 
         newtrace = I[x[0]:x[0]+xint,y[0]:y[0]+yint,E-(tint_):E+(tint_),:].sum(axis=(0,1,2))
-        newtrace = newtrace - np.mean(newtrace[2:12])
+        newtrace = newtrace - np.mean(newtrace[2:t0-10])
         newtrace = newtrace/np.max(newtrace)
         
         newtrace_2 = I[x[1]:x[1]+xint,y[1]:y[1]+yint,E_2-tint_:E_2+tint_,:].sum(axis=(0,1,2))
-        newtrace_2 = newtrace_2 - np.mean(newtrace_2[2:12])
+        newtrace_2 = newtrace_2 - np.mean(newtrace_2[2:t0-10])
         newtrace_2 = newtrace_2/np.max(newtrace_2)
                 
         im4.set_ydata(newtrace)
@@ -630,5 +598,3 @@ E_factor_2.on_changed(update)
 delay_factor_.on_changed(update)
 plt.subplots_adjust(hspace = 0.3)
 plt.show()
-
-ax#%%
