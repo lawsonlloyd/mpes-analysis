@@ -17,6 +17,7 @@ from LoadData import LoadData
 from generate_custom_colormap import custom_colormap
 
 from data_loader import DataLoader
+from Manager import DataHandler
 #%% Load File in your path...
 
 fn = 'your_data_file.h5'
@@ -32,6 +33,11 @@ ax_kx, ax_ky, ax_E, ax_ADC = loader.get_axes()
 
 E_offset = 0.2
 delay_offset = 0
+
+#%%
+
+data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
+
 
 #%%
 
@@ -75,6 +81,7 @@ mask_start = 0.8
 #%%
 
 %matplotlib auto
+
 
 #########################
 ### Interactive Plot! ###
