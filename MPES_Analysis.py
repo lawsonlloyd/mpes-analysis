@@ -38,6 +38,8 @@ delay_offset = 0
 
 data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
 
+dt = data_handler.calculate_dt()
+t0 = data_handler.get_t0()
 
 #%%
 
@@ -69,7 +71,7 @@ data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
 #%%
 ### User Inputs and Transform Axes if Needed
 
-points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics and traces
+points = [(-1.8, 0.05), (1, 0.1)] #starting points for the ROI to plot dynamics and traces
 
 tMap_E, tint_E = [1.55, 1.2], 0.08 #Energy and E integration for traces
 xint_k, yint_k = 0.5, 0.5 #Total momentum integration range for kx, ky
@@ -90,7 +92,6 @@ mask_start = 0.8
 ax_E_offset = ax_E + E_offset 
 ax_delay_offset = ax_delay + delay_offset
 
-t0 = (np.abs(ax_delay_offset - 0)).argmin()
 mask_start = (np.abs(ax_E_offset - mask_start)).argmin() #Enhanced CB
 
 cmap_to_use = 'terrain_r'
@@ -106,28 +107,8 @@ x = [0,0]
 y = [0,0]
 t = [0,0]
 
-xf = [0,0]
-yf = [0,0]
-xi = [0,0]
-yi = [0,0]
+kx_ind, ky_ind, E_ind, delay = data_handler.get_closest_indices(points[0,0], points[0,1], tMap_E[0], delay)
 
-x[0] = (np.abs(ax_kx - (points[0,0]-(xint_k/2)))).argmin()
-y[0] = (np.abs(ax_ky - (points[0,1]-(yint_k/2)))).argmin()
-
-x[1] = (np.abs(ax_kx - (points[1,0]-(xint_k/2)))).argmin()
-y[1] = (np.abs(ax_ky - (points[1,1]-(yint_k/2)))).argmin()
-
-t[0] = (np.abs(ax_E_offset - (tMap_E[0]-(tint_E/2)))).argmin()
-t[1] = (np.abs(ax_E_offset - tMap_E[1])).argmin()
-E = t[0]
-
-t0 = (np.abs(ax_delay_offset - 0)).argmin()
-
-if I.ndim > 3:
-    dt = ax_delay_offset[1] - ax_delay_offset[0]
-else:
-    dt = 1
-    
 dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
 dky = (ax_ky[1] - ax_ky[0])

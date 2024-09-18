@@ -20,13 +20,23 @@ class DataHandler:
 
     def calculate_dt(self):
         if self.I.ndim > 3:
-            return self.ax_delay_offset[1] - self.ax_delay_offset[0]
+            dt = self.ax_delay_offset[1] - self.ax_delay_offset[0]
+            return dt
         else:
             return 1
-
-    def get_closest_indices(self, x, y, E, t):
-        x_idx = (np.abs(self.ax_kx - x)).argmin()
-        y_idx = (np.abs(self.ax_ky - y)).argmin()
+    
+    def get_t0(self):
+        if self.I.ndim > 3:
+            t0 = (np.abs(self.ax_delay_offset - 0)).argmin()
+            return t0
+        else:
+            return 1
+        
+    def get_closest_indices(self, kx, ky, E, delay):
+        kx_idx = (np.abs(self.ax_kx - kx)).argmin()
+        ky_idx = (np.abs(self.ax_ky - ky)).argmin()
         E_idx = (np.abs(self.ax_E_offset - E)).argmin()
-        t_idx = (np.abs(self.ax_delay_offset - t)).argmin()
-        return x_idx, y_idx, E_idx, t_idx
+        delay_idx = (np.abs(self.ax_delay_offset - delay)).argmin()
+        return kx_idx, ky_idx, E_idx, delay_idx
+    
+    
