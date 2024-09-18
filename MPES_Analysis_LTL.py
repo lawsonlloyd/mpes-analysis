@@ -25,22 +25,23 @@ E_offset = 0.2
 delay_offset = 0
 
 #%%
-### Transform Data, axes if needed...
 
-E_offset = +0#ML Shuo Data
-delay_offset = 0
+# These are Lawson's Offsets: Ignore....
 
-E_offset = +0.8 # 0.65 Scan 160
-delay_offset = 0
+# E_offset = +0#ML Shuo Data
+# delay_offset = 0
 
-E_offset = 0.25 #Scan 163
-delay_offset = 100
+# E_offset = +0.8 # 0.65 Scan 160
+# delay_offset = 0
 
-E_offset = -0.3 #Scan 162
-delay_offset = 85
+# E_offset = 0.25 #Scan 163
+# delay_offset = 100
 
-E_offset = +7.25
-delay_offset = 85
+# E_offset = -0.3 #Scan 162
+# delay_offset = 85
+
+# E_offset = +7.25
+# delay_offset = 85
 
 #E_offset = -0.2 #Scan 188
 #delay_offset = +60
@@ -51,14 +52,14 @@ delay_offset = 85
 #delay_offset = 0
 
 #%%
-### User Inputs
+### User Inputs and Transform Axes if Needed
 
 points = [(-1.8, 0.05),(1, 0.1)] #starting points for the ROI to plot dynamics and traces
 
 tMap_E, tint_E = [1.55, 1.2], 0.08 #Energy and E integration for traces
 xint_k, yint_k = 0.5, 0.5 #Total momentum integration range for kx, ky
 
-ylim_E = -3.25 #Energy minimum for k cut plots
+ylim_E = -3.5 #Energy minimum for k cut plots
 
 mask_start = 0.8
 
@@ -164,7 +165,7 @@ def make_square(center, half_length_x, half_length_y) :
     return square_x, square_y
 
 square_x, square_y = make_square(points[0], half_length, half_length)
-square, = ax[0].plot(square_x, square_y, color='black', linewidth = 1, linestyle='dashed')
+square_1, = ax[0].plot(square_x, square_y, color='black', linewidth = 1, linestyle='dashed')
 
 square_x, square_y = make_square(points[1], half_length, half_length)
 square_2, = ax[0].plot(square_x, square_y, color='purple', linewidth = 1, linestyle='dashed')
@@ -192,10 +193,6 @@ slice_E_k_2 = slice_E_k_2/np.max(slice_E_k_2)
 slice_E_k_1[:,mask_start:] *= 1/np.max(slice_E_k_1[:,mask_start:])
 slice_E_k_2[:,mask_start:] *= 1/np.max(slice_E_k_2[:,mask_start:])
 
-#line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
-#line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
-#line_cut_t_ind = (np.abs(ax_E_offset - E_AOI)).argmin()
-
 ### Second and Third Panels
 x_i = int(2)
 y_i = int(3)
@@ -208,8 +205,6 @@ line_horizontal_E_2 = ax[y_i].axhline(tMap_E[0],color='black', linestyle = 'dash
 line_horizontal_E_3 = ax[x_i].axhline(tMap_E[1],color='purple', linestyle = 'dashed')
 line_horizontal_E_4 = ax[y_i].axhline(tMap_E[1],color='purple', linestyle = 'dashed')
 
-#lhor_E2 = ax[1].axhline(tMap_E[1],color='blue')
-#lhor2_E2 = ax[2].axhline(tMap_E[1],color='blue')
 kx_ver_1 = ax[x_i].axvline(points[0,0], color='black', linestyle = 'dashed')
 ky_ver_2 = ax[y_i].axvline(points[0,1], color='black', linestyle = 'dashed')
 
@@ -218,10 +213,8 @@ ky_ver_2_2 = ax[y_i].axvline(points[1,1], color='purple', linestyle = 'dashed')
 
 half_length_E = tint_E / 2
 
-square_x, square_y = make_square([points[0,0], tMap_E[0]], half_length, half_length_E)
-#square_3, = ax[1].plot(square_x, square_y, color='black', linewidth = 1, linestyle='--')
-
-square_x, square_y = make_square([points[1,0], tMap_E[1]], half_length, half_length_E)
+#square_x, square_y = make_square([points[0,0], tMap_E[0]], half_length, half_length_E)
+#square_x, square_y = make_square([points[1,0], tMap_E[1]], half_length, half_length_E)
 
 ax[x_i].set_xticks(np.arange(-3,3.1,0.5))
 for label in ax[x_i].xaxis.get_ticklabels()[1::2]:
@@ -407,16 +400,7 @@ def update_square(x_center, y_center, half_length, square):
     square_x = [x_center - half_length, x_center + half_length, x_center + half_length, x_center - half_length, x_center - half_length]
     square_y = [y_center - half_length, y_center - half_length, y_center + half_length, y_center + half_length, y_center - half_length]
 
-    square.set_data(square_x, square_y)
-    
-def update_square_2(x_center, y_center):
-    #global x_center, y_center
-    
-    # Update square position based on line intersections
-    square_x = [x_center - half_length, x_center + half_length, x_center + half_length, x_center - half_length, x_center - half_length]
-    square_y = [y_center - half_length, y_center - half_length, y_center + half_length, y_center + half_length, y_center - half_length]
-
-    square_2.set_data(square_x, square_y)
+    square_1.set_data(square_x, square_y)
     
 def prioritize_line_selection(event, line1, line2):
     dist_1 = np.linalg.norm(np.array(line1.get_xydata()).T - np.array([event.xdata, event.ydata]), axis = 1)
@@ -586,7 +570,8 @@ def on_motion(event):
 
         #im.set_clim(vmin=-1 , vmax = 1.0)
         #im2.set_clim(vmin=-1*c_max1 , vmax = 1*c_max1*1.0)
-        #im3.set_clim(vmin=-1*1*c_max2, vmax = 1*c_max2*1.0)      
+        #im3.set_clim(vmin=-1*1*c_max2, vmax = 1*c_max2*1.0)
+
 # Connect the event handlers
 fig.canvas.mpl_connect('button_press_event', on_press)
 fig.canvas.mpl_connect('button_release_event', on_release)
