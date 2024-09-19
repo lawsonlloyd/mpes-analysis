@@ -9,15 +9,16 @@ Created on Fri Sep  8 16:45:17 2023
 #%%
 
 import numpy as np
-from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
+from scipy.interpolate import UnivariateSpline
 from scipy import ndimage, misc
-from LoadData import LoadData
-from generate_custom_colormap import custom_colormap
 
+from LoadData import LoadData
 from data_loader import DataLoader
 from Manager import DataHandler
+from generate_custom_colormap import custom_colormap
+
 #%% Load File in your path...
 
 fn = 'your_data_file.h5'
@@ -27,12 +28,16 @@ loader = DataLoader(fn)
 loader.load()
 
 I = loader.get_data()
-ax_kx, ax_ky, ax_E, ax_ADC = loader.get_axes()
+ax_kx, ax_ky, ax_E, ax_delay = loader.get_axes()
 
 #I, ax_kx, ax_ky, ax_E, ax_delay = LoadData(fn)
 
 E_offset = 0.2
 delay_offset = 0
+
+
+ax_E_offset = ax_E + E_offset 
+ax_delay_offset = ax_delay + delay_offset
 
 #%%
 
@@ -68,6 +73,25 @@ t0 = data_handler.get_t0()
 #E_offset = +0.5 #Scan 138
 #delay_offset = 0
 
+
+
+data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
+
+    # Initialize plot manager
+    plot_manager = PlotManager(data_handler)
+
+    # Initialize sliders and attach update event
+    slider_manager = SliderManager(plot_manager)
+    slider_manager.E_slider.on_changed(slider_manager.on_slider_update)
+    slider_manager.delay_slider.on_changed(slider_manager.on_slider_update)
+
+    # Initialize event handler for interactivity
+    event_handler = EventHandler(plot_manager)
+    plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
+    plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
+
+    plt.show()
+    
 #%%
 ### User Inputs and Transform Axes if Needed
 
@@ -84,13 +108,9 @@ mask_start = 0.8
 
 %matplotlib auto
 
-
 #########################
 ### Interactive Plot! ###
 #########################
-
-ax_E_offset = ax_E + E_offset 
-ax_delay_offset = ax_delay + delay_offset
 
 mask_start = (np.abs(ax_E_offset - mask_start)).argmin() #Enhanced CB
 
@@ -108,6 +128,8 @@ y = [0,0]
 t = [0,0]
 
 kx_ind, ky_ind, E_ind, delay = data_handler.get_closest_indices(points[0,0], points[0,1], tMap_E[0], delay)
+
+x[0], y[0], t[0], delay =  kx_ind, ky_ind, E_ind, delay
 
 dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
@@ -151,20 +173,11 @@ half_length = xint_k / 2
 
 # Define the coordinates of the square
 
-def make_square(center, half_length_x, half_length_y) :
-    
-    x_center = center[0]
-    y_center = center[1]
-    
-    square_x = [x_center - half_length_x, x_center + half_length_x, x_center + half_length_x, x_center - half_length_x, x_center - half_length_x]
-    square_y = [y_center - half_length_y, y_center - half_length_y, y_center + half_length_y, y_center + half_length_y, y_center - half_length_y]
-    
-    return square_x, square_y
 
-square_x, square_y = make_square(points[0], half_length, half_length)
+square_x, square_y = plot_handler.make_square(points[0], half_length, half_length)
 square_1, = ax[0].plot(square_x, square_y, color='black', linewidth = 1, linestyle='dashed')
 
-square_x, square_y = make_square(points[1], half_length, half_length)
+square_x, square_y = plot_handler.make_square(points[1], half_length, half_length)
 square_2, = ax[0].plot(square_x, square_y, color='purple', linewidth = 1, linestyle='dashed')
     
 #plot_square(center, side_length, square_color)
