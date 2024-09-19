@@ -14,9 +14,8 @@ from matplotlib.widgets import Slider, CheckButtons
 from scipy.interpolate import UnivariateSpline
 from scipy import ndimage, misc
 
-from LoadData import LoadData
 from data_loader import DataLoader
-from Manager import DataHandler
+from Manager import DataHandler, PlotHandler
 from generate_custom_colormap import custom_colormap
 
 #%% Load File in your path...
@@ -48,49 +47,28 @@ t0 = data_handler.get_t0()
 
 #%%
 
-# These are Lawson's Offsets: Ignore....
-
-# E_offset = +0#ML Shuo Data
-# delay_offset = 0
-
-# E_offset = +0.8 # 0.65 Scan 160
-# delay_offset = 0
-
-# E_offset = 0.25 #Scan 163
-# delay_offset = 100
-
-# E_offset = -0.3 #Scan 162
-# delay_offset = 85
-
-# E_offset = +7.25
-# delay_offset = 85
-
-#E_offset = -0.2 #Scan 188
-#delay_offset = +60
-
-#E_offset = 0.0 #Scan 062
-
-#E_offset = +0.5 #Scan 138
-#delay_offset = 0
-
-
-
-data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
+def main():
+    
+    # Load data (I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
+    data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
 
     # Initialize plot manager
-    plot_manager = PlotManager(data_handler)
+    plot_manager = PlotHandler(data_handler)
 
     # Initialize sliders and attach update event
     slider_manager = SliderManager(plot_manager)
     slider_manager.E_slider.on_changed(slider_manager.on_slider_update)
-    slider_manager.delay_slider.on_changed(slider_manager.on_slider_update)
 
     # Initialize event handler for interactivity
-    event_handler = EventHandler(plot_manager)
+    event_handler = EventHandler(slider_manager, plot_manager)
     plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
+    plot_manager.fig.canvas.mpl_connect('motion_notify_event', event_handler.on_motion)
     plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
-
+    
     plt.show()
+
+if __name__ == "__main__":
+    main()
     
 #%%
 ### User Inputs and Transform Axes if Needed

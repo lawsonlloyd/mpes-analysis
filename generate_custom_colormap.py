@@ -8,7 +8,7 @@ Created on Wed Sep 18 13:50:47 2024
 import numpy             as np
 import matplotlib        as mpl
 
-def custom_colormap(Name, CMAP):
+def custom_colormap(CMAP):
 # create colormap
 # ---------------
 
