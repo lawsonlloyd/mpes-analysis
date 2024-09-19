@@ -53,7 +53,7 @@ def main():
     data_handler = DataHandler(I, ax_kx, ax_ky, ax_E_offset, ax_delay_offset)
 
     # Initialize plot manager
-    plot_manager = PlotHandler(data_handler)
+    plot_manager = PlotHandler(data_handler, slider_manager)
 
     # Initialize sliders and attach update event
     slider_manager = SliderManager(plot_manager)
