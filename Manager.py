@@ -73,19 +73,18 @@ class PlotHandler:
         self.cmap = self.custom_colormap('viridis')
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1, self.time_trace_2 = None, None
-        self.horizontal_line_0, self.vertical_line_0 = None, None
         self.kx, self.ky, self.E, self.delay = 0, 0, 1.5, 100
         # Square instance to manage the interactive region
         self.square = Square(0, 0, 0.5)  # Default square with center at (0, 0)
         
         # Initial setup for plots
         self.initialize_plots()
-
-    def get_current_values(self):
+        self.update_current_values()
         
-        self.kx = self.vertical_line_0.get_data()[0]
-        self.ky = self.horizontal_line_0.get_data()[1]
-        #self.E = self.slider_manager.E_slider.val
+    def update_current_values(self):
+        self.kx = self.vertical_line_0.get_xdata()
+        self.ky = self.horizontal_line_0.get_ydata()
+        self.E = self.slider_manager.E_slider.val
         #self.delay = self.slider_manager.E_slider.val
         
     def create_fig_axes(self):
@@ -149,7 +148,7 @@ class PlotHandler:
         
     def update_image(self):
         """Update the 2D image based on selected E and delay."""
-        self.get_current_values()
+        self.update_current_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(self.kx, self.ky, self.E, 100)
         frame_temp = np.transpose(self.data_handler.I[:, :, idx_E-2:idx_E+3,:].sum(axis = (2,3)))
         self.im_1.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
@@ -158,7 +157,7 @@ class PlotHandler:
 
     def update_time_traces(self):
         """Update the time traces when the square is moved or resized."""
-        self.get_current_values()
+        self.update_current_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(self.kx, self.ky, self.E, 100)
         time_trace = self.data_handler.I[idx_kx-2:idx_kx+3, idx_ky-2:idx_ky+3, idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
         time_trace = time_trace - np.mean(time_trace[6:15])
