@@ -24,11 +24,14 @@ E_offset = -0.3
 delay_offset = 100
 
 offsets = [E_offset, delay_offset]
+
 #%%
 
 # Load data
 data_loader = DataLoader(fn)
 I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
+
+#%%
     
 def main():
     
