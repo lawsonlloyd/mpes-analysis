@@ -10,7 +10,7 @@ Created on Wed Sep 18 15:36:40 2024
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, CheckButtons
 
 class DataHandler:
     def __init__(self, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
@@ -152,18 +152,8 @@ class PlotHandler:
         self.ax[3].set_ylim(-3,3)
         
         # Initial Dynamics Time Trace (top right)
-        time_trace = self.data_handler.I[idx_kx-2:idx_kx+3, idx_ky-2:idx_ky+3, idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-        time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
-        
-        self.time_trace_1, = self.ax[1].plot(self.data_handler.ax_delay, time_trace/np.max(time_trace), color = 'black')
-        self.ax[1].set_xticks(np.arange(-400,1250,200))
-        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
-            label.set_visible(False)
-        self.ax[1].set_ylim([-0.1, 1.1])
-        self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
-        self.ax[1].set_title("Dynamics")
-        self.ax[1].set_xlabel("Delay, fs")
-        self.ax[1].set_ylabel("Intensity")
+        #self.plot_edc()    
+        self.plot_time_trace()
 
         # Add interactive horizontal and vertical lines (for cuts)
         self.horizontal_line_0 = self.ax[0].axhline(y=self.data_handler.ax_kx[idx_kx], color='black', linestyle='--', linewidth = 1.5)
@@ -202,7 +192,45 @@ class PlotHandler:
         
         return square_x, square_y
         
-    def update_image(self):
+    def plot_edc(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky = [0, 0], [0, 0]
+        idx_kx[0], idx_ky[0], _, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
+        idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+
+        edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, :].sum(axis=(0,1,3))
+        edc = edc/np.max(edc)
+        
+        self.im_4, = self.ax[1].plot(self.data_handler.ax_E, edc, color = 'black')
+       # self.ax[1].set_xticks(np.arange(-400,1250,200))
+        #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+         #   label.set_visible(False)
+        self.ax[1].set_ylim([-0.1, 1.1])
+        self.ax[1].set_xlim([self.data_handler.ax_E[0], self.data_handler.ax_E[-1]])
+        self.ax[1].set_title("EDC")
+        self.ax[1].set_xlabel("Energy, eV")
+        self.ax[1].set_ylabel("Intensity")
+                
+    def plot_time_trace(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky = [0, 0], [0, 0]
+        idx_kx[0], idx_ky[0], idx_E, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
+        idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+
+        time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
+        time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
+        
+        self.im_4, = self.ax[1].plot(self.data_handler.ax_delay, time_trace/np.max(time_trace), color = 'black')
+        self.ax[1].set_xticks(np.arange(-400,1250,200))
+        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+        self.ax[1].set_ylim([-0.1, 1.1])
+        self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+        self.ax[1].set_title("Dynamics")
+        self.ax[1].set_xlabel("Delay, fs")
+        self.ax[1].set_ylabel("Intensity")
+                   
+    def update_kxky_image(self):
         k_int, kx, ky, E, delay = self.value_manager.get_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
         frame_temp = np.transpose(self.data_handler.I[:, :, idx_E-2:idx_E+3,:].sum(axis = (2,3)))
@@ -221,7 +249,7 @@ class PlotHandler:
         frame_temp = np.transpose(self.data_handler.I[idx_kx-2:idx_kx+3, :, :, :].sum(axis = (0,3)))
         self.im_3.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
 
-    def update_time_traces(self):
+    def update_time_trace(self):
         """Update the time traces when the square is moved or resized."""
         k_int, kx, ky, E, delay = self.value_manager.get_values()
         idx_kx, idx_ky = [0, 0], [0, 0]
@@ -231,8 +259,37 @@ class PlotHandler:
         time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
         time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
         # Update the time trace plots
-        self.time_trace_1.set_ydata(time_trace/np.max(time_trace))        
+        self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+        self.im_4.set_xdata(self.data_handler.ax_delay)
+        self.im_4.set_ydata(time_trace/np.max(time_trace))    
+        self.ax[1].set_title("Dynamics")
+        self.ax[1].set_xlabel("Delay, fs")
+        self.ax[1].set_ylabel("Intensity")
 
+    def update_edc(self):
+        """Update the time traces when the square is moved or resized."""
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky = [0, 0], [0, 0]
+        idx_kx[0], idx_ky[0], _, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
+        idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+
+        edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, :].sum(axis=(0,1,3))
+        edc = edc/np.max(edc)
+
+        # Update the time trace plots
+        self.im_4.set_xdata(self.data_handler.ax_E)
+        self.im_4.set_ydata(edc/np.max(edc))
+        self.ax[1].set_ylim([-0.1, 1.1])
+        self.ax[1].set_xlim([self.data_handler.ax_E[0], self.data_handler.ax_E[-1]])
+        self.ax[1].set_title("EDC")
+        self.ax[1].set_xlabel("Energy, eV")
+        self.ax[1].set_ylabel("Intensity")
+        
+    def update_lines(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        self.horizontal_line_1.set_ydata(y = E)
+        self.horizontal_line_2.set_ydata(y = E)
+        
     def update_square(self):
         """Update square position on plot."""
         k_int, kx, ky, E, delay = self.value_manager.get_values()
@@ -285,16 +342,28 @@ class EventHandler:
             self.press_horizontal = True    
         if self.plot_manager.vertical_line_0.contains(event)[0]:
             self.press_vertical = True 
-            #self.plot_manager.update_square(self.plot_manager.square)  # Redraw square and update traces
-    
+        if self.slider_manager.check_button.get_status()[0]:
+            self.slider_manager.button_status = True
+            self.plot_manager.update_edc()
+            self.plot_manager.fig.canvas.draw()
+        if self.slider_manager.check_button.get_status()[0] is False:
+            self.slider_manager.button_status = False            
+            self.plot_manager.update_time_trace()
+            self.plot_manager.fig.canvas.draw()
+
     def on_motion(self, event):
         if self.press_horizontal:    
             new_ky = event.ydata
             self.value_manager.update_ky_value(new_ky)
             self.plot_manager.horizontal_line_0.set_ydata(y = new_ky)
             self.plot_manager.vertical_line_2.set_xdata(x = new_ky)
-            self.plot_manager.update_kx_image()
-            self.plot_manager.update_time_traces()
+            self.plot_manager.update_kx_image()            
+            
+            if self.slider_manager.button_status:
+                self.plot_manager.update_edc()
+            else:
+                self.plot_manager.update_time_trace()
+                
             self.plot_manager.update_square()  # Update square position
             self.plot_manager.fig.canvas.draw()
 
@@ -304,28 +373,42 @@ class EventHandler:
             self.plot_manager.vertical_line_0.set_xdata(x = new_kx)
             self.plot_manager.vertical_line_1.set_xdata(x = new_kx)
             self.plot_manager.update_ky_image()
-            self.plot_manager.update_time_traces()
+            
+            if self.slider_manager.button_status:
+                self.plot_manager.update_edc()
+            else:
+                self.plot_manager.update_time_trace()
+                
             self.plot_manager.update_square()  # Update square position
             self.plot_manager.fig.canvas.draw()
-
+        
     def on_release(self, event):
         """Handle mouse release events."""
         self.press_horizontal = False
         self.press_vertical = False
 
+    #def button_click(self, event):
+        
 class SliderManager:
     def __init__(self, plot_manager, value_manager):
         self.plot_manager = plot_manager
         self.value_manager = value_manager
         self.E_slider, self.k_int_slider = self.create_sliders()
-
+        self.check_button = self.create_button()
+        self.button_status = False
+        
     def create_sliders(self):
         """Create the sliders for energy and delay."""
         E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -4, 3.5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.055, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
         
         return E_slider, k_int_slider
-
+    
+    def create_button(self):
+        check_button = CheckButtons(plt.axes([0., 0.5, 0.15, 0.05]), ['EDC or Dynamics'])
+        
+        return check_button
+    
     def on_slider_update(self, val):
         """Update plots based on slider values."""
         E = self.E_slider.val
@@ -333,10 +416,14 @@ class SliderManager:
         self.value_manager.update_E_value(E)
         self.value_manager.update_k_int_value(k_int)
         
-        self.plot_manager.horizontal_line_1.set_ydata(y = E)
-        self.plot_manager.horizontal_line_2.set_ydata(y = E)
-        
-        self.plot_manager.update_image()
+        self.plot_manager.update_lines()
         self.plot_manager.update_square()
-        self.plot_manager.update_time_traces()
+        self.plot_manager.update_kxky_image()
+        
+        if self.button_status:
+            self.plot_manager.update_edc()
+        else:
+            self.plot_manager.update_time_trace()
+
         self.plot_manager.fig.canvas.draw()
+    

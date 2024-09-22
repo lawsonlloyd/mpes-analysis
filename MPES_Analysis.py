@@ -52,7 +52,8 @@ def main():
     plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
     plot_manager.fig.canvas.mpl_connect('motion_notify_event', event_handler.on_motion)
     plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
-    
+    #plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
+
     plt.show()
 
 if __name__ == "__main__":
