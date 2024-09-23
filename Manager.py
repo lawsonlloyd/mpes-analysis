@@ -398,8 +398,8 @@ class ButtonManager:
         self.save_button = self.create_save_button()
         
     def create_save_button(self):
-        save_button = Button(plt.axes[0.035, 0.4, 0.1, 0.05], 'Save Trace')
-        
+        save_button = Button(plt.axes([0.7, 0.05, 0.1, 0.075]), 'Save Trace')
+
         return save_button
     
     #def save_trace(self):
@@ -407,6 +407,7 @@ class ButtonManager:
         
     def clear_traces(self):
         self.plot_manager.ax[1].lines.remove()
+        
         
 class SliderManager:
     def __init__(self, plot_manager, value_manager):

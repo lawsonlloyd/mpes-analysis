@@ -12,8 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from Loader import DataLoader
-from Manager import DataHandler, PlotHandler, ValueHandler, SliderManager, EventHandler
-from generate_custom_colormap import custom_colormap
+from Manager import DataHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, ButtonManager
 
 #%% Load File in your path...
 
@@ -46,6 +45,9 @@ def main():
     slider_manager.E_slider.on_changed(slider_manager.on_slider_update)
     slider_manager.k_int_slider.on_changed(slider_manager.on_slider_update)
 
+    button_manager = ButtonManager(plot_manager)
+    #button_manager.
+#    save_button.on_clicked(self.save_trace)
 
     # Initialize event handler for interactivity
     event_handler = EventHandler(slider_manager, plot_manager, value_manager)
