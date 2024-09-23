@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons, Button
 
 class DataHandler:
-    def __init__(self, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
+    def __init__(self, value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
+        self.value_manager = value_manager
         if offsets:
             E_offset = offsets[0]
             delay_offset = offsets[1]
@@ -48,6 +49,33 @@ class DataHandler:
         delay_idx = (np.abs(self.ax_delay - delay)).argmin()
         return kx_idx, ky_idx, E_idx, delay_idx
 
+    def get_momentum_map(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
+        if self.I.ndim > 3:
+            mm = np.transpose(self.I[:, :, idx_E-2:idx_E+3, :].sum(axis=(2,3)))
+        else:
+            mm = np.transpose(self.I[:, :, idx_E-2:idx_E+3].sum(axis=(2)))
+        return mm
+    
+    def get_kx_map(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
+        if self.I.ndim > 3:
+            kx_map = np.transpose(self.I[:, idx_ky-2:idx_ky+3, :, :].sum(axis=(1,3)))
+        else:
+            kx_map = np.transpose(self.I[:, idx_ky-2:idx_ky+3, :].sum(axis=(1)))
+        return kx_map
+    
+    def get_ky_map(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
+        if self.I.ndim > 3:
+            ky_map = np.transpose(self.I[idx_kx-2:idx_kx+3, :, :, :].sum(axis=(0,3)))
+        else:
+            ky_map = np.transpose(self.I[idx_kx-2:idx_kx+3, :, :].sum(axis=(0)))
+        return ky_map
+    
 class ValueHandler:
     def __init__(self):
         self.k_int, self.kx, self.ky, self.E, self.delay = 0.4, 0, 0, 0, 0
@@ -96,7 +124,7 @@ class PlotHandler:
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
     
         # Initial Momentum Map kx, ky Image  (top left)
-        frame_temp = np.transpose(self.data_handler.I[:, :, idx_E-2:idx_E+3, :].sum(axis=(2,3)))
+        frame_temp = self.data_handler.get_momentum_map()
         self.im_1 = self.ax[0].imshow(frame_temp/np.max(frame_temp),\
                                       extent = [self.data_handler.ax_kx[0], self.data_handler.ax_kx[-1],  self.data_handler.ax_ky[0], self.data_handler.ax_ky[-1]],\
                                       cmap=self.cmap, aspect='auto', origin='lower')
@@ -117,7 +145,7 @@ class PlotHandler:
         self.ax[0].set_ylabel('$k_y$', fontsize = 14)
         
         # Initial kx vs E Image (bottom left)
-        frame_temp = np.transpose(self.data_handler.I[:, idx_ky-2:idx_ky+3, :, :].sum(axis=(1,3)))
+        frame_temp = self.data_handler.get_kx_map()
         self.im_2 = self.ax[2].imshow(frame_temp/np.max(frame_temp),\
                                       extent = [self.data_handler.ax_kx[0], self.data_handler.ax_kx[-1],  self.data_handler.ax_E[0], self.data_handler.ax_E[-1]],\
                                       cmap=self.cmap, aspect='auto', origin='lower')
@@ -135,7 +163,7 @@ class PlotHandler:
         self.ax[2].set_ylim(-3,3)
 
         # Initial ky vs E Image (bottom left)
-        frame_temp = np.transpose(self.data_handler.I[idx_kx-2:idx_kx+3, :, :, :].sum(axis=(0,3)))
+        frame_temp = self.data_handler.get_ky_map()
         self.im_3 = self.ax[3].imshow(frame_temp/np.max(frame_temp),\
                                      extent = [self.data_handler.ax_ky[0], self.data_handler.ax_ky[-1],  self.data_handler.ax_E[0], self.data_handler.ax_E[-1]],\
                                      cmap=self.cmap, aspect='auto', origin='lower')
@@ -153,8 +181,10 @@ class PlotHandler:
         self.ax[3].set_ylim(-3,3)
         
         # Initial Dynamics Time Trace (top right)
-        #self.plot_edc()    
-        self.plot_time_trace()
+        if self.data_handler.I.ndim > 3:
+            self.plot_time_trace()      
+        else:
+            self.plot_edc()      
 
         # Add interactive horizontal and vertical lines (for cuts)
         self.horizontal_line_0 = self.ax[0].axhline(y=self.data_handler.ax_kx[idx_kx], color='black', linestyle='--', linewidth = 1.5)
@@ -396,18 +426,51 @@ class ButtonManager:
     def __init__(self, plot_manager):
         self.plot_manager = plot_manager
         self.save_button = self.create_save_button()
+        self.clear_button = self.create_clear_button()
+        
+        # Connect the button actions
+        self.save_button.on_clicked(self.save_trace)
+        self.clear_button.on_clicked(self.clear_traces)
+
+        # Store saved traces separately
+        self.saved_lines = []
         
     def create_save_button(self):
-        save_button = Button(plt.axes([0.7, 0.05, 0.1, 0.075]), 'Save Trace')
+        save_button = Button(plt.axes([0.02, 0.94, 0.075, 0.04]), 'Save Trace')
 
         return save_button
     
-    #def save_trace(self):
-       # self.plot_manager.ax[1].
+    def create_clear_button(self):
+        clear_button = Button(plt.axes([0.02, 0.89, 0.075, 0.04]), 'Clear Traces')
+
+        return clear_button
+    
+    def save_trace(self, event):
+        # Get all the current dynamic lines from the plot (assuming they haven't been saved yet)
+        lines = self.plot_manager.ax[1].get_lines()
         
-    def clear_traces(self):
-        self.plot_manager.ax[1].lines.remove()
-        
+        if lines:
+            # Find the last unsaved line (assuming the latest plotted line is dynamic)
+            current_line = lines[0]  
+            
+            # Copy the current line's data to "freeze" it as a saved trace
+            x_data, y_data = current_line.get_xdata(), current_line.get_ydata()
+            
+            # Plot the saved trace with a different style (e.g., dashed gray line)
+            saved_line, = self.plot_manager.ax[1].plot(x_data, y_data, linestyle='--')
+
+            # Add the saved line to the list of saved lines, so it won't be modified later
+            self.saved_lines.append(saved_line)
+            
+            # Redraw the canvas to ensure the saved trace is displayed
+            self.plot_manager.fig.canvas.draw()
+
+    def clear_traces(self, event):
+        # Clear all lines from ax[1]
+        self.plot_manager.ax[1].cla()  # Clear the axis
+        self.plot_manager.plot_time_trace()
+        self.saved_lines.clear()  # Clear the saved traces list
+        self.plot_manager.fig.canvas.draw()  # Redraw the canvas
         
 class SliderManager:
     def __init__(self, plot_manager, value_manager):
@@ -425,7 +488,7 @@ class SliderManager:
         return E_slider, k_int_slider
     
     def create_button(self):
-        check_button = CheckButtons(plt.axes([0., 0.5, 0.15, 0.05]), ['EDC or Dynamics'])
+        check_button = CheckButtons(plt.axes([0.0225, 0.52, 0.05, 0.05]), ['EDC'])
         
         return check_button
 
