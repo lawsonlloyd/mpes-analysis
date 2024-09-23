@@ -10,7 +10,7 @@ Created on Wed Sep 18 15:36:40 2024
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, CheckButtons
+from matplotlib.widgets import Slider, CheckButtons, Button
 
 class DataHandler:
     def __init__(self, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
@@ -20,6 +20,7 @@ class DataHandler:
         else:
             E_offset = 0
             delay_offset = 0
+            
         self.I = I
         self.ax_kx = ax_kx
         self.ax_ky = ax_ky
@@ -296,7 +297,9 @@ class PlotHandler:
         
         square_x, square_y = self.make_square(kx, ky, k_int)
         self.square_0.set_data(square_x, square_y)
-        
+     
+    #def save_trace_plot(self)
+    
     def custom_colormap(self, CMAP):
         # create a colormap that consists of
         # - 1/5 : custom colormap, ranging from white to the first color of the colormap
@@ -388,6 +391,22 @@ class EventHandler:
         self.press_vertical = False
 
     #def button_click(self, event):
+
+class ButtonManager:
+    def __init__(self, plot_manager):
+        self.plot_manager = plot_manager
+        self.save_button = self.create_save_button()
+        
+    def create_save_button(self):
+        save_button = Button(plt.axes[0.035, 0.4, 0.1, 0.05], 'Save Trace')
+        
+        return save_button
+    
+    #def save_trace(self):
+       # self.plot_manager.ax[1].
+        
+    def clear_traces(self):
+        self.plot_manager.ax[1].lines.remove()
         
 class SliderManager:
     def __init__(self, plot_manager, value_manager):
@@ -396,7 +415,7 @@ class SliderManager:
         self.E_slider, self.k_int_slider = self.create_sliders()
         self.check_button = self.create_button()
         self.button_status = False
-        
+            
     def create_sliders(self):
         """Create the sliders for energy and delay."""
         E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -4, 3.5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
@@ -408,7 +427,7 @@ class SliderManager:
         check_button = CheckButtons(plt.axes([0., 0.5, 0.15, 0.05]), ['EDC or Dynamics'])
         
         return check_button
-    
+
     def on_slider_update(self, val):
         """Update plots based on slider values."""
         E = self.E_slider.val
