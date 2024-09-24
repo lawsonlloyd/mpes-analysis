@@ -8,11 +8,8 @@ Created on Fri Sep  8 16:45:17 2023
 
 #%%
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 from Loader import DataLoader
-from Manager import DataHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, ButtonManager
+from Main import main
 
 #%% Load File in your path...
 
@@ -31,33 +28,5 @@ data_loader = DataLoader(fn)
 I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
 
 #%%
-    
-def main():
-    
-    value_manager =  ValueHandler()
-    data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
 
-    # Initialize plot manager
-    plot_manager = PlotHandler(data_handler, value_manager)
-
-    button_manager = ButtonManager(plot_manager)
-
-    # Initialize sliders and attach update event
-    slider_manager = SliderManager(value_manager, plot_manager, button_manager)
-    slider_manager.E_slider.on_changed(slider_manager.on_slider_update)
-    slider_manager.k_int_slider.on_changed(slider_manager.on_slider_update)
-
-    #button_manager.
-#    save_button.on_clicked(self.save_trace)
-
-    # Initialize event handler for interactivity
-    event_handler = EventHandler(value_manager, slider_manager, plot_manager, button_manager)
-    plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
-    plot_manager.fig.canvas.mpl_connect('motion_notify_event', event_handler.on_motion)
-    plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
-    #plot_manager.fig.canvas.mpl_connect('button_press_event', event_handler.on_press)
-
-    plt.show()
-
-if __name__ == "__main__":
-    main()
+main(I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)

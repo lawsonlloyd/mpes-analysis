@@ -331,6 +331,7 @@ class PlotHandler:
         self.ax[1].set_title("EDC")
         self.ax[1].set_xlabel("Energy, eV")
         self.ax[1].set_ylabel("Intensity")
+        #self.ax[1].axvline(E, color = 'black', linestyle = 'dashed')
         
     def update_lines(self):
         k_int, kx, ky, E, delay = self.value_manager.get_values()
