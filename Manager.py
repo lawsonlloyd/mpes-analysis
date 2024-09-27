@@ -35,6 +35,11 @@ class DataHandler:
         else:
             return 1
     
+    def calculate_dk(self):
+        dk = self.ax_kx[2] - self.ax_kx[1]
+        
+        return dk
+    
     def get_t0(self):
         if self.I.ndim > 3:
             t0 = (np.abs(self.ax_delay - 0)).argmin()
@@ -75,6 +80,16 @@ class DataHandler:
         else:
             ky_map = np.transpose(self.I[idx_kx-2:idx_kx+3, :, :].sum(axis=(0)))
         return ky_map
+    
+    def get_edc(self):
+        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
+        dk = self.get_dk()
+        idx_k_int = np.round(dk/k_int)
+        
+        edc = self.I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, delay-3:delay+3].sum(axis=(0,1,3))
+        
+        return edc
     
 class ValueHandler:
     def __init__(self):
