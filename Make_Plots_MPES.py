@@ -16,44 +16,36 @@ from skimage.draw import disk
 #I = np.transpose(I, (0,2,1,3))
 
 if I.ndim > 3:
-    t0 = (np.abs(ax_delay_offset - 0)).argmin()
-    dt = ax_delay_offset[10]-ax_delay_offset[9]
+    t0 = data_handler.get_t0()
     
-    I_Summed_neg = I[:,:,:,5:t0-6] #Sum over delay/polarization/theta...
-    neg_length = I_Summed_neg.shape[3]
-    I_Summed_neg = I_Summed_neg.sum(axis=(3))
+    I_neg = I[:,:,:,5:t0-7] #Sum over delay/polarization/theta...
+    neg_length = I_neg.shape[3]
+    I_neg = I_neg.sum(axis=(3))
         
-    I_Summed_pos = I[:,:,:,t0+1:]
-    pos_length = I_Summed_pos.shape[3]
-    I_Summed_pos = I_Summed_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
+    I_pos = I[:,:,:,t0+1:]
+    pos_length = I_pos.shape[3]
+    I_pos = I_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
     
-    I_Summed_early = I[:,:,:,t0-2:t0+5].sum(axis=3)
-    I_Summed_ = I[:,:,:,:].sum(axis=(3))    
+    I_sum = I[:,:,:,:].sum(axis=(3))    
 
 else:
-    I_Summed_neg = I[:,:,:] #Sum over delay/polarization/theta...
-    dt = 1
-    I_Summed_pos = I[:,:,:]
-    I_Summed_ = I
+    I_neg = I[:,:,:] #Sum over delay/polarization/theta...
+    I_pos = I[:,:,:]
+    I_sum = I
 
-
-dE = (ax_E_offset[1] - ax_E_offset[0])
 dkx = (ax_kx[1] - ax_kx[0])
-dky = (ax_ky[1] - ax_ky[0]) 
+
+ax_E_offset = data_handler.ax_E
+ax_delay_offset = data_handler.ax_delay
 
 #%%
 
-mask_start = (np.abs(ax_E_offset - 0.7)).argmin()
-logicMask_Full = np.ones((I.shape))
-logicMask_Full[:,:,mask_start:] *= 300
-I_Enhanced_Full = logicMask_Full * I
-
-#%%
-%matplotlib inline
 # Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
 
-kx, ky = -1.75, 0.0
-kx_int, ky_int = .16 , .16
+kx, ky, E = -1.75, 0.0, .25
+kx_int, ky_int, E_int = .16 , .16, .2
+
+mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
 
 O = .25 #Scan 163
 O = -0.2 #Scan 162
@@ -65,11 +57,13 @@ xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
 xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
 yi = (np.abs(ax_ky - (ky-ky_int))).argmin()
 yf = (np.abs(ax_ky - (ky+ky_int))).argmin()
+Ei = (np.abs(ax_E_offset - (E-E_int))).argmin()
+Ef = (np.abs(ax_E_offset - (E+E_int))).argmin()
 
 mask = np.ones((I.shape[2]))
 mask[mask_start:] *=100
-edc_neg = (I_Summed_neg[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
-edc_pos = (I_Summed_pos[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
+edc_neg = (I_neg[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
+edc_pos = (I_pos[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
 edc_neg = edc_neg/np.max(edc_neg)
 edc_pos = edc_pos/np.max(edc_pos)
 
@@ -79,9 +73,10 @@ fig.set_size_inches(12 , 4, forward=False)
 ax = ax.flatten()
 
 tMap = (np.abs(ax_E+O - 0)).argmin()
-frame = (I_Summed_[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+frame = (I_neg[:,:,Ei:Ef].sum(axis=(2)))
 frame = frame/np.max(frame)
-im0 = ax[0].imshow(np.transpose((frame)), origin='lower', cmap='terrain_r', vmax=1, clim=None, interpolation='none', extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
+extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
+im0 = ax[0].imshow(np.transpose((frame)), origin='lower', cmap=cmap_LTL, vmax=1, clim=None, interpolation='none', extent=extent) #kx, ky, t
 #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
 R = (Rectangle((kx-kx_int, ky-ky_int), 2*kx_int, 2*ky_int, linewidth=1, \
                    edgecolor='black', facecolor='None', linestyle = 'dashed'))
@@ -127,56 +122,22 @@ ax[1].set_title('$k_{x}$ = ' + str(kx) + ' $A^{-1}$' + ', $k_{y}$= ' + str(ky) +
 
 ax_E_offset = ax_E + O
 
-#%% #DEFINE CUSTOM COLORMAP
+#%%
 
-import numpy             as np
-import matplotlib        as mpl
-import matplotlib.pyplot as plt
-
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-# create colormap
-# ---------------
-
-# create a colormap that consists of
-# - 1/5 : custom colormap, ranging from white to the first color of the colormap
-# - 4/5 : existing colormap
-
-# set upper part: 4 * 256/4 entries
-upper = mpl.cm.viridis(np.arange(256))
-upper = upper[56:,:]
-#upper = mpl.cm.jet(np.arange(256))
-#upper = mpl.cm.magma_r(np.arange(256))
-
-# set lower part: 1 * 256/4 entries
-# - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
-lower = np.ones((int(200/3),4))
-# - modify the first three columns (RGB):
-#   range linearly between white (1,1,1) and the first color of the upper colormap
-for i in range(3):
-  lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
-
-# combine parts of colormap
-cmap = np.vstack(( lower, upper ))
-
-# convert to matplotlib colormap
-viridis_LTL = mpl.colors.ListedColormap(cmap, name='LTL', N=cmap.shape[0])
+cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap based and percentage of total map for new white transition map
 
 #%%
 %matplotlib inline
 
 ### User Inputs for Plotting MM 
 
-tMaps, tint  = [0.1, 1.1], 6
+E, E_int  = [0.1, 1.1], 6
 
 # Plot Momentum Maps at specified Energies
 
-cmap = viridis_LTL 
-#cmap = 'viridis'
-### Plot
-numPlots = len(tMaps)
+cmap = cmap_LTL 
 
-frame_plot = I_Summed_
+frame_plot = I_sum
 
 #### 
 fig, ax = plt.subplots(1,2, sharey=True)
@@ -184,14 +145,16 @@ plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
 sat = [1, 1]
-for i in np.arange(numPlots, dtype = int):
-    tMap = tMaps[i]
-    tMap = (np.abs(ax_E_offset - tMap)).argmin()
+for i in np.arange(len(E)):
+    E_ = E[i]
+
+    Ei = (np.abs(ax_E_offset - (E_-E_int))).argmin()
+    Ef = (np.abs(ax_E_offset - (E_+E_int))).argmin()    
     
-    frame = np.transpose(frame_plot[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+    frame = np.transpose(frame_plot[:,:,Ei:Ef].sum(axis=(2)))
     frame = frame/np.max(frame)
-    im = ax[i].imshow((frame), origin='lower', cmap=cmap, vmax=sat[i], clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
-    #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
+    im = ax[i].imshow((frame), origin='lower', cmap=cmap, vmax=sat[i], clim=None, interpolation='none', extent = extent) #kx, ky, t
 
     ax[i].set_aspect(1)
     #ax[0].axhline(y,color='black')
@@ -212,7 +175,7 @@ for i in np.arange(numPlots, dtype = int):
     ax[i].set_xlabel('$k_x$', fontsize = 14)
     ax[i].set_ylabel('$k_y$', fontsize = 14)
     ax[i].tick_params(axis='both', labelsize=12)
-    ax[i].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
+    ax[i].set_title('$E$ = ' + str((E[i])) + ' eV', fontsize = 16)
     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
     cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
     fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
@@ -261,12 +224,12 @@ plt.gca().set_aspect(3)
 
 tMaps, tint  = [1.35, 2], 6
 
-cmapPLOTTING = cmap_LTL#'bone_r' # cmap_LTL
+cmapPLOTTING = cmap_LTL #'bone_r' # cmap_LTL
 
-difference_FRAMES = np.zeros((numPlots,I_Summed_pos.shape[0],I_Summed_pos.shape[1]))
+difference_FRAMES = np.zeros((numPlots,I_pos.shape[0],I_pos.shape[1]))
 
-frame_neg = (I_Summed_neg[:,:,:])
-frame_pos = (I_Summed_pos[:,:,:])
+frame_neg = (I_neg[:,:,:])
+frame_pos = (I_pos[:,:,:])
 
 #frame_neg = frame_neg/(np.max(frame_neg))
 #frame_pos = frame_pos/(np.max(frame_pos))
@@ -305,7 +268,8 @@ for i in np.arange(numPlots, dtype = int):
     frame = abs(frame)
     difference_FRAMES[i,:,:] = frame    
 
-    im = ax[i].imshow(np.transpose(frame), origin='lower', cmap=cmapPLOTTING, clim=[0,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+    extent =  extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
+    im = ax[i].imshow(np.transpose(frame), origin='lower', cmap=cmapPLOTTING, clim=[0,1], interpolation='none', extent=extent) #kx, ky, t
     
     #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
     ax[i].set_aspect(1)
@@ -334,7 +298,8 @@ delta_MM = difference_FRAMES[0,:,:] - difference_FRAMES[1,:,:]
 delta_MM = delta_MM/np.max(np.abs(delta_MM))
 
 i = 2
-im = ax[i].imshow(np.transpose(delta_MM), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
+extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
+im = ax[i].imshow(np.transpose(delta_MM), origin='lower', cmap='seismic', clim=[-1,1], interpolation='none', extent=extent) #kx, ky, t
 
 ax[i].set_aspect(1)
 #ax[0].axhline(y,color='black')
@@ -380,8 +345,8 @@ thirdtrace = 0
 e_ = 0.5
 e = np.abs(ax_E_offset - e_).argmin()
 
-edc_neg = I_Summed_neg.sum(axis=(0,1))
-edc_pos = I_Summed_pos.sum(axis=(0,1))
+edc_neg = I_neg.sum(axis=(0,1))
+edc_pos = I_pos.sum(axis=(0,1))
 
 edc_neg = edc_neg/neg_length
 edc_pos = edc_pos/pos_length
@@ -504,54 +469,39 @@ fig.tight_layout()
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-
 kx, ky = 0, 0.0
 kx_int, ky_int = .25 , 0.5
 
-xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
-xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
-yi = (np.abs(ax_ky - (ky-ky_int))).argmin()
-yf = (np.abs(ax_ky - (ky+ky_int))).argmin()
+mask_start = 0.9
 
-start = 5
-stop = t0-17
+############################################
+kxi = (np.abs(ax_kx - (kx-kx_int))).argmin()
+kxf = (np.abs(ax_kx - (kx+kx_int))).argmin()
+kyi = (np.abs(ax_ky - (ky-ky_int))).argmin()
+kyf = (np.abs(ax_ky - (ky+ky_int))).argmin()
 
-start2 = t0
-stop2 = -1
+I_sum_1 = (I[:,:,:,5:t0-8]) #Sum over delay/theta/ADC for Plotting...
+len_1 = I_sum_1.shape[3]
+I_sum_1 = I_sum_1.sum(axis=3)/len_1
 
-I_Summed = (I[:,:,:,start:stop]) #Sum over delay/theta/ADC for Plotting...
-len_1 = I_Summed.shape[3]
-I_Summed = I_Summed.sum(axis=3)/len_1
+I_sum_2 = (I[:,:,:,t0+1:-1])
+len_2 = I_sum_2.shape[3]              
+I_sum_2 = I_sum_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotting...
 
-I_Summed_2 = (I[:,:,:,start2:stop2])
-len_2 = I_Summed_2.shape[3]              
-I_Summed_2 = I_Summed_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotting...
+e = np.abs(ax_E_offset - mask_start).argmin()
 
-  #I_Summed = ndimage.rotate(I_Summed, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-  #I_Rot = I
-  #I_Rot = ndimage.rotate(I, 12, reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-  #I_derivative = 
-
-I_Enhanced = 1 * I_Summed
-I_Enhanced_2 = 1 * I_Summed_2
-
-#fig.tight_layout()
-
-e_ = 1
-e = np.abs(ax_E_offset - e_).argmin()
-
-slice_E_k_1 = I_Enhanced[:,yi:yf,e:].sum(axis=(1))
+slice_E_k_1 = I_sum_1[:,kyi:kyf,e:].sum(axis=(1))
 norm_1 = np.max(slice_E_k_1)
 slice_E_k_1 = slice_E_k_1/norm_1
 
-slice_E_k_2 = I_Enhanced_2[:,yi:yf,e:].sum(axis=(1))
+slice_E_k_2 = I_sum_2[:,kyi:kyf,e:].sum(axis=(1))
 slice_E_k_2 = slice_E_k_2/norm_1
 
-slice_E_k_3 = I_Enhanced[xi:xf,:,e:].sum(axis=(0))
+slice_E_k_3 = I_sum_1[kxi:kxf,:,e:].sum(axis=(0))
 norm_3 = np.max(slice_E_k_3)
 slice_E_k_3 = slice_E_k_3/norm_3
 
-slice_E_k_4 = I_Enhanced_2[xi:xf,:,e:].sum(axis=(0))
+slice_E_k_4 = I_sum_2[kxi:kxf,:,e:].sum(axis=(0))
 slice_E_k_4 = slice_E_k_4/norm_3
 
 I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
@@ -563,23 +513,11 @@ I_4_N = slice_E_k_4/np.max(np.abs(slice_E_k_4))
 I_dif = I_2_N - I_1_N
 I_dif_ = I_4_N - I_3_N
 
-I_dif = I_dif/np.max(I_dif)
+I_dif = I_dif/np.max(I_dif_)
 I_dif_ = I_dif_/np.max(I_dif)
-
-#line_cut_x_ind = (np.abs(ax_kx - line_cut_x)).argmin()
-#line_cut_y_ind = (np.abs(ax_ky - line_cut_y)).argmin()
-#line_cut_t_ind = (np.abs(ax_E_offset - E_AOI)).argmin()
-#line_cut_1 = I_Enhanced[line_cut_x_ind-1:line_cut_x_ind+1,line_cut_y_ind-1:line_cut_y_ind+1,:].sum(axis=(0,1))
 
 ### Panels
 ###################################33
-
-# plt.figure()
-# plt.imshow(np.transpose(I_Enhanced[:,:,110:170].sum(axis=2)))
-# plt.axhline(y[0], color = 'black')
-# plt.axhline(y[0]+yint, color = 'black')
-# plt.axvline(x[0])
-# plt.axvline(x[0]+xint)
 
 ylim = [1,2.5]
 vmin, vmax = 0, 1
@@ -632,11 +570,6 @@ for i in [2,5]:
        
 fig.tight_layout()
 
-#fig.colorbar(im, ax=fig.get_axes())
-#fig.colorbar(im_4,fraction=0.046, pad=0.04)
-
-#fig.savefig(image_name, format=image_format, dpi=600
-
 #%%
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
@@ -660,10 +593,10 @@ traces = np.zeros((4,I.shape[3]))
 E_int, kx_int, ky_int = E_int/2, kx_int/2, ky_int/2
 
 for t in range(4):
-    xi = (np.abs(ax_kx - (kx_traces[t]-kx_int))).argmin()
-    xf = (np.abs(ax_kx - (kx_traces[t]+kx_int))).argmin()
-    yi = (np.abs(ax_ky - (ky_traces[0]-ky_int))).argmin()
-    yf = (np.abs(ax_ky - (ky_traces[0]+ky_int))).argmin()
+    kxi = (np.abs(ax_kx - (kx_traces[t]-kx_int))).argmin()
+    kxf = (np.abs(ax_kx - (kx_traces[t]+kx_int))).argmin()
+    kyi = (np.abs(ax_ky - (ky_traces[0]-ky_int))).argmin()
+    kyf = (np.abs(ax_ky - (ky_traces[0]+ky_int))).argmin()
     Ei = np.abs(ax_E_offset - (E_traces[t]-E_int)).argmin()  
     Ef = np.abs(ax_E_offset - (E_traces[t]+E_int)).argmin()  
     trace = I[xi:xf, yi:yf, Ei:Ef,:].sum(axis=(0,1,2))
@@ -676,17 +609,29 @@ MM_frame_diff = frame_differences[:,:,Ei:Ef].sum(axis=(2))
 MM_frame_diff = MM_frame_diff/np.max(MM_frame_diff)
 
 # Kx Frame Difference
-e_ = 0.9
-e = np.abs(ax_E_offset - e_).argmin()
-slice_E_k_1 = I_Enhanced[:,yi:yf,e:].sum(axis=(1))
+mask_start = 0.95
+
+I_sum_1 = (I[:,:,:,5:t0-8]) #Sum over delay/theta/ADC for Plotting...
+len_1 = I_sum_1.shape[3]
+I_sum_1 = I_sum_1.sum(axis=3)/len_1
+
+I_sum_2 = (I[:,:,:,t0+1:-1])
+len_2 = I_sum_2.shape[3]              
+I_sum_2 = I_sum_2.sum(axis=(3))/len_2 #Sum over delay/theta/ADC for Plotting...
+
+e = np.abs(ax_E_offset - mask_start).argmin()
+
+slice_E_k_1 = I_sum_1[:,kyi:kyf,e:].sum(axis=(1))
 norm_1 = np.max(slice_E_k_1)
 slice_E_k_1 = slice_E_k_1/norm_1
 
-slice_E_k_2 = I_Enhanced_2[:,yi:yf,e:].sum(axis=(1))
+slice_E_k_2 = I_sum_2[:,kyi:kyf,e:].sum(axis=(1))
 slice_E_k_2 = slice_E_k_2/norm_1
 
 I_1_N = slice_E_k_1/np.max(np.abs(slice_E_k_1))
 I_2_N = slice_E_k_2/np.max(np.abs(slice_E_k_2))
+
+I_dif = I_2_N - I_1_N
 
 kx_diff = I_2_N - I_1_N
 kx_diff = kx_diff/np.max(kx_diff)
@@ -722,8 +667,8 @@ ax[0].set_aspect(1)
 
 ### kx Difference Plot
 i = 2
-ax[2].imshow(np.transpose(kx_diff), origin='lower', cmap=cmap_to_plot, clim=clim, interpolation='none',\
-             extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1]],vmin = clim[0], vmax=clim[1]) #kx, ky, t
+extent=[ax_kx[0],ax_kx[-1],ax_E_offset[e], ax_E_offset[-1]]
+ax[2].imshow(np.transpose(kx_diff), origin='lower', cmap=cmap_to_plot, clim=clim, interpolation='none', vmin = clim[0], vmax=clim[1], extent = extent) #kx, ky, t
 plt.colorbar(im, ax = ax[2], ticks = [])
 ax[2].set_yticks(np.arange(-0.5,3,0.25))
 for label in ax[2].yaxis.get_ticklabels()[1::2]:
@@ -795,18 +740,6 @@ fig.tight_layout()
 
 
 #%%
-
-###############################
-
-###############################
-
-###############################
-
-###############################
-
-
-
-#%%
 %matplotlib inline
 
 ###
@@ -834,8 +767,8 @@ for i in np.arange(numPlots):
     tMap = tMaps[i]
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
-    frame_neg = np.transpose(I_Summed_neg[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
-    frame_pos = np.transpose(I_Summed_pos[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+    frame_neg = np.transpose(I_neg[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
+    frame_pos = np.transpose(I_pos[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2)))
     
     frame_neg = frame_neg/((neg_length))
     frame_pos = frame_pos/((pos_length))
@@ -847,8 +780,6 @@ for i in np.arange(numPlots):
     
     frame_diff = frame_pos - frame_neg
     frame_diff = (frame_diff)
-
-    frame_early = np.abs(np.transpose(I_Summed_early[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))))
     
     ###                   ###
     ### Do the Operations ###
@@ -861,7 +792,6 @@ for i in np.arange(numPlots):
     kspace_frame[kspace_frame<0] = 0
     
     #kspace_frame = frame_pos #All Pos delays
-    #kspace_frame = frame_early
     
     ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
     fwhm = 0.063
@@ -950,7 +880,6 @@ im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, interpolation='no
 im = ax[1].imshow(frame_sym, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
 im = ax[2].imshow(windowed_frame_symm, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]) #kx, ky, t
 
-    #im = ax[i].imshow(np.transpose(I[:,:,tMap-int(tint/2):tMap+int(tint/2), adc-1:adc+1].sum(axis=(2,3))), origin='lower', cmap='terrain_r', clim=None, interpolation='none', extent=[-2,2,-2,2]) #kx, ky, t
 for i in np.arange(3):
     ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
     ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
@@ -1293,9 +1222,9 @@ max_r = (1/2)*1/(k_step)
 r_axis = np.linspace(-max_r, max_r, num = k_length)
 r_axis = np.linspace(-max_r, max_r, num = zplength)
 
-### Plot
-numPlots = len(tMaps)
 
+####################################################
+### Plot
 fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 6, forward=False)
 plt.gcf().set_dpi(300)
@@ -1327,7 +1256,7 @@ ax[i].set_ylabel('$r_b$, nm', fontsize = 16)
 ax[i].tick_params(axis='both', labelsize=14)
 ax[i].set_title('$E$ = ' + str((tMaps[i-1])) + ' eV', fontsize = 16)
 
-for i in np.arange(numPlots, dtype = int):
+for i in np.arange(1):
     i = i + 1
     
     ### Do the FFT operations to get --> |Psi(x,y)|^2
@@ -1406,6 +1335,7 @@ plt.show()
 #fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
 #fig.colorbar(im, fraction=0.046, pad=0.04)
 
+
 #%%
 
 I_Neg = I[:,:,:,6:t0-15]
@@ -1425,23 +1355,19 @@ logic_mask = np.ones((I_Difference_Full.shape))
 logic_mask[:,:,mask_start:,:] *= scale_factor
 I_Difference_Full = logic_mask * I_Difference_Full
     
-#%%
-
-
-#%%
-## Make a video/gif of the Dynamics!
+#%% ## Make a video/gif of the Dynamics!
 
 #y = [y]
 import imageio
 from matplotlib.animation import FuncAnimation
 from matplotlib import animation
 
-I_Summed_neg = I[:,:,:,6:t0-15]
-neg_len = I_Summed_neg.shape[3]
-I_Summed_neg = I_Summed_neg.sum(axis=3)/neg_len
+I_neg = I[:,:,:,6:t0-15]
+neg_len = I_neg.shape[3]
+I_neg = I_neg.sum(axis=3)/neg_len
 
-I_Summed_neg_cb = I_Summed_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
-I_Summed_neg = I_Summed_neg[:,y[0]:y[0]+yint,0:177].sum(axis=(1)) #Individual Delays
+I_neg_cb = I_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
+I_neg = I_neg[:,y[0]:y[0]+yint,0:177].sum(axis=(1)) #Individual Delays
 
 I_Neg = I[:,:,:,6:t0-15]
 neg_len = I_Neg.shape[3]
@@ -1449,7 +1375,7 @@ I_Neg = I_Neg.sum(axis=3)/neg_len
 
 video_array = I[:,y[0]:y[0]+yint,0:177,20:].sum(axis=(1)) #Individual Delays
 #video_array = I_Enhanced_Full[x[0]:x[0]+yint,:,0:177,10:].sum(axis=(1)) #Individual Delays
-#I_Summed_neg = I_Summed_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
+#I_neg = I_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
 
 video_axis = ax_delay_offset[20:]
 fig = plt.figure()
@@ -1463,13 +1389,13 @@ def update_img(n):
     fr_cb = (fr_cb[:,:,n:n+5])
     fr_len = fr_cb.shape[2]
     fr_cb = fr_cb.sum(axis=2)/fr_len
-    fr_difference_cb = fr_cb #- I_Summed_neg_cb   
+    fr_difference_cb = fr_cb #- I_neg_cb   
     CB_Norm = np.max(abs(fr_difference_cb))
     #fr_difference = fr_difference/CB_Norm
 
     fr = I[:,y[0]:y[0]+yint,0:177,20:].sum(axis=(1))
     fr = (fr[:,:,n:n+5]).sum(axis=2)/fr_len
-    fr_difference = fr #- I_Summed_neg   
+    fr_difference = fr #- I_neg   
     total_Norm = np.max(abs(fr_difference))
     fr_difference = fr_difference/total_Norm
     
@@ -1502,12 +1428,12 @@ import imageio
 from matplotlib.animation import FuncAnimation
 from matplotlib import animation
 
-I_Summed_neg = I[:,:,:,6:t0-15]
-neg_len = I_Summed_neg.shape[3]
-I_Summed_neg = I_Summed_neg.sum(axis=3)/neg_len
+I_neg = I[:,:,:,6:t0-15]
+neg_len = I_neg.shape[3]
+I_neg = I_neg.sum(axis=3)/neg_len
 
-I_Summed_neg_cb = I_Summed_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
-I_Summed_neg = I_Summed_neg[:,y[0]:y[0]+yint,0:177].sum(axis=(1)) #Individual Delays
+I_neg_cb = I_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
+I_neg = I_neg[:,y[0]:y[0]+yint,0:177].sum(axis=(1)) #Individual Delays
 
 I_Neg = I[:,:,:,6:t0-15]
 neg_len = I_Neg.shape[3]
@@ -1515,7 +1441,7 @@ I_Neg = I_Neg.sum(axis=3)/neg_len
 
 video_array = I[:,y[0]:y[0]+yint,0:177,20:].sum(axis=(1)) #Individual Delays
 #video_array = I_Enhanced_Full[x[0]:x[0]+yint,:,0:177,10:].sum(axis=(1)) #Individual Delays
-#I_Summed_neg = I_Summed_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
+#I_neg = I_neg[:,y[0]:y[0]+yint,100:177].sum(axis=(1)) #Individual Delays
 
 video_axis = ax_delay_offset[20:]
 fig = plt.figure()
@@ -1529,13 +1455,13 @@ def update_img(n):
     fr_cb = (fr_cb[:,:,n:n+5])
     fr_len = fr_cb.shape[2]
     fr_cb = fr_cb.sum(axis=2)/fr_len
-    fr_difference_cb = fr_cb - I_Summed_neg_cb   
+    fr_difference_cb = fr_cb - I_neg_cb   
     CB_Norm = np.max(abs(fr_difference_cb))
     #fr_difference = fr_difference/CB_Norm
 
     fr = I[:,y[0]:y[0]+yint,0:177,20:].sum(axis=(1))
     fr = (fr[:,:,n:n+5]).sum(axis=2)/fr_len
-    fr_difference = fr - I_Summed_neg   
+    fr_difference = fr - I_neg   
     total_Norm = np.max(abs(fr_difference))
     fr_difference = fr_difference/total_Norm
     
@@ -1561,9 +1487,7 @@ writergif = animation.PillowWriter(fps=8)
 ani.save('trARPES_test_New.gif', writer=writergif)
 
 
-#%%
-
-### Make a video/gif of the Dynamics -- with Pos-Neg Difference!
+#%% Make a video/gif of the Dynamics -- with Pos-Neg Difference!
 
 import imageio
 from matplotlib.animation import FuncAnimation
@@ -1575,9 +1499,9 @@ video_axis = ax_delay_offset[tstart:]
 
 fig = plt.figure()
 
-I_Summed_neg = I[:,:,:,5:t0-10]
-neg_len = I_Summed_neg.shape[3]
-I_Summed_neg = I_Summed_neg.sum(axis=3)/neg_len
+I_neg = I[:,:,:,5:t0-10]
+neg_len = I_neg.shape[3]
+I_neg = I_neg.sum(axis=3)/neg_len
 
 I_truncated = (I[:,:,:,tstart:]) #Sum over delay/theta/ADC for Plotting...
 
@@ -1589,12 +1513,12 @@ def update_img(n):
     #n delay average
     #start2 = n
     #stop2 = n+5
-    I_Summed_2 = I_truncated[:,:,:,n+n+5]/(5)
-    #frame_len = I_Summed_2.shape[3]
-    #I_Summed_2 = I_Summed_2.sum(axis=3)/frame_len
+    I_sum_2 = I_truncated[:,:,:,n+n+5]/(5)
+    #frame_len = I_sum_2.shape[3]
+    #I_sum_2 = I_sum_2.sum(axis=3)/frame_len
     
-    I_Enhanced_neg = 0.005*logicMask * I_Summed_neg
-    I_Enhanced_2 = 0.005*logicMask * I_Summed_2
+    I_Enhanced_neg = 0.005*logicMask * I_neg
+    I_Enhanced_2 = 0.005*logicMask * I_sum_2
      
     slice_E_k_1 = I_Enhanced_neg[:,y[0]:y[0]+yint,:].sum(axis=(1))
     f1_norm = np.max(slice_E_k_1)
@@ -1633,24 +1557,5 @@ v_len = len(ax_delay_offset[tstart:-10]) #video_array.shape[1]
 ani = FuncAnimation(fig, update_img, frames = 100)
 writergif = animation.PillowWriter(fps=10)
 ani.save('trARPES_test_DIFF2.gif', writer=writergif)
-
-#%%
-%matplotlib inline
-
-fig = plt.figure()
-
-fig.set_size_inches(10, 10, forward=False)
-
-ang_int = I[:,:,:,:].sum(axis=(0,1))
-n = np.max(ang_int)
-
-plt.imshow(ang_int/n, vmax=0.0025, origin = 'lower', cmap = 'magma_r', extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-
-plt.xlim(-170,800)
-plt.ylim(-0.25, 3)
-plt.xlabel('Delay, fs', fontsize = 18)
-plt.ylabel('E - E$_{VBM}$, eV', fontsize = 18)
-plt.tick_params(axis='both', labelsize=16)
-plt.gca().set_aspect(200)
 
 #%%

@@ -118,7 +118,7 @@ class PlotHandler:
         self.data_handler = data_handler
         self.value_manager = value_manager
         self.fig, self.ax = self.create_fig_axes()
-        self.cmap = self.custom_colormap('viridis')
+        self.cmap = self.custom_colormap(mpl.cm.viridis, 0.25)
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1 = None
         self.t0 = self.data_handler.get_t0()
@@ -362,24 +362,20 @@ class PlotHandler:
      
     #def save_trace_plot(self)
     
-    def custom_colormap(self, CMAP):
+    def custom_colormap(self, CMAP, lower_portion_percentage):
         # create a colormap that consists of
         # - 1/5 : custom colormap, ranging from white to the first color of the colormap
         # - 4/5 : existing colormap
+        
         # set upper part: 4 * 256/4 entries
         
-        if CMAP == 'viridis':
-            upper = mpl.cm.viridis(np.arange(256))
-        else:
-            upper = mpl.cm.magma(np.arange(256))
-    
+        upper =  CMAP(np.arange(256))
         upper = upper[56:,:]
-        #upper = mpl.cm.jet(np.arange(256))
-        #upper = mpl.cm.magma_r(np.arange(256))
         
-        # set lower part: 1 * 256/4 entries
         # - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
-        lower = np.ones((int(200/3),4))
+        lower_portion = int(1/lower_portion_percentage) - 1
+        
+        lower = np.ones((int(200/lower_portion),4))
         # - modify the first three columns (RGB):
         #   range linearly between white (1,1,1) and the first color of the upper colormap
         for i in range(3):
