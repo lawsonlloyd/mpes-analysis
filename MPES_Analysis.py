@@ -11,13 +11,15 @@ from Main import main
 fn = 'your_data_file.h5'
 fn = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5'
 
+data_path = 'R:\Lawson\Analysis\data'
+
 # Include manual energy and time delay offsets for the axes, if required.
 E_offset = -0.1
 delay_offset = 100
 
 #%% Load the data and axes information
 
-data_loader = DataLoader(fn)
+data_loader = DataLoader(data_path + '\\' + fn)
 I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
 
 #%% Run the Interactive GUI for Data Exploration and Plotting

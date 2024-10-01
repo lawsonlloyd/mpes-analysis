@@ -31,7 +31,7 @@ def main(I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
     plot_manager.fig.canvas.mpl_connect('motion_notify_event', event_handler.on_motion)
     plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
 
-    plt.show(block=False)
+    plt.show(block=True)
 
 
 if __name__ == "__main__":
