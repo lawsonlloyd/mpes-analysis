@@ -113,11 +113,25 @@ class ValueHandler:
     def get_values(self):
         return self.k_int, self.kx, self.ky, self.E, self.delay
 
+class FigureHandler:
+    def __init__(self):
+        test = 0
+        self.fig, self.ax = self.create_fig_axes()
+        
+    def create_fig_axes(self):
+        # Create the figure and axes for subplots
+        fig, ax = plt.subplots(nrows=2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios': [1, 1]})
+        fig.set_size_inches(15, 10)
+        
+        return fig, ax.flatten()
+        
 class PlotHandler:
-    def __init__(self, data_handler, value_manager):
+    def __init__(self, figure_handler, data_handler, value_manager, check_button_manager):
+        self.figure_handler = figure_handler
         self.data_handler = data_handler
         self.value_manager = value_manager
-        self.fig, self.ax = self.create_fig_axes()
+        self.check_button_manager = check_button_manager
+        self.fig, self.ax = self.figure_handler.fig, self.figure_handler.ax
         self.cmap = self.custom_colormap(mpl.cm.viridis, 0.25)
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1 = None
@@ -125,12 +139,6 @@ class PlotHandler:
 
         # Initial setup for plots
         self.initialize_plots()
-        
-    def create_fig_axes(self):
-        # Create the figure and axes for subplots
-        fig, ax = plt.subplots(nrows=2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios': [1, 1]})
-        fig.set_size_inches(15, 10)
-        return fig, ax.flatten()
 
     def initialize_plots(self,):
         
@@ -296,12 +304,20 @@ class PlotHandler:
         k_int, kx, ky, E, delay = self.value_manager.get_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
         frame_temp = self.data_handler.get_kx_map()
+        frame_temp = frame_temp/np.max(frame_temp)
+        if self.check_button_manager.enhance_button_status == True:    
+            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
         self.im_2.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
 
     def update_ky_image(self):
         k_int, kx, ky, E, delay = self.value_manager.get_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
         frame_temp = self.data_handler.get_ky_map()
+        frame_temp = frame_temp/np.max(frame_temp)
+        if self.check_button_manager.enhance_button_status == True:    
+            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
         self.im_3.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
 
     def update_time_trace(self):
@@ -390,10 +406,10 @@ class PlotHandler:
         return custom_cmap
 
 class EventHandler:
-    def __init__(self, value_manager, slider_manager, plot_manager, button_manager):
+    def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager):
         self.slider_manager = slider_manager
         self.plot_manager = plot_manager
-        self.button_manager = button_manager
+        self.check_button_manager = check_button_manager
         self.value_manager = value_manager
         self.press_horizontal = False
         self.press_vertical = False
@@ -405,13 +421,24 @@ class EventHandler:
         if self.plot_manager.vertical_line_0.contains(event)[0]:
             self.press_vertical = True 
         
-        if self.button_manager.check_button.get_status()[0]:
-            self.button_manager.button_status = True
+        if self.check_button_manager.trace_check_button.get_status()[0]:
+            self.check_button_manager.trace_button_status = True
             self.plot_manager.update_edc()
             self.plot_manager.fig.canvas.draw()
-        elif self.button_manager.check_button.get_status()[0] is False and self.plot_manager.data_handler.I.ndim>3:
-            self.button_manager.button_status = False            
+        elif self.check_button_manager.trace_check_button.get_status()[0] is False and self.plot_manager.data_handler.I.ndim>3:
+            self.check_button_manager.trace_button_status = False            
             self.plot_manager.update_time_trace()
+            self.plot_manager.fig.canvas.draw()
+
+        if self.check_button_manager.enhance_check_button.get_status()[0] is False:
+            self.check_button_manager.enhance_button_status = False
+            self.plot_manager.update_kx_image()
+            self.plot_manager.update_ky_image()
+            self.plot_manager.fig.canvas.draw()
+        elif self.check_button_manager.enhance_check_button.get_status()[0] is True:
+            self.check_button_manager.enhance_button_status = True
+            self.plot_manager.update_kx_image()
+            self.plot_manager.update_ky_image()
             self.plot_manager.fig.canvas.draw()
 
     def on_motion(self, event):
@@ -422,7 +449,7 @@ class EventHandler:
             self.plot_manager.vertical_line_2.set_xdata(x = new_ky)
             self.plot_manager.update_kx_image()            
             
-            if self.button_manager.button_status:
+            if self.check_button_manager.trace_button_status:
                 self.plot_manager.update_edc()
             else:
                 self.plot_manager.update_time_trace()
@@ -437,7 +464,7 @@ class EventHandler:
             self.plot_manager.vertical_line_1.set_xdata(x = new_kx)
             self.plot_manager.update_ky_image()
             
-            if self.button_manager.button_status:
+            if self.check_button_manager.trace_button_status:
                 self.plot_manager.update_edc()
             else:
                 self.plot_manager.update_time_trace()
@@ -450,16 +477,31 @@ class EventHandler:
         self.press_horizontal = False
         self.press_vertical = False
 
-    #def button_click(self, event):
+class CheckButtonManager:
+    def __init__(self):
+        self.trace_check_button = self.create_trace_check_button()
+        self.enhance_check_button = self.create_enhance_check_button()
+        
+        self.trace_button_status = False # for EDC
+        self.enhance_button_status = False #for enhance CB
+    
+    def create_trace_check_button(self):
+        trace_check_button = CheckButtons(plt.axes([0.1225, 0.52, 0.05, 0.05]), ['EDC'])
+        
+        return trace_check_button
 
-class ButtonManager:
-    def __init__(self, plot_manager):
+    def create_enhance_check_button(self):
+        enhance_check_button = CheckButtons(plt.axes([0.065, 0.52, 0.05, 0.05]), ['Enhance CB'])
+        
+        return enhance_check_button
+    
+class ClickButtonManager:
+    def __init__(self, plot_manager, check_button_manager):
         self.plot_manager = plot_manager
+        self.check_button_manager = check_button_manager
         self.save_button = self.create_save_button()
         self.clear_button = self.create_clear_button()
-        self.check_button = self.create_check_button()
-        self.button_status = False
-        
+
         # Connect the button actions
         self.save_button.on_clicked(self.save_trace)
         self.clear_button.on_clicked(self.clear_traces)
@@ -468,7 +510,7 @@ class ButtonManager:
         self.saved_lines = []
         
     def create_save_button(self):
-        save_button = Button(plt.axes([0.02, 0.94, 0.075, 0.04]), 'Save Trace')
+        save_button = Button(plt.axes([0.02, 0.94, 0.075, 0.04]), 'Keep Trace')
 
         return save_button
     
@@ -476,12 +518,7 @@ class ButtonManager:
         clear_button = Button(plt.axes([0.02, 0.89, 0.075, 0.04]), 'Clear Traces')
 
         return clear_button
-    
-    def create_check_button(self):
-        check_button = CheckButtons(plt.axes([0.0225, 0.52, 0.05, 0.05]), ['EDC'])
-        
-        return check_button
-    
+
     def save_trace(self, event):
         # Get all the current dynamic lines from the plot (assuming they haven't been saved yet)
         lines = self.plot_manager.ax[1].get_lines()
@@ -506,7 +543,7 @@ class ButtonManager:
         # Clear all lines from ax[1]
         self.plot_manager.ax[1].cla()  # Clear the axis
         
-        if self.button_status:
+        if self.check_button_manger.trace_button_status:
             self.plot_manager.plot_edc()
         else:
             self.plot_manager.plot_time_trace()
@@ -515,10 +552,10 @@ class ButtonManager:
         self.plot_manager.fig.canvas.draw()  # Redraw the canvas
         
 class SliderManager:
-    def __init__(self, value_manager, plot_manager, button_manager):
+    def __init__(self, value_manager, plot_manager, check_button_manager):
         self.plot_manager = plot_manager
         self.value_manager = value_manager
-        self.button_manager = button_manager
+        self.check_button_manager = check_button_manager
         self.E_slider, self.k_int_slider = self.create_sliders()
             
     def create_sliders(self):
@@ -539,7 +576,7 @@ class SliderManager:
         self.plot_manager.update_square()
         self.plot_manager.update_kxky_image()
         
-        if self.button_manager.button_status:
+        if self.check_button_manager.trace_button_status:
             self.plot_manager.update_edc()
         else:
             self.plot_manager.update_time_trace()
