@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Sep  8 16:45:17 2023
+# -*- coding: utf-8 -*-\
 
-@author: lawsonlloyd
-"""
-
-#%%
+#%% Import the Loader and Main GUI File
 
 from Loader import DataLoader
 from Main import main
 
-#%% Load File in your path...
+#%% Specifiy filename of h5 file in your path.
 
 fn = 'your_data_file.h5'
 fn = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5'
@@ -20,9 +15,7 @@ fn = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5'
 E_offset = -0.1
 delay_offset = 100
 
-offsets = [E_offset, delay_offset]
-
-#%% Load the data
+#%% Load the data and axes information
 
 data_loader = DataLoader(fn)
 I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
@@ -31,4 +24,4 @@ I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
 
 %matplotlib auto
 
-main(I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
+main(I, ax_kx, ax_ky, ax_E, ax_delay, *[E_offset, delay_offset])
