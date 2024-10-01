@@ -18,9 +18,9 @@ filename = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5'
 
 # Include manual energy and time delay offsets for the axes, if required.
 
-E_offset = -0.1
-delay_offset = 100
-
+E_offset = -0.2
+delay_offset = 90
+offsets = [E_offset, delay_offset]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '\\' + filename)

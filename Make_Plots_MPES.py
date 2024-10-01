@@ -38,6 +38,45 @@ dkx = (ax_kx[1] - ax_kx[0])
 ax_E_offset = data_handler.ax_E
 ax_delay_offset = data_handler.ax_delay
 
+#%% # Make a plot based of the GUI slices
+
+%matplotlib inline
+
+pick_k_slice = 0
+
+ax_E = data_handler.ax_E
+ax_ky = data_handler.ax_ky
+
+kint, kx, ky, E, delay = value_manager.get_values()
+kx_i, ky_i, E_i, delay_i = data_handler.get_closest_indices(kx, pick_k_slice, E, delay)
+
+cut = data_handler.get_ky_map()
+
+cut_edc = cut[:, ky_i-2:ky_i+2].sum(axis=1)
+cut_edc = cut_edc/np.max(cut_edc)
+
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
+fig.set_size_inches(8 , 4, forward=False)
+ax = ax.flatten()
+
+cmap ='gray'
+ax[0].imshow(cut, origin='lower', extent =[ax_ky[0], ax_ky[-1], ax_E[0], ax_E[-1]], cmap=cmap)
+ax[0].set_xlim([-1.6, 1.6])
+ax[0].set_ylim([-6, 0.5])
+ax[0].set_xlabel('ky')
+ax[0].set_ylabel('E, eV')
+ax[0].set_aspect(.75)
+ax[0].set_title('Cut at kx = ' + str(round(kx,4)))
+ax[0].axvline(pick_k_slice,color = 'red', linestyle = 'dashed')
+
+ax[1].plot(ax_E, cut_edc)
+ax[1].set_xlim([-6, 1])
+ax[1].set_ylabel('Int')
+ax[1].set_xlabel('E, eV')
+ax[1].set_aspect(6)
+ax[1].set_title('Cut at kx = ' + str(round(kx,3)))
+
+
 #%%
 
 # Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
@@ -185,12 +224,14 @@ fig.tight_layout()
 #%%
 
 %matplotlib inline
+
 k_int, kx, ky, E, delay = value_manager.get_values()
 idx_kx, idx_ky, idx_E, d_i = data_handler.get_closest_indices(kx, ky, E, delay)
 idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
 
 edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
-plt.imshow((edcs), cmap = viridis_LTL, extent = [ax_delay[0]+100, ax_delay[-1]+100, ax_E[0]-.2, ax_E[-1]-.2], aspect = 'auto', origin = 'lower')
+edcs = edcs/np.max(edcs[48:])
+plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
 plt.ylim([-0.5,1])
 plt.xlim([-200,1000])
 plt.axhline(0, linestyle = 'dashed', color = 'black')
@@ -199,23 +240,25 @@ plt.axvline(0, linestyle = 'dashed', color = 'black')
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy, eV')
 
-edc0 = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, 5].sum(axis=(0,1))
-edc1 = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, t0+2].sum(axis=(0,1))
-edc2 = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, t0+5].sum(axis=(0,1))
-edc3 = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, t0+20].sum(axis=(0,1))
-edc4 = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, t0+50].sum(axis=(0,1))
+pts = [-100, 0, 50, 100, 200, 500, 700]
+colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 
 fig = plt.figure()
-plt.plot(ax_E-0.2,edc0/np.max(edc0), color = 'grey')
-plt.plot(ax_E-0.2,edc1/np.max(edc1), color = 'red')
-plt.plot(ax_E-0.2,edc2/np.max(edc2), color = 'orange')
-plt.plot(ax_E-0.2,edc3/np.max(edc3), color = 'blue')
-plt.plot(ax_E-0.2,edc4/np.max(edc4), color = 'purple')
 
+for i in np.arange(len(pts)):
+    d = pts[i]
+    _, _, _, dd = data_handler.get_closest_indices(0, 0, 0, d)
+    edc = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, dd-2:dd+2].sum(axis=(0,1,3))
+    edc = edc/np.max(edc[48:]) + 0.05*i
+    plt.plot(data_handler.ax_E, edc, color = colors[i], label = (str(round(data_handler.ax_delay[dd])) +' fs'))
+
+#plt.legend(frameon = False)
 plt.xlim([-2, 1]) 
-#plt.axvline(-0.005) 
-plt.axvline(0.012)
-plt.gca().set_aspect(3)
+plt.ylim([0, 1.5])
+plt.ylabel('Norm. Int. + offset, arb. units.')
+plt.xlabel('Energy, eV')
+plt.axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
+plt.gca().set_aspect(2)
 
 #%%
 # Plot Difference MMs of t < 0 and t > 0 fs

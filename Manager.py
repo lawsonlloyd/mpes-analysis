@@ -278,14 +278,15 @@ class PlotHandler:
         if self.data_handler.I.ndim > 3:
             time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
             time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
-            self.ax[1].set_xticks(np.arange(-400,1250,200))
-            self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+            
             self.im_4, = self.ax[1].plot(self.data_handler.ax_delay, time_trace/np.max(time_trace), color = 'black')
+            self.ax[1].set_xticks(np.arange(-400,1250,200))
+            for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+                label.set_visible(False)
+            self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+
         else:
             time_trace = np.zeros(1)
-
-        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
-            label.set_visible(False)
             
         self.ax[1].set_ylim([-0.1, 1.1])
         self.ax[1].set_title("Dynamics")
@@ -326,16 +327,22 @@ class PlotHandler:
         idx_kx, idx_ky = [0, 0], [0, 0]
         idx_kx[0], idx_ky[0], idx_E, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
         idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+        
         if self.data_handler.I.ndim > 3:
             time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
             time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
+            
+            self.im_4.set_ydata(time_trace/np.max(time_trace))
+            self.im_4.set_xdata(self.data_handler.ax_delay)
+            self.ax[1].set_xticks(np.arange(-400,1250,200))
             self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
-            self.im_4.set_ydata(time_trace/np.max(time_trace))    
         else:
             time_trace = np.zeros(1)
-            self.im_4.set_ydata(time_trace)    
+        
+        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+                
         # Update the time trace plots
-        self.im_4.set_xdata(self.data_handler.ax_delay)
         self.ax[1].set_title("Dynamics")
         self.ax[1].set_xlabel("Delay, fs")
         self.ax[1].set_ylabel("Intensity")
@@ -351,13 +358,20 @@ class PlotHandler:
             edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, :].sum(axis=(0,1,3))
         else:
             edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :].sum(axis=(0,1))
-
+        
         edc = edc/np.max(edc)
 
+        if self.check_button_manager.enhance_button_status == True:    
+            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            edc[mask_start:] *= 1/np.max(edc[mask_start:])
+            
         # Update the edc plots
         self.im_4.set_xdata(self.data_handler.ax_E)
         self.im_4.set_ydata(edc/np.max(edc))
         self.ax[1].set_ylim([-0.1, 1.1])
+        self.ax[1].set_xticks(np.arange(-6,4,0.5))
+        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
         self.ax[1].set_xlim([self.data_handler.ax_E[0], self.data_handler.ax_E[-1]])
         self.ax[1].set_title("EDC")
         self.ax[1].set_xlabel("Energy, eV")
@@ -421,24 +435,26 @@ class EventHandler:
         if self.plot_manager.vertical_line_0.contains(event)[0]:
             self.press_vertical = True 
         
-        if self.check_button_manager.trace_check_button.get_status()[0]:
+        if self.check_button_manager.trace_check_button.get_status()[0]: # if EDC button selected
             self.check_button_manager.trace_button_status = True
             self.plot_manager.update_edc()
             self.plot_manager.fig.canvas.draw()
-        elif self.check_button_manager.trace_check_button.get_status()[0] is False and self.plot_manager.data_handler.I.ndim>3:
+        elif self.check_button_manager.trace_check_button.get_status()[0] is False and self.plot_manager.data_handler.I.ndim > 3:
             self.check_button_manager.trace_button_status = False            
             self.plot_manager.update_time_trace()
             self.plot_manager.fig.canvas.draw()
 
-        if self.check_button_manager.enhance_check_button.get_status()[0] is False:
+        if self.check_button_manager.enhance_check_button.get_status()[0] is False: # if Enhance CB feature visibility OFF
             self.check_button_manager.enhance_button_status = False
             self.plot_manager.update_kx_image()
             self.plot_manager.update_ky_image()
             self.plot_manager.fig.canvas.draw()
-        elif self.check_button_manager.enhance_check_button.get_status()[0] is True:
+        elif self.check_button_manager.enhance_check_button.get_status()[0] is True: # if Enhance CB feature visibility ON
             self.check_button_manager.enhance_button_status = True
             self.plot_manager.update_kx_image()
             self.plot_manager.update_ky_image()
+            if self.check_button_manager.trace_check_button.get_status()[0] is True:
+                self.plot_manager.update_edc()
             self.plot_manager.fig.canvas.draw()
 
     def on_motion(self, event):
