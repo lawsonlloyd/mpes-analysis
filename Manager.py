@@ -486,12 +486,12 @@ class CheckButtonManager:
         self.enhance_button_status = False #for enhance CB
     
     def create_trace_check_button(self):
-        trace_check_button = CheckButtons(plt.axes([0.1225, 0.52, 0.05, 0.05]), ['EDC'])
+        trace_check_button = CheckButtons(plt.axes([0.005, 0.5, 0.06, 0.05]), ['EDC'])
         
         return trace_check_button
 
     def create_enhance_check_button(self):
-        enhance_check_button = CheckButtons(plt.axes([0.065, 0.52, 0.05, 0.05]), ['Enhance CB'])
+        enhance_check_button = CheckButtons(plt.axes([0.045, 0.5, 0.08, 0.05]), ['Enhance CB'])
         
         return enhance_check_button
     
@@ -543,7 +543,7 @@ class ClickButtonManager:
         # Clear all lines from ax[1]
         self.plot_manager.ax[1].cla()  # Clear the axis
         
-        if self.check_button_manger.trace_button_status:
+        if self.check_button_manager.trace_button_status:
             self.plot_manager.plot_edc()
         else:
             self.plot_manager.plot_time_trace()
