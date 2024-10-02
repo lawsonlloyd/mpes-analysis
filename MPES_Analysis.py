@@ -9,18 +9,17 @@ from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, Slide
 import matplotlib.pyplot as plt
 
 #%% Specifiy filename of h5 file in your path.
+# Include manual energy and time delay offsets for the axes, if required.
 
 data_path = 'path_to_your_data'
 filename = 'your_data_file.h5'
 
 data_path = 'R:\Lawson\Analysis\data'
-filename = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5'
 
-# Include manual energy and time delay offsets for the axes, if required.
+filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [-0.2, 90]
+#filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
+#filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
 
-E_offset = -0.2
-delay_offset = 90
-offsets = [E_offset, delay_offset]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '\\' + filename)

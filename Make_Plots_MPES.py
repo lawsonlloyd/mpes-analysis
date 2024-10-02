@@ -10,6 +10,7 @@ import matplotlib.colors as col
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from skimage.draw import disk
+from scipy.optimize import curve_fit
 
 #%%
 ### Transform Data if needed....
@@ -77,9 +78,7 @@ ax[1].set_aspect(6)
 ax[1].set_title('Cut at kx = ' + str(round(kx,3)))
 
 
-#%%
-
-# Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
+#%% Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
 
 kx, ky, E = -1.75, 0.0, .25
 kx_int, ky_int, E_int = .16 , .16, .2
@@ -157,9 +156,86 @@ ax[1].set_ylim(0,1.1)
 ax[1].set_xlim(-0.5,2.5)    
 ax[1].set_title('$k_{x}$ = ' + str(kx) + ' $A^{-1}$' + ', $k_{y}$= ' + str(ky) + ' $A^{-1}$', fontsize = 16)
 
-#%%
+#%% # Plot dynamic EDCs
 
-ax_E_offset = ax_E + O
+%matplotlib inline
+
+k_int, kx, ky, E, delay = value_manager.get_values()
+idx_kx, idx_ky, idx_E, d_i = data_handler.get_closest_indices(kx, ky, E, delay)
+idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
+
+edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
+edcs = edcs/np.max(edcs[48:])
+plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
+plt.ylim([-0.5,1])
+plt.xlim([-160,800])
+#plt.axhline(0, linestyle = 'dashed', color = 'black')
+#plt.axvline(0, linestyle = 'dashed', color = 'black')
+plt.xlabel('Delay, fs')
+plt.ylabel('Energy, eV')
+
+pts = [-100, 0, 50, 100, 200, 500, 700]
+colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
+
+fig = plt.figure()
+
+for i in np.arange(len(pts)):
+    d = pts[i]
+    _, _, _, dd = data_handler.get_closest_indices(0, 0, 0, d)
+    edc = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, dd-2:dd+2].sum(axis=(0,1,3))
+    edc = edc/np.max(edc[48:]) + 0.05*i
+    plt.plot(data_handler.ax_E, edc, color = colors[i], label = (str(round(data_handler.ax_delay[dd])) +' fs'))
+
+#plt.legend(frameon = False)
+plt.xlim([-2, 1]) 
+plt.ylim([0, 1.5])
+plt.ylabel('Norm. Int. + offset, arb. units.')
+plt.xlabel('Energy, eV')
+plt.axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
+plt.gca().set_aspect(2)
+
+# Fit to Gaussian
+
+trunc_e = -0.3
+_, _, trunc, _ = data_handler.get_closest_indices(0, 0, trunc_e, 0)
+trunc_e2 = 0.9
+_, _, trunc2, _ = data_handler.get_closest_indices(0, 0, trunc_e2, 0)
+
+def gaussian(x, amplitude, mean, stddev, constant):
+    return amplitude * np.exp(-((x - mean) / 4 / stddev)**2) + constant
+
+p0 = [1, .1, .2, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds = ((0.5, -0.5, 0.0, 0), (1.5, 0.5, .2, .2))
+
+centers = np.zeros(len(data_handler.ax_delay))
+for t in np.arange(len(data_handler.ax_delay)):
+    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc:trunc2], edcs[trunc:trunc2,t]/np.max(edcs[trunc-10:,t]), p0, method=None, bounds = bnds)
+    centers[t] = popt[1]
+
+t = 149
+
+#gauss_test = gaussian(data_handler.ax_E, *popt)
+gauss_test = gaussian(data_handler.ax_E, *popt)
+
+fig = plt.figure()
+plt.plot(data_handler.ax_E, edcs[:,t]/np.max(edcs[trunc-10:,t]))
+plt.plot(data_handler.ax_E, gauss_test, linestyle = 'dashed', color = 'black')
+#plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
+plt.xlim([-2,1.5])
+plt.xlabel('Energy, eV')
+plt.ylabel('Norm. Int, arb. u.')
+plt.gca().set_aspect(3)
+
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, 1000*(centers-np.mean(centers[5:15])), color = 'black', linestyle = 'solid')
+#plt.ylim([-0.5,1])
+plt.xlim([-160, 800])
+plt.xlabel('Delay, fs')
+plt.ylabel('Energy Shift, meV')
+
+#plt.axhline(0, linestyle = 'dashed', color = 'black')
+#plt.axvline(0, linestyle = 'dashed', color = 'black')
+
 
 #%%
 
@@ -220,45 +296,6 @@ for i in np.arange(len(E)):
     fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
 
 fig.tight_layout()
-
-#%%
-
-%matplotlib inline
-
-k_int, kx, ky, E, delay = value_manager.get_values()
-idx_kx, idx_ky, idx_E, d_i = data_handler.get_closest_indices(kx, ky, E, delay)
-idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
-
-edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
-edcs = edcs/np.max(edcs[48:])
-plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
-plt.ylim([-0.5,1])
-plt.xlim([-200,1000])
-plt.axhline(0, linestyle = 'dashed', color = 'black')
-plt.axvline(0, linestyle = 'dashed', color = 'black')
-
-plt.xlabel('Delay, fs')
-plt.ylabel('Energy, eV')
-
-pts = [-100, 0, 50, 100, 200, 500, 700]
-colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
-
-fig = plt.figure()
-
-for i in np.arange(len(pts)):
-    d = pts[i]
-    _, _, _, dd = data_handler.get_closest_indices(0, 0, 0, d)
-    edc = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, dd-2:dd+2].sum(axis=(0,1,3))
-    edc = edc/np.max(edc[48:]) + 0.05*i
-    plt.plot(data_handler.ax_E, edc, color = colors[i], label = (str(round(data_handler.ax_delay[dd])) +' fs'))
-
-#plt.legend(frameon = False)
-plt.xlim([-2, 1]) 
-plt.ylim([0, 1.5])
-plt.ylabel('Norm. Int. + offset, arb. units.')
-plt.xlabel('Energy, eV')
-plt.axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
-plt.gca().set_aspect(2)
 
 #%%
 # Plot Difference MMs of t < 0 and t > 0 fs
@@ -377,7 +414,7 @@ plt.show()
 
 # Plot Angle Integrated Dynamics
 
-E_trace = [1.3, 2, 0.6] # Energies for Plotting
+E_trace = [1.3, 2.2, 0.6] # Energies for Plotting
 thirdtrace = 0
 
 ################################
@@ -617,11 +654,11 @@ fig.tight_layout()
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [0, 0, 0, 0], [0] # kx, ky for plotting
-E_traces = [1.3, 1.3, 1.3, 1.3] # Energies for Plotting
-kx_int, ky_int, E_int  = 4, .55, 0.2 #Integration Ranges
+kx_traces, ky_traces = [0.2, 0.2, -1.1, -1.1], [.8] # kx, ky for plotting
+E_traces = [1.35, 2.15, 1.35, 2.15] # Energies for Plotting
+kx_int, ky_int, E_int  = .4, .4, 0.2 #Integration Ranges
 
-trace_colors = ['red', 'black', 'grey', 'black']
+trace_colors = ['black', 'red', 'grey', 'pink']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
@@ -642,7 +679,7 @@ for t in range(4):
     kyf = (np.abs(ax_ky - (ky_traces[0]+ky_int))).argmin()
     Ei = np.abs(ax_E_offset - (E_traces[t]-E_int)).argmin()  
     Ef = np.abs(ax_E_offset - (E_traces[t]+E_int)).argmin()  
-    trace = I[xi:xf, yi:yf, Ei:Ef,:].sum(axis=(0,1,2))
+    trace = I[kxi:kxf, kyi:kyf, Ei:Ef,:].sum(axis=(0,1,2))
     trace = trace/np.max(trace)
     trace = trace - np.mean(trace[3:t0-5])
     traces[t,:] = trace/np.max(trace)
