@@ -195,30 +195,34 @@ plt.axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
 plt.gca().set_aspect(2)
 
 # Fit to Gaussian
-
-trunc_e = -0.3
-_, _, trunc, _ = data_handler.get_closest_indices(0, 0, trunc_e, 0)
-trunc_e2 = 0.9
-_, _, trunc2, _ = data_handler.get_closest_indices(0, 0, trunc_e2, 0)
+#################
 
 def gaussian(x, amplitude, mean, stddev, constant):
     return amplitude * np.exp(-((x - mean) / 4 / stddev)**2) + constant
 
+##### VBM #####
+trunc_e1 = -0.3
+_, _, trunc1, _ = data_handler.get_closest_indices(0, 0, trunc_e, 0)
+trunc_e2 = 0.9
+_, _, trunc2, _ = data_handler.get_closest_indices(0, 0, trunc_e2, 0)
+
 p0 = [1, .1, .2, 0] # Fitting params initial guess [amp, center, width, offset]
 bnds = ((0.5, -0.5, 0.0, 0), (1.5, 0.5, .2, .2))
 
-centers = np.zeros(len(data_handler.ax_delay))
+centers_VBM = np.zeros(len(data_handler.ax_delay))
+p_fits_VBM = np.zeros((len(data_handler.ax_delay),4))
+
 for t in np.arange(len(data_handler.ax_delay)):
-    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc:trunc2], edcs[trunc:trunc2,t]/np.max(edcs[trunc-10:,t]), p0, method=None, bounds = bnds)
-    centers[t] = popt[1]
+    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc1:trunc2], edcs[trunc1:trunc2,t]/np.max(edcs[trunc1-10:,t]), p0, method=None, bounds = bnds)
+    centers_VBM[t] = popt[1]
+    p_fits_VBM[t,:] = popt 
 
-t = 149
-
-#gauss_test = gaussian(data_handler.ax_E, *popt)
-gauss_test = gaussian(data_handler.ax_E, *popt)
+# VBM FIT TESTS
+t = 50
+gauss_test = gaussian(data_handler.ax_E, *p_fits_VBM[t,:])
 
 fig = plt.figure()
-plt.plot(data_handler.ax_E, edcs[:,t]/np.max(edcs[trunc-10:,t]))
+plt.plot(data_handler.ax_E, edcs[:,t]/np.max(edcs[trunc1-10:,t]))
 plt.plot(data_handler.ax_E, gauss_test, linestyle = 'dashed', color = 'black')
 #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
 plt.xlim([-2,1.5])
@@ -226,16 +230,85 @@ plt.xlabel('Energy, eV')
 plt.ylabel('Norm. Int, arb. u.')
 plt.gca().set_aspect(3)
 
+##### Exciton #####
+trunc_e3 = .9
+_, _, trunc3, _ = data_handler.get_closest_indices(0, 0, trunc_e3, 0)
+trunc_e4 = 1.4
+_, _, trunc4, _ = data_handler.get_closest_indices(0, 0, trunc_e4, 0)
+
+trunc_e5 = 1.7
+_, _, trunc5, _ = data_handler.get_closest_indices(0, 0, trunc_e5, 0)
+trunc_e6 = 2.1
+_, _, trunc6, _ = data_handler.get_closest_indices(0, 0, trunc_e6, 0)
+
+p_fits_cb = np.zeros((len(data_handler.ax_delay),4))
+p_fits_ex = np.zeros((len(data_handler.ax_delay),4))
+
+p0 = [1, 1.05, .1, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds = ((0.5, .96, 0.0, 0), (1.5, 1.4, .3, .05))
+
+p0_cb = [0.25, 1.9, .05, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds_cb = ((0.01, 1.5, 0.0, 0), (1.5, 2.4, .4, .05))
+
+for t in np.arange(len(data_handler.ax_delay)):
+    
+    edc_ex = edcs[:,t:t+5].sum(axis=1)
+    edc_ex = edc_ex/edc_ex[trunc3-10]
+    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc3:trunc4], edc_ex[trunc3:trunc4], p0, method=None, bounds = bnds)
+    p_fits_ex[t,:] = popt 
+
+    edc_cb = edcs[:,t:t+5].sum(axis=1)
+    edc_cb = edc_cb/edc_cb[trunc3-10]
+    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc5:trunc6], edc_cb[trunc5:trunc6], p0_cb, method=None, bounds = bnds_cb)    
+    
+    p_fits_cb[t,:] = popt 
+
+delay_t = 650
+_, _, _, t = data_handler.get_closest_indices(0, 0, 0, delay_t)
+
+gauss_test_ex = gaussian(data_handler.ax_E, *p_fits_ex[t])
+gauss_test_cb = gaussian(data_handler.ax_E, *p_fits_cb[t])
+
+edc_excited = edcs[:,t:t+5].sum(axis=1)
+edc_excited = edc_excited/edc_excited[trunc3-10]
+
+# EXCITED STATE FIT TESTS
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, 1000*(centers-np.mean(centers[5:15])), color = 'black', linestyle = 'solid')
-#plt.ylim([-0.5,1])
+plt.plot(data_handler.ax_E, edc_excited)
+plt.plot(data_handler.ax_E, gauss_test_ex, linestyle = 'dashed', color = 'black')
+plt.plot(data_handler.ax_E, gauss_test_cb, linestyle = 'dashed', color = 'red')
+#plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
+plt.xlim([0.2,2.5])
+plt.ylim([0,2])
+plt.xlabel('Energy, eV')
+plt.ylabel('Norm. Int, arb. u.')
+plt.gca().set_aspect(1.5)
+
+# PLOT VBM SHIFT DYNAMICS
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, 1000*(centers_VBM-np.mean(centers_VBM[5:15])), color = 'black', linestyle = 'solid')
 plt.xlim([-160, 800])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy Shift, meV')
-
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
 #plt.axvline(0, linestyle = 'dashed', color = 'black')
 
+# PLOT VBM PEAK WIDTH DYNAMICS
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, p_fits_VBM[:,2], color = 'black', linestyle = 'solid')
+#plt.ylim([-0.5,1])
+plt.xlim([-160, 800])
+plt.xlabel('Delay, fs')
+plt.ylabel('VBM Peak width, meV')
+
+# PLOT EX and CB SHIFT DYNAMICS
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, 1000*(p_fits_cb[:,1]-np.mean(p_fits_cb[5:15,1])), color = 'red', linestyle = 'solid')
+plt.plot(data_handler.ax_delay, 1000*(p_fits_ex[:,1]-np.mean(p_fits_ex[5:15,1])), color = 'grey', linestyle = 'solid')
+plt.xlim([-160, 800])
+plt.xlabel('Delay, fs')
+plt.ylabel('Energy Shift, meV')
+#plt.axhline(0, linestyle = 'dashed', color = 'black')
 
 #%%
 
