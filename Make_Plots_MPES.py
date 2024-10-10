@@ -156,6 +156,31 @@ ax[1].set_ylim(0,1.1)
 ax[1].set_xlim(-0.5,2.5)    
 ax[1].set_title('$k_{x}$ = ' + str(kx) + ' $A^{-1}$' + ', $k_{y}$= ' + str(ky) + ' $A^{-1}$', fontsize = 16)
 
+#%%
+
+from lmfit import Parameters, minimize, report_fit
+
+def gaussian(x, amp_1, mean_1, stddev_1, offset):
+    
+    g1 = amp_1 * np.exp(-((x - mean_1) / 4 / stddev_1)**2)+offset
+    
+    return g1
+
+def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
+    
+    g1 = amp_1 * np.exp(-((x - mean_1) / 4 / stddev_1)**2)
+    g2 = amp_2 * np.exp(-((x - mean_2) / 4 / stddev_2)**2)
+    
+    return g1, g2, offset
+
+def objective(params, x, data):
+    
+    g1, g2, offset = two_gaussians(x, **params)
+    fit = g1+g2+offset
+    resid = np.abs(data-fit)**2
+    
+    return resid
+
 #%% # Plot dynamic EDCs
 
 %matplotlib inline
@@ -166,6 +191,8 @@ idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
 
 edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
 edcs = edcs/np.max(edcs[48:])
+#edcs = edcs - np.mean(edcs[5:15])
+
 plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
 plt.ylim([-0.5,1])
 plt.xlim([-160,800])
@@ -197,9 +224,6 @@ plt.gca().set_aspect(2)
 # Fit to Gaussian
 #################
 
-def gaussian(x, amplitude, mean, stddev, constant):
-    return amplitude * np.exp(-((x - mean) / 4 / stddev)**2) + constant
-
 ##### VBM #####
 trunc_e1 = -0.3
 _, _, trunc1, _ = data_handler.get_closest_indices(0, 0, trunc_e, 0)
@@ -230,60 +254,6 @@ plt.xlabel('Energy, eV')
 plt.ylabel('Norm. Int, arb. u.')
 plt.gca().set_aspect(3)
 
-##### Exciton #####
-trunc_e3 = .9
-_, _, trunc3, _ = data_handler.get_closest_indices(0, 0, trunc_e3, 0)
-trunc_e4 = 1.4
-_, _, trunc4, _ = data_handler.get_closest_indices(0, 0, trunc_e4, 0)
-
-trunc_e5 = 1.7
-_, _, trunc5, _ = data_handler.get_closest_indices(0, 0, trunc_e5, 0)
-trunc_e6 = 2.1
-_, _, trunc6, _ = data_handler.get_closest_indices(0, 0, trunc_e6, 0)
-
-p_fits_cb = np.zeros((len(data_handler.ax_delay),4))
-p_fits_ex = np.zeros((len(data_handler.ax_delay),4))
-
-p0 = [1, 1.05, .1, 0] # Fitting params initial guess [amp, center, width, offset]
-bnds = ((0.5, .96, 0.0, 0), (1.5, 1.4, .3, .05))
-
-p0_cb = [0.25, 1.9, .05, 0] # Fitting params initial guess [amp, center, width, offset]
-bnds_cb = ((0.01, 1.5, 0.0, 0), (1.5, 2.4, .4, .05))
-
-for t in np.arange(len(data_handler.ax_delay)):
-    
-    edc_ex = edcs[:,t:t+5].sum(axis=1)
-    edc_ex = edc_ex/edc_ex[trunc3-10]
-    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc3:trunc4], edc_ex[trunc3:trunc4], p0, method=None, bounds = bnds)
-    p_fits_ex[t,:] = popt 
-
-    edc_cb = edcs[:,t:t+5].sum(axis=1)
-    edc_cb = edc_cb/edc_cb[trunc3-10]
-    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc5:trunc6], edc_cb[trunc5:trunc6], p0_cb, method=None, bounds = bnds_cb)    
-    
-    p_fits_cb[t,:] = popt 
-
-delay_t = 650
-_, _, _, t = data_handler.get_closest_indices(0, 0, 0, delay_t)
-
-gauss_test_ex = gaussian(data_handler.ax_E, *p_fits_ex[t])
-gauss_test_cb = gaussian(data_handler.ax_E, *p_fits_cb[t])
-
-edc_excited = edcs[:,t:t+5].sum(axis=1)
-edc_excited = edc_excited/edc_excited[trunc3-10]
-
-# EXCITED STATE FIT TESTS
-fig = plt.figure()
-plt.plot(data_handler.ax_E, edc_excited)
-plt.plot(data_handler.ax_E, gauss_test_ex, linestyle = 'dashed', color = 'black')
-plt.plot(data_handler.ax_E, gauss_test_cb, linestyle = 'dashed', color = 'red')
-#plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
-plt.xlim([0.2,2.5])
-plt.ylim([0,2])
-plt.xlabel('Energy, eV')
-plt.ylabel('Norm. Int, arb. u.')
-plt.gca().set_aspect(1.5)
-
 # PLOT VBM SHIFT DYNAMICS
 fig = plt.figure()
 plt.plot(data_handler.ax_delay, 1000*(centers_VBM-np.mean(centers_VBM[5:15])), color = 'black', linestyle = 'solid')
@@ -301,14 +271,128 @@ plt.xlim([-160, 800])
 plt.xlabel('Delay, fs')
 plt.ylabel('VBM Peak width, meV')
 
+#%%%
+
+k_int, kx, ky, E, delay = value_manager.get_values()
+idx_kx, idx_ky, idx_E, idx_delay = data_handler.get_closest_indices(0, 0, E, delay)
+kx_int, ky_int = 2.2, 0.5
+
+idx_kx_int = round(0.5*kx_int/data_handler.calculate_dk())
+idx_ky_int = round(0.5*ky_int/data_handler.calculate_dk())
+
+edcs = I[idx_kx-idx_kx_int:idx_kx+idx_kx_int, idx_ky-idx_ky_int:idx_ky+idx_ky_int, :, :].sum(axis=(0,1))
+edcs = edcs/np.max(edcs[:])
+
+# Define Fit Parameters
+fit_params = Parameters()
+fit_params.add("amp_1", value=1, min=0, max=2, vary=True)
+fit_params.add("amp_2", value=.25, min=0.075, max=1, vary=True)
+fit_params.add("mean_1", value=1.1, min=.95, max=1.25, vary=True)
+fit_params.add("mean_2", value=1.79, min=1.77, max=2.05, vary=True)
+fit_params.add("stddev_1", value=0.1, min=0.055, max=0.13, vary=True)
+fit_params.add("stddev_2", value=0.06, min=0.035, max=0.1, vary=True)
+fit_params.add("offset", value=0.00, min=0, max=0.01, vary=True)
+
+start_e = 0.8
+_, _, start, _ = data_handler.get_closest_indices(0, 0, start_e, 0)
+stop_e = 2.5
+_, _, stop, _ = data_handler.get_closest_indices(0, 0, stop_e, 0)
+
+N = 9
+delay_t = [0, 50, 80, 100, 120, 140, 200, 230, 280, 300, 350, 400, 500]
+
+for tt in delay_t:
+    _, _, _, t = data_handler.get_closest_indices(0, 0, 0, tt)
+    
+    edc_test = np.mean(edcs[:,t:t+N], axis = 1)
+    #edc_test = edc_test/np.max(edc_test)
+    edc_test = edc_test -  np.mean(edcs[:,5:15], axis = 1)
+    edc_test = edc_test/np.max(edc_test[start:])
+    x = data_handler.ax_E[start:stop]
+    
+    g1_test, g2_test, offset_test = two_gaussians(data_handler.ax_E, **fit_params)
+    test_gauss = g1_test+g2_test+offset_test
+    
+    output = minimize(objective, fit_params, args = (x, edc_test[start:stop]))
+    m1, m2 = output.params.valuesdict()[('mean_1')], output.params.valuesdict()[('mean_2')]
+    w1, w2 = output.params.valuesdict()[('stddev_1')], output.params.valuesdict()[('stddev_2')]
+    g1_fit, g2_fit, offset_fit  = two_gaussians(data_handler.ax_E, **output.params)
+    fit_gauss = g1_fit+g2_fit+offset_fit
+    
+    ### PLOT TEST CASE
+    fig = plt.figure()
+    plt.plot(data_handler.ax_E, edc_test, color = 'black', linestyle = 'solid')
+    plt.plot(data_handler.ax_E, g1_fit, linestyle = 'dashed', color = 'grey',  label = str(round(m1,2)) + ', '  + str(round(w1,2)) + ' eV')
+    plt.plot(data_handler.ax_E, g2_fit, linestyle = 'dashed', color = 'red', label = str(round(m2,2)) + ', '  + str(round(w2,2)) + ' eV')
+    plt.plot(data_handler.ax_E, fit_gauss, linestyle = 'dashed', color = 'blue')
+    plt.xlim([0.2,2.7])
+    plt.ylim([-0.05,1.2])
+    plt.xlabel('Energy, eV')
+    plt.ylabel('Norm. Int, arb. u.')
+    plt.title('t = ' + str(tt) + ' fs')
+    plt.axvline(start_e, linestyle = 'dashed', color = 'grey')
+    plt.axvline(stop_e, linestyle = 'dashed', color = 'grey')
+    plt.legend(frameon=False)
+    plt.gca().set_aspect(1.5)
+
+
+##### FIT FOR ALL DELAY TIMES
+
+N = 9
+centers_excited = np.zeros(len(data_handler.ax_delay))
+output_excited = np.zeros((len(data_handler.ax_delay),4))
+
+x = data_handler.ax_E[start:stop]
+
+for t in np.arange(len(data_handler.ax_delay)):
+    data = np.mean(edcs[:,t:t+N], axis = 1)
+    data = data -  np.mean(edcs[:,5:15], axis = 1)
+    data = data/np.max(data[start:])
+    output = minimize(objective, fit_params, args = (x, data[start:stop]))
+    m1, m2 = output.params.valuesdict()[('mean_1')], output.params.valuesdict()[('mean_2')]
+    w1, w2 = output.params.valuesdict()[('stddev_1')], output.params.valuesdict()[('stddev_2')]
+
+    output_excited[t,:] = [m1,m2,w1,w2] 
+
 # PLOT EX and CB SHIFT DYNAMICS
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, 1000*(p_fits_cb[:,1]-np.mean(p_fits_cb[5:15,1])), color = 'red', linestyle = 'solid')
-plt.plot(data_handler.ax_delay, 1000*(p_fits_ex[:,1]-np.mean(p_fits_ex[5:15,1])), color = 'grey', linestyle = 'solid')
+plt.plot(data_handler.ax_delay, 1000*(output_excited[:,0]-np.mean(output_excited[:,0])), color = 'black', linestyle = 'solid', label = 'X')
+plt.plot(data_handler.ax_delay, 1000*(output_excited[:,1]-np.mean(output_excited[:,1])), color = 'red', linestyle = 'solid', label = 'CB')
+plt.plot(data_handler.ax_delay, 1000*(centers_VBM-np.mean(centers_VBM[5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
 plt.xlim([-160, 800])
+#plt.ylim([-150,160])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy Shift, meV')
+plt.title('Peak Position Shift')
+plt.legend(frameon=False)
+
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
+
+# PLOT E_b SHIFT DYNAMICS
+eb_ = 1000*( output_excited[:,1] - output_excited[:,0] )
+eb_ = eb_ - np.mean(eb_[5:15])
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, eb_, color = 'purple', linestyle = 'solid', label='Extracted $E_{b}$')
+plt.axhline(0, linestyle = 'dashed', color = 'grey')
+plt.xlim([-120, 800])
+plt.ylim([-250, 200])
+plt.title('$E_{b}$ Shift')
+plt.xlabel('Delay, fs')
+plt.ylabel('Energy Shift, meV')
+plt.legend(frameon=False)
+#plt.axhline(0, linestyle = 'dashed', color = 'black')
+
+# PLOT EX and CB WIDTH DYNAMICS
+fig = plt.figure()
+plt.plot(data_handler.ax_delay, 1000*(output_excited[:,2]-np.mean(output_excited[5:15,2])), color = 'black', linestyle = 'solid', label = 'X')
+plt.plot(data_handler.ax_delay, 1000*(output_excited[:,3]-np.mean(output_excited[5:15,3])), color = 'red', linestyle = 'solid', label = 'CB')
+plt.plot(data_handler.ax_delay, 1000*(p_fits_VBM[:,2]-np.mean(p_fits_VBM[:,2][5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
+plt.xlim([-160, 800])
+plt.ylim([-50,50])
+plt.title('Peak Width Shift')
+plt.xlabel('Delay, fs')
+plt.ylabel('Peak Width Shift, meV')
+plt.legend(frameon=False)
 
 #%%
 
