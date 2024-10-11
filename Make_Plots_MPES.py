@@ -276,6 +276,7 @@ plt.ylabel('VBM Peak width, meV')
 k_int, kx, ky, E, delay = value_manager.get_values()
 idx_kx, idx_ky, idx_E, idx_delay = data_handler.get_closest_indices(0, 0, E, delay)
 kx_int, ky_int = 2.2, 0.5
+dt = data_handler.calculate_dt()
 
 idx_kx_int = round(0.5*kx_int/data_handler.calculate_dk())
 idx_ky_int = round(0.5*ky_int/data_handler.calculate_dk())
@@ -289,8 +290,8 @@ fit_params.add("amp_1", value=1, min=0, max=2, vary=True)
 fit_params.add("amp_2", value=.25, min=0.075, max=1, vary=True)
 fit_params.add("mean_1", value=1.1, min=.95, max=1.25, vary=True)
 fit_params.add("mean_2", value=1.79, min=1.77, max=2.05, vary=True)
-fit_params.add("stddev_1", value=0.1, min=0.055, max=0.13, vary=True)
-fit_params.add("stddev_2", value=0.06, min=0.035, max=0.1, vary=True)
+fit_params.add("stddev_1", value=0.1, min=0.055, max=0.135, vary=True)
+fit_params.add("stddev_2", value=0.06, min=0.035, max=0.12, vary=True)
 fit_params.add("offset", value=0.00, min=0, max=0.01, vary=True)
 
 start_e = 0.8
@@ -298,8 +299,8 @@ _, _, start, _ = data_handler.get_closest_indices(0, 0, start_e, 0)
 stop_e = 2.5
 _, _, stop, _ = data_handler.get_closest_indices(0, 0, stop_e, 0)
 
-N = 9
-delay_t = [0, 50, 80, 100, 120, 140, 200, 230, 280, 300, 350, 400, 500]
+N = 3
+delay_t = [0, 20, 40, 100, 150, 200, 250, 350, 450, 600]
 
 for tt in delay_t:
     _, _, _, t = data_handler.get_closest_indices(0, 0, 0, tt)
@@ -329,7 +330,7 @@ for tt in delay_t:
     plt.ylim([-0.05,1.2])
     plt.xlabel('Energy, eV')
     plt.ylabel('Norm. Int, arb. u.')
-    plt.title('t = ' + str(tt) + ' fs')
+    plt.title('t = ' + str(tt) + ' fs, ' + 'N = ' + str(round(N*dt,1)) + ' fs')
     plt.axvline(start_e, linestyle = 'dashed', color = 'grey')
     plt.axvline(stop_e, linestyle = 'dashed', color = 'grey')
     plt.legend(frameon=False)
@@ -338,7 +339,7 @@ for tt in delay_t:
 
 ##### FIT FOR ALL DELAY TIMES
 
-N = 9
+N = 3
 centers_excited = np.zeros(len(data_handler.ax_delay))
 output_excited = np.zeros((len(data_handler.ax_delay),4))
 
@@ -356,14 +357,14 @@ for t in np.arange(len(data_handler.ax_delay)):
 
 # PLOT EX and CB SHIFT DYNAMICS
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, 1000*(output_excited[:,0]-np.mean(output_excited[:,0])), color = 'black', linestyle = 'solid', label = 'X')
-plt.plot(data_handler.ax_delay, 1000*(output_excited[:,1]-np.mean(output_excited[:,1])), color = 'red', linestyle = 'solid', label = 'CB')
-plt.plot(data_handler.ax_delay, 1000*(centers_VBM-np.mean(centers_VBM[5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
-plt.xlim([-160, 800])
-#plt.ylim([-150,160])
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(output_excited[t0-8:,0]-np.mean(output_excited[5:15,0])), color = 'black', linestyle = 'solid', label = 'X')
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(output_excited[t0-8:,1]-np.mean(output_excited[5:15,1])), color = 'red', linestyle = 'solid', label = 'CB')
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(centers_VBM[t0-8:]-np.mean(centers_VBM[5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
+plt.xlim([-40, 800])
+plt.ylim([-120,150])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy Shift, meV')
-plt.title('Peak Position Shift')
+plt.title('Peak Position Shift, N = ' + str(round(N*dt,1)) + ' fs')
 plt.legend(frameon=False)
 
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
@@ -372,11 +373,11 @@ plt.legend(frameon=False)
 eb_ = 1000*( output_excited[:,1] - output_excited[:,0] )
 eb_ = eb_ - np.mean(eb_[5:15])
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, eb_, color = 'purple', linestyle = 'solid', label='Extracted $E_{b}$')
+plt.plot(data_handler.ax_delay[t0-8:], eb_[t0-8:], color = 'purple', linestyle = 'solid', label='Extracted $E_{b}$')
 plt.axhline(0, linestyle = 'dashed', color = 'grey')
-plt.xlim([-120, 800])
-plt.ylim([-250, 200])
-plt.title('$E_{b}$ Shift')
+plt.xlim([-40, 800])
+plt.ylim([-120, 200])
+plt.title('$E_{b}$ Shift, N = ' + str(round(N*dt,1)) + ' fs')
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy Shift, meV')
 plt.legend(frameon=False)
@@ -384,12 +385,12 @@ plt.legend(frameon=False)
 
 # PLOT EX and CB WIDTH DYNAMICS
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, 1000*(output_excited[:,2]-np.mean(output_excited[5:15,2])), color = 'black', linestyle = 'solid', label = 'X')
-plt.plot(data_handler.ax_delay, 1000*(output_excited[:,3]-np.mean(output_excited[5:15,3])), color = 'red', linestyle = 'solid', label = 'CB')
-plt.plot(data_handler.ax_delay, 1000*(p_fits_VBM[:,2]-np.mean(p_fits_VBM[:,2][5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
-plt.xlim([-160, 800])
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(output_excited[t0-8:,2]-np.mean(output_excited[5:15,2])), color = 'black', linestyle = 'solid', label = 'X')
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(output_excited[t0-8:,3]-np.mean(output_excited[5:15,3])), color = 'red', linestyle = 'solid', label = 'CB')
+plt.plot(data_handler.ax_delay[t0-8:], 1000*(p_fits_VBM[t0-8:,2]-np.mean(p_fits_VBM[:,2][5:15])), color = 'grey', linestyle = 'solid', label = 'VBM')
+plt.xlim([-40, 800])
 plt.ylim([-50,50])
-plt.title('Peak Width Shift')
+plt.title('Peak Width Shift, N = ' + str(round(N*dt,1)) + ' fs')
 plt.xlabel('Delay, fs')
 plt.ylabel('Peak Width Shift, meV')
 plt.legend(frameon=False)
