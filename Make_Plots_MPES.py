@@ -39,6 +39,8 @@ dkx = (ax_kx[1] - ax_kx[0])
 ax_E_offset = data_handler.ax_E
 ax_delay_offset = data_handler.ax_delay
 
+cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap based and percentage of total map for new white transition map
+
 #%% # Make a plot based of the GUI slices
 
 %matplotlib inline
@@ -63,7 +65,7 @@ ax = ax.flatten()
 cmap ='gray'
 ax[0].imshow(cut, origin='lower', extent =[ax_ky[0], ax_ky[-1], ax_E[0], ax_E[-1]], cmap=cmap)
 ax[0].set_xlim([-1.6, 1.6])
-ax[0].set_ylim([-6, 0.5])
+ax[0].set_ylim([-3, 2])
 ax[0].set_xlabel('ky')
 ax[0].set_ylabel('E, eV')
 ax[0].set_aspect(.75)
@@ -71,7 +73,7 @@ ax[0].set_title('Cut at kx = ' + str(round(kx,4)))
 ax[0].axvline(pick_k_slice,color = 'red', linestyle = 'dashed')
 
 ax[1].plot(ax_E, cut_edc)
-ax[1].set_xlim([-6, 1])
+ax[1].set_xlim([-3, 2])
 ax[1].set_ylabel('Int')
 ax[1].set_xlabel('E, eV')
 ax[1].set_aspect(6)
@@ -80,7 +82,7 @@ ax[1].set_title('Cut at kx = ' + str(round(kx,3)))
 
 #%% Plot the EDCs at specified kx, ky to determine VBM Zero Energy Reference
 
-kx, ky, E = -1.75, 0.0, .25
+kint, kx, ky, E, delay = value_manager.get_values()
 kx_int, ky_int, E_int = .16 , .16, .2
 
 mask_start = (np.abs(ax_E_offset - 0.75)).argmin()
@@ -90,6 +92,7 @@ O = -0.2 #Scan 162
 #O = +0.072 #Scan 188
 #O = 0.27 #Scan 062
 #O = 7.28 #Scan 383
+O = .3
 
 xi = (np.abs(ax_kx - (kx-kx_int))).argmin()
 xf = (np.abs(ax_kx - (kx+kx_int))).argmin()
@@ -99,7 +102,7 @@ Ei = (np.abs(ax_E_offset - (E-E_int))).argmin()
 Ef = (np.abs(ax_E_offset - (E+E_int))).argmin()
 
 mask = np.ones((I.shape[2]))
-mask[mask_start:] *=100
+mask[mask_start:] *=10
 edc_neg = (I_neg[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
 edc_pos = (I_pos[xi:xf,yi:yf,:].sum(axis=(0,1)))*mask
 edc_neg = edc_neg/np.max(edc_neg)
@@ -153,7 +156,7 @@ ax[1].set_xticks(np.arange(-1,3.5,0.5))
 for label in ax[1].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax[1].set_ylim(0,1.1)
-ax[1].set_xlim(-0.5,2.5)    
+ax[1].set_xlim(-1.5,2.5)    
 ax[1].set_title('$k_{x}$ = ' + str(kx) + ' $A^{-1}$' + ', $k_{y}$= ' + str(ky) + ' $A^{-1}$', fontsize = 16)
 
 #%%
@@ -162,14 +165,14 @@ from lmfit import Parameters, minimize, report_fit
 
 def gaussian(x, amp_1, mean_1, stddev_1, offset):
     
-    g1 = amp_1 * np.exp(-((x - mean_1) / 4 / stddev_1)**2)+offset
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
     
     return g1
 
 def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
     
-    g1 = amp_1 * np.exp(-((x - mean_1) / 4 / stddev_1)**2)
-    g2 = amp_2 * np.exp(-((x - mean_2) / 4 / stddev_2)**2)
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
+    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
     
     return g1, g2, offset
 
@@ -187,10 +190,12 @@ def objective(params, x, data):
 
 k_int, kx, ky, E, delay = value_manager.get_values()
 idx_kx, idx_ky, idx_E, d_i = data_handler.get_closest_indices(kx, ky, E, delay)
+
+k_int = 0.4
 idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
 
 edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
-edcs = edcs/np.max(edcs[48:])
+edcs = edcs/np.max(edcs[0:])
 #edcs = edcs - np.mean(edcs[5:15])
 
 plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
@@ -201,7 +206,7 @@ plt.xlim([-160,800])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy, eV')
 
-pts = [-100, 0, 50, 100, 200, 500, 700]
+pts = [100, 200]
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 
 fig = plt.figure()
@@ -225,24 +230,28 @@ plt.gca().set_aspect(2)
 #################
 
 ##### VBM #####
-trunc_e1 = -0.3
-_, _, trunc1, _ = data_handler.get_closest_indices(0, 0, trunc_e, 0)
-trunc_e2 = 0.9
+trunc_e1 = -1
+_, _, trunc1, _ = data_handler.get_closest_indices(0, 0, trunc_e1, 0)
+trunc_e2 = 0.5
 _, _, trunc2, _ = data_handler.get_closest_indices(0, 0, trunc_e2, 0)
 
-p0 = [1, .1, .2, 0] # Fitting params initial guess [amp, center, width, offset]
-bnds = ((0.5, -0.5, 0.0, 0), (1.5, 0.5, .2, .2))
+p0 = [1, -.3, .5, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
 
 centers_VBM = np.zeros(len(data_handler.ax_delay))
 p_fits_VBM = np.zeros((len(data_handler.ax_delay),4))
 
 for t in np.arange(len(data_handler.ax_delay)):
-    popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc1:trunc2], edcs[trunc1:trunc2,t]/np.max(edcs[trunc1-10:,t]), p0, method=None, bounds = bnds)
+    try:
+        popt, _ = curve_fit(gaussian, data_handler.ax_E[trunc1:trunc2], edcs[trunc1:trunc2,t]/np.max(edcs[trunc1-10:,t]), p0, method=None, bounds = bnds)
+    except ValueError:
+        popt = [0,0,0,0]
+        
     centers_VBM[t] = popt[1]
     p_fits_VBM[t,:] = popt 
 
 # VBM FIT TESTS
-t = 50
+t = 40
 gauss_test = gaussian(data_handler.ax_E, *p_fits_VBM[t,:])
 
 fig = plt.figure()
@@ -257,7 +266,8 @@ plt.gca().set_aspect(3)
 # PLOT VBM SHIFT DYNAMICS
 fig = plt.figure()
 plt.plot(data_handler.ax_delay, 1000*(centers_VBM-np.mean(centers_VBM[5:15])), color = 'black', linestyle = 'solid')
-plt.xlim([-160, 800])
+plt.xlim([-200, 500])
+plt.ylim([-100,100])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy Shift, meV')
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
@@ -265,9 +275,9 @@ plt.ylabel('Energy Shift, meV')
 
 # PLOT VBM PEAK WIDTH DYNAMICS
 fig = plt.figure()
-plt.plot(data_handler.ax_delay, p_fits_VBM[:,2], color = 'black', linestyle = 'solid')
-#plt.ylim([-0.5,1])
-plt.xlim([-160, 800])
+plt.plot(data_handler.ax_delay, 1000*p_fits_VBM[:,2], color = 'black', linestyle = 'solid')
+plt.xlim([-200, 500])
+plt.ylim([520,560])
 plt.xlabel('Delay, fs')
 plt.ylabel('VBM Peak width, meV')
 

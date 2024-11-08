@@ -183,7 +183,7 @@ class PlotHandler:
         for label in self.ax[2].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
         self.ax[2].set_xlim(-2,2)
-        self.ax[2].set_ylim(-3,3)
+        self.ax[2].set_ylim(-4,2)
 
         # Initial ky vs E Image (bottom left)
         frame_temp = self.data_handler.get_ky_map()
@@ -201,7 +201,7 @@ class PlotHandler:
         for label in self.ax[3].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
         self.ax[3].set_xlim(-2,2)
-        self.ax[3].set_ylim(-3,3)
+        self.ax[3].set_ylim(-4,2)
         
         # Initial Dynamics Time Trace (top right)
         if self.data_handler.I.ndim > 3:
