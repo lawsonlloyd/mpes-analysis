@@ -414,7 +414,10 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 
 ### User Inputs for Plotting MM 
 
-E, E_int  = [0.1, 1.1], 6
+save_figure = True
+figure_file_name = 'RT_MM' 
+
+E, E_int  = [0.05, -0.1, 0, 0.1], .12
 
 # Plot Momentum Maps at specified Energies
 
@@ -423,22 +426,24 @@ cmap = cmap_LTL
 frame_plot = I_sum
 
 #### 
-fig, ax = plt.subplots(1,2, sharey=True)
-plt.gcf().set_dpi(300)
+fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
 ax = ax.flatten()
 
-sat = [1, 1]
+fig.set_size_inches(8, 6, forward=False)
+plt.gcf().set_dpi(300)
+cmap_plot = cmap_LTL
+
+sat = [1, 1, 1, 1]
 for i in np.arange(len(E)):
     E_ = E[i]
 
-    Ei = (np.abs(ax_E_offset - (E_-E_int))).argmin()
-    Ef = (np.abs(ax_E_offset - (E_+E_int))).argmin()    
+    Ei = (np.abs(ax_E_offset - (E_- E_int/2))).argmin()
+    Ef = (np.abs(ax_E_offset - (E_ + E_int/2))).argmin()    
     
     frame = np.transpose(frame_plot[:,:,Ei:Ef].sum(axis=(2)))
     frame = frame/np.max(frame)
     extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
-    im = ax[i].imshow((frame), origin='lower', cmap=cmap, vmax=sat[i], clim=None, interpolation='none', extent = extent) #kx, ky, t
-
+    im = ax[i].imshow((frame), origin='lower', cmap=cmap_plot, vmax=sat[i], clim=None, interpolation='none', extent = extent) #kx, ky, t
     ax[i].set_aspect(1)
     #ax[0].axhline(y,color='black')
     #ax[0].axvline(x,color='bl ack')
@@ -455,15 +460,18 @@ for i in np.arange(len(E)):
         label.set_visible(False)
 
     #ax[0].set_box_aspect(1)
-    ax[i].set_xlabel('$k_x$', fontsize = 14)
-    ax[i].set_ylabel('$k_y$', fontsize = 14)
-    ax[i].tick_params(axis='both', labelsize=12)
-    ax[i].set_title('$E$ = ' + str((E[i])) + ' eV', fontsize = 16)
+    ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+    ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+    ax[i].set_title('$E$ = ' + str((E[i])) + ' eV', fontsize = 18)
+    ax[i].tick_params(axis='both', labelsize=16)
     #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
     cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
     fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
 
 fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%%
 # Plot Difference MMs of t < 0 and t > 0 fs
@@ -822,11 +830,14 @@ fig.tight_layout()
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
-kx_traces, ky_traces = [0.2, 0.2, -1.1, -1.1], [.8] # kx, ky for plotting
-E_traces = [1.35, 2.15, 1.35, 2.15] # Energies for Plotting
-kx_int, ky_int, E_int  = .4, .4, 0.2 #Integration Ranges
+save_figure = True
+figure_file_name = 'RT'
 
-trace_colors = ['black', 'red', 'grey', 'pink']
+kx_traces, ky_traces = [0.2, 0.2, -1.05, -1.05], [0] # kx, ky for plotting
+E_traces = [0, 2.1, 2.1, 0.05] # Energies for Plotting
+kx_int, ky_int, E_int  = 0.4, .5, 0.2 #Integration Ranges
+
+trace_colors = ['black', 'red', 'pink', 'grey']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
@@ -851,7 +862,7 @@ for t in range(4):
     trace = trace/np.max(trace)
     trace = trace - np.mean(trace[3:t0-5])
     traces[t,:] = trace/np.max(trace)
-
+    
 # MM Frame Difference
 MM_frame_diff = frame_differences[:,:,Ei:Ef].sum(axis=(2))
 MM_frame_diff = MM_frame_diff/np.max(MM_frame_diff)
@@ -890,7 +901,7 @@ kx_diff = kx_diff/np.max(kx_diff)
 
 fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
 fig.set_size_inches(8, 6, forward=False)
-
+plt.gcf().set_dpi(300)
 ax = ax.flatten()
 cmap_plot = cmap_LTL
 
@@ -907,10 +918,10 @@ for label in ax[0].xaxis.get_ticklabels()[1::2]:
 ax[0].set_yticks(np.arange(-2,2.1,1))
 for label in ax[0].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
-ax[0].set_xlabel('$k_x$, $A^{-1}$', fontsize = 20)
-ax[0].set_ylabel('$k_y$, $A^{-1}$', fontsize = 20)
-ax[0].tick_params(axis='both', labelsize=18)
-ax[0].set_title('$E$ = ' + str((E_traces[3])) + ' eV', fontsize = 20)
+ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+ax[0].set_title('$E$ = ' + str((E_traces[3])) + ' eV', fontsize = 18)
+ax[0].tick_params(axis='both', labelsize=16)
 ax[0].set_aspect(1)
 
 ### kx Difference Plot
@@ -926,10 +937,10 @@ for label in ax[2].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)          
 ax[2].set_xlim(-2,2)
 ax[2].set_ylim(1, 2.5)
-ax[2].set_ylabel('$E - E_{VBM}$, eV', fontsize = 20)
-ax[2].set_xlabel('$k_x, A^{-1}$', fontsize = 20)
-ax[2].set_title('', fontsize = 20)
-ax[2].tick_params(axis='both', labelsize=18)
+ax[2].set_ylabel('$E - E_{VBM}$, eV', fontsize = 18)
+ax[2].set_xlabel('$k_x, \AA^{-1}$', fontsize = 18)
+ax[2].set_title('', fontsize = 18)
+ax[2].tick_params(axis='both', labelsize=16)
 ax[2].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 ax[2].set_aspect(2.6667)
 
@@ -986,6 +997,8 @@ params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 plt.rcParams.update(params)
 fig.tight_layout()
 
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%%
 %matplotlib inline
