@@ -834,7 +834,7 @@ save_figure = True
 figure_file_name = 'RT'
 
 kx_traces, ky_traces = [0.2, 0.2, -1.05, -1.05], [0] # kx, ky for plotting
-E_traces = [0, 2.1, 2.1, 0.05] # Energies for Plotting
+E_traces = [1.35, 2.1, 2.1, 1.35] # Energies for Plotting
 kx_int, ky_int, E_int  = 0.4, .5, 0.2 #Integration Ranges
 
 trace_colors = ['black', 'red', 'pink', 'grey']
@@ -894,6 +894,8 @@ I_dif = I_2_N - I_1_N
 
 kx_diff = I_2_N - I_1_N
 kx_diff = kx_diff/np.max(kx_diff)
+
+energy_cut_kx = kx_diff.sum(axis=0)
 
 #######################
 ### Do the Plotting ###
@@ -999,6 +1001,23 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
+
+#%%
+
+plt.figure() ; 
+plt.plot(ax_E_offset[e:], energy_cut_kx/np.max(energy_cut_kx)) 
+
+plt.xticks(np.arange(0,3,.25))
+for label in plt.gca().xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+plt.yticks(np.arange(0,1.1,.5))
+for label in plt.gca().yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+plt.ylim(0,1.1)
+
+plt.xlim(1,2.5)
+plt.savefig("excitedenergyspectrum.svg")
 
 #%%
 %matplotlib inline
