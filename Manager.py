@@ -183,7 +183,7 @@ class PlotHandler:
         for label in self.ax[2].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
         self.ax[2].set_xlim(-2,2)
-        self.ax[2].set_ylim(-4,2)
+        self.ax[2].set_ylim(-4,3)
 
         # Initial ky vs E Image (bottom left)
         frame_temp = self.data_handler.get_ky_map()
@@ -201,7 +201,7 @@ class PlotHandler:
         for label in self.ax[3].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
         self.ax[3].set_xlim(-2,2)
-        self.ax[3].set_ylim(-4,2)
+        self.ax[3].set_ylim(-4,3)
         
         # Initial Dynamics Time Trace (top right)
         if self.data_handler.I.ndim > 3:
@@ -328,24 +328,23 @@ class PlotHandler:
         idx_kx[0], idx_ky[0], idx_E, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
         idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
         
-        if self.data_handler.I.ndim > 3:
-            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-            time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
-            
-            self.im_4.set_ydata(time_trace/np.max(time_trace))
-            self.im_4.set_xdata(self.data_handler.ax_delay)
-            self.ax[1].set_xticks(np.arange(-400,1250,200))
-            self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
-        else:
-            time_trace = np.zeros(1)
-        
-        for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
-            label.set_visible(False)
-                
         # Update the time trace plots
         self.ax[1].set_title("Dynamics")
         self.ax[1].set_xlabel("Delay, fs")
         self.ax[1].set_ylabel("Intensity")
+        
+        if self.data_handler.I.ndim > 3:
+            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
+            time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
+            self.ax[1].set_xticks(np.arange(-400,1250,200))
+            for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+                label.set_visible(False)
+            self.im_4.set_ydata(time_trace/np.max(time_trace))
+            self.im_4.set_xdata(self.data_handler.ax_delay)
+            #self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+        else:
+            time_trace = np.zeros(1)
+
 
     def update_edc(self):
         """Update the time traces when the square is moved or resized."""
