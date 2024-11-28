@@ -1017,7 +1017,7 @@ for label in plt.gca().yaxis.get_ticklabels()[1::2]:
 plt.ylim(0,1.1)
 
 plt.xlim(1,2.5)
-plt.savefig("excitedenergyspectrum.svg")
+#plt.savefig("excitedenergyspectrum.svg")
 
 #%%
 %matplotlib inline
