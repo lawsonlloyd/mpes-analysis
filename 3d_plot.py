@@ -31,8 +31,8 @@ def binArray(data, axis, binstep, binsize, func=np.nanmean):
 x, y, z = np.indices((100, 50, 100))
 data =  I.sum(axis=3)  # Replace this with your dataset
 
-binned_data = binArray(binned_data, 0, 1, 1, np.mean)
-binned_data = binArray(data, 1, 2, 2, np.mean)
+binned_data = binArray(data, 0, 1, 1, np.mean)
+binned_data = binArray(binned_data, 1, 2, 2, np.mean)
 binned_data = binArray(binned_data, 2, 2, 2, np.mean)
 
 # Cut the dataset in half (example: removing one half along z-axis)

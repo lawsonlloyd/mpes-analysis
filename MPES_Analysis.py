@@ -4,7 +4,7 @@
 #%% Import the Loader and Main GUI File
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import matplotlib.pyplot as plt
 
@@ -15,7 +15,7 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Analysis\data'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
+data_path = '/Users/lawsonlloyd/Desktop/Data/'
 filename, offsets = 'Scan571_300K.h5', [-.6,0]
 
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [-0.2, 90]
