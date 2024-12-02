@@ -19,7 +19,8 @@ pio.renderers.default='browser'
 
 # Generate a sample 3D dataset
 x, y, z = np.indices((100, 100, 100))
-data_ =  (I_pos-I_neg) # I.sum(axis=3)  # Replace this with your dataset
+data_ =  (I_pos/(np.max(I_pos)))-I_neg/np.max(I_neg) 
+data_ = I.sum(axis=3)  # Replace this with your dataset
 data_ = np.abs(data_)/np.max(data_)
 
 binned_data = binArray(data_, 0, 1, 1, np.mean)
@@ -30,7 +31,10 @@ binned_data = binArray(binned_data, 2, 2, 2, np.mean)
 mask = z < 5
 binned_data[:,0:48,:] = 0
 
-#%%
+#%% 
+
+#3d Contour
+
 binned_data = binned_data/np.max(binned_data)
 e = 70
 
@@ -46,17 +50,38 @@ X, Y, Z = np.meshgrid(x, y, z)
 values = binned_data
  
 fig = go.Figure(data=go.Volume( 
-	x=X.flatten(), 
-	y=Y.flatten(), 
-	z=Z.flatten(), 
-	value=values.flatten(), 
-	opacity=.05,
+ 	x=X.flatten(), 
+ 	y=Y.flatten(), 
+ 	z=Z.flatten(), 
+ 	value=values.flatten(), 
     caps= dict(x_show=False, y_show=False, z_show=False),
-    surface_count = 25,
-    isomin=0.2,
-    isomax=1,
+    surface_count = 20,
+    isomin=0,
+    isomax=1
+ 	)) 
 
-	)) 
+fig.update_layout(scene_camera = dict(
+    up=dict(x=0, y=0, z=1),
+    center=dict(x=0, y=0, z=0),
+    eye=dict(x=0.1, y=2.5, z=0.1)
+    ))
+
+fig.show()
+
+
+#%%
+
+fig = go.Figure(data=go.Isosurface( 
+ 	x=X.flatten(), 
+ 	y=Y.flatten(), 
+ 	z=Z.flatten(), 
+ 	value=values.flatten(), 
+    caps= dict(x_show=False, y_show=False, z_show=False),
+    surface_count = 10,
+    opacity = .8,
+    isomin=0,
+    isomax=1
+ 	)) 
 
 fig.show()
 
@@ -87,7 +112,7 @@ fig.add_trace(go.Scatter3d(
     marker=dict(
         size=12,
         colorscale='viridis',   # choose a colorscale
-        opacity=.8
+        opacity=.2
         )
     ))
 
@@ -202,7 +227,7 @@ e = 70
 
 binned_data[:,:,e:] *= 1/np.max(binned_data[:,:,e:])
 
-mask = binned_data < 0.075
+mask = binned_data < 0.0
 binned_data[mask] = 0
 
 #binned_data = np.transpose(binned_data, [1, 0, 2])
@@ -242,12 +267,12 @@ fig = go.Figure(
         x=x, y=y, z=z,
         mode='markers',
         marker=dict(
-            size=8,
+            size=5,
             color=amplitudes,  # Map amplitudes to color
             colorscale=custom_colorscale,  # Choose colormap
-            cmin=0.1,
+            cmin=0,
             cmax=np.max(amplitudes),
-            opacity=.05,  # Set transparency
+            opacity=.5,  # Set transparency
             colorbar=dict(title="Intensity")  # Add colorbar
         )
     )
