@@ -19,9 +19,15 @@ pio.renderers.default='browser'
 
 # Generate a sample 3D dataset
 x, y, z = np.indices((100, 100, 100))
-data_ =  (I_pos/(np.max(I_pos)))-I_neg/np.max(I_neg) 
+data_excited =  (I_pos/(np.max(I_pos)))-I_neg/np.max(I_neg) 
+data_excited =  data_excited/np.max(data_excited)
+
 data_ = I.sum(axis=3)  # Replace this with your dataset
-data_ = np.abs(data_)/np.max(data_)
+data_ = data_/np.max(data_)
+
+e = 140
+data_[:,:,e:] = data_excited[:,:,e:]
+data_[:,:,e:] *= 1/np.max(data_[:,:,e:])
 
 binned_data = binArray(data_, 0, 1, 1, np.mean)
 binned_data = binArray(binned_data, 1, 1, 1, np.mean)
@@ -29,20 +35,18 @@ binned_data = binArray(binned_data, 2, 2, 2, np.mean)
 
 # Cut the dataset in half (example: removing one half along z-axis)
 mask = z < 5
-binned_data[:,0:48,:] = 0
+#binned_data[0:48,0:48,:] = 0
 
+binned_data = binned_data[:,:,20:90]
 #%% 
 
 #3d Contour
 
 binned_data = binned_data/np.max(binned_data)
-e = 70
-
-binned_data[:,:,e:] *= 1/np.max(binned_data[:,:,e:])
 
 x = np.linspace(0,99,100)
 y = np.linspace(0,99,100)
-z = np.linspace(0,99,100)
+z = np.linspace(0,69,70)
 
 X, Y, Z = np.meshgrid(x, y, z)
 #X, Y, Z = x, y, z
@@ -54,20 +58,32 @@ fig = go.Figure(data=go.Volume(
  	y=Y.flatten(), 
  	z=Z.flatten(), 
  	value=values.flatten(), 
-    caps= dict(x_show=False, y_show=False, z_show=False),
     surface_count = 20,
-    isomin=0,
-    isomax=1
- 	)) 
+    isomin=0.03,
+    isomax=1,
+    colorscale = 'Spectral_r',
+    opacity = 0.8,
+    caps=dict(x_show=False, y_show=False, z_show=False)  # Remove caps
 
-fig.update_layout(scene_camera = dict(
-    up=dict(x=0, y=0, z=1),
-    center=dict(x=0, y=0, z=0),
-    eye=dict(x=0.1, y=2.5, z=0.1)
-    ))
+    #opacityscale=[[0, 0.1], [1, 0.7]]  # Gradual opacity
+
+ 	))
+
+# Customize layout for transparency
+fig.update_layout(
+    paper_bgcolor="rgba(0,0,0,0)",  # Transparent paper
+    plot_bgcolor="rgba(0,0,0,0)",  # Transparent plot background
+    scene=dict(
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        zaxis=dict(visible=False),
+        bgcolor="rgba(0,0,0,0)"  # Transparent 3D scene
+    )
+)
+
+pio.write_image(fig, "3d_plot_transparent.png", format="png", scale=2)
 
 fig.show()
-
 
 #%%
 
