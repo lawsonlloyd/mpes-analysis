@@ -9,12 +9,12 @@ sigma = 1.0  # Width of the Gaussian signal
 # Define the Gaussian signal
 signal = np.exp(-t**2 / (2 * sigma**2))
 
-d = 1
+d = 3
 # Define a function to compute the FFT of the windowed signal
 def compute_fft(signal, window_width, t, alpha):
     # Create a Tukey window using scipy
-    #window = np.pad(tukey(int(len(t)/d), alpha=alpha), (int(len(t)/(2*d)), int(len(t)/(2*d))))
-    window = (tukey(int(len(t)/1), alpha=alpha))
+    window = np.pad(tukey(int(len(t)/d), alpha=alpha), (int(len(t)/(d))+1, int(len(t)/(d))))
+    #window = (tukey(int(len(t)/1), alpha=alpha))
 
     windowed_signal = signal * window
     fft = np.fft.fftshift(np.fft.fft(windowed_signal))  # Compute FFT
@@ -26,7 +26,7 @@ def compute_fft(signal, window_width, t, alpha):
 
 # Define different window widths and Tukey alpha values
 window_widths = [0.5, 1, 2, 4]
-alphas = [0.1, 0.25, 0.5, 0.95]  # Different tapering parameters for the Tukey window
+alphas = [0.1, 0.25, 0.5, 0.9]  # Different tapering parameters for the Tukey window
 colors = ['blue', 'green', 'orange', 'red']
 
 # Create a figure with subplots
