@@ -38,6 +38,7 @@ mask = z < 5
 #binned_data[0:48,0:48,:] = 0
 
 binned_data = binned_data[:,:,20:90]
+
 #%% 
 
 #3d Contour
@@ -85,6 +86,47 @@ pio.write_image(fig, "3d_plot_transparent.png", format="png", scale=2)
 
 fig.show()
 
+#%%
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def explode(data):
+    size = np.array(data.shape)
+    data_e = np.zeros(size, dtype=data.dtype)
+    #data_e[::2, ::2, ::2] = data
+    return data_e
+
+# build up the numpy logo
+n_voxels = np.zeros((10,10,10), dtype=bool)
+n_voxels[0, 0, :] = True
+n_voxels[-1, 0, :] = True
+n_voxels[1, 0, 2] = True
+n_voxels[2, 0, 1] = True
+facecolors = np.where(n_voxels, '#FFD65DC0', '#7A88CCC0')
+edgecolors = np.where(n_voxels, '#BFAB6E', '#7D84A6')
+filled =  I[0:10,0:10,0:10,:].sum(axis=3) #np.ones(n_voxels.shape)
+
+# upscale the above voxel image, leaving gaps
+filled_2 = explode(filled)
+fcolors_2 = explode(facecolors)
+ecolors_2 = explode(edgecolors)
+
+# Shrink the gaps
+x, y, z = np.indices(np.array(filled_2.shape) + 1).astype(float) // 2
+x[0::2, :, :] += 0.05
+y[:, 0::2, :] += 0.05
+z[:, :, 0::2] += 0.05
+x[1::2, :, :] += 0.95
+y[:, 1::2, :] += 0.95
+z[:, :, 1::2] += 0.95
+
+ax = plt.figure().add_subplot(projection='3d')
+ax.voxels(x, y, z, filled)
+ax.set_aspect('auto')
+
+plt.show()
 #%%
 
 fig = go.Figure(data=go.Isosurface( 

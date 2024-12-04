@@ -22,7 +22,7 @@ def compute_fft(signal, window_width, t, alpha):
     window_fft = np.fft.fftshift(np.fft.fft(window))  # Compute FFT
 
     freq = np.fft.fftshift(np.fft.fftfreq(len(t), d=t[1] - t[0]))  # Frequency array
-    return windowed_signal, freq, np.abs(fft)/np.max(np.abs(fft)), window, np.abs(signal_fft)/np.max(np.abs(signal_fft)), np.abs(window_fft)/np.max((window_fft))
+    return windowed_signal, freq, np.abs(fft)/np.max(np.abs(fft)), window, np.abs(signal_fft)/np.max(np.abs(signal_fft)), np.abs(window_fft)/np.max(np.abs(window_fft))
 
 # Define different window widths and Tukey alpha values
 window_widths = [0.5, 1, 2, 4]
