@@ -374,7 +374,9 @@ delay_lim = [-160, 820]
 ################################
 
 ## Extract Traces for At Different Energies with Background Subtraction
-traces = np.zeros((4,I.shape[3]))
+#traces = np.zeros((4,I.shape[3]))
+traces = np.zeros((4,50))
+
 E_int, kx_int, ky_int = E_int/2, kx_int/2, ky_int/2
 
 for t in range(4):
@@ -383,11 +385,22 @@ for t in range(4):
     kyi = (np.abs(ax_ky - (ky_traces[0]-ky_int))).argmin()
     kyf = (np.abs(ax_ky - (ky_traces[0]+ky_int))).argmin()
     Ei = np.abs(ax_E_offset - (E_traces[t]-E_int)).argmin()  
-    Ef = np.abs(ax_E_offset - (E_traces[t]+E_int)).argmin()  
+    Ef = np.abs(ax_E_offset - (E_traces[t]+E_int)).argmin()
     trace = I[kxi:kxf, kyi:kyf, Ei:Ef,:].sum(axis=(0,1,2))
-    trace = trace/np.max(trace)
-    trace = trace - np.mean(trace[3:t0-5])
-    traces[t,:] = trace/np.max(trace)
+
+    trace = binArray(trace, 0, 3, 3, np.mean)
+    trace = trace - np.mean(trace[1:8-3])
+    
+    if t == 0:
+        norm_factor = np.max(trace)
+    
+    if t == 1:   
+        trace = trace/np.max(trace)
+   
+    else:
+        trace = trace/np.max(trace)
+    
+    traces[t,:] = trace
     
 # MM Frame Difference
 MM_frame_diff = frame_differences[:,:,Ei:Ef].sum(axis=(2))
@@ -499,11 +512,12 @@ for t in range(4):
     ax[0].add_patch(rect2)
 
 for t in [0,1]:
-    ax[1].plot(ax_delay_offset, traces[t,:], color = trace_colors[t], \
+    axis_test = np.linspace(ax_delay_offset[0], ax_delay_offset[-1], 50)
+    ax[1].plot(axis_test, traces[t,:], marker = 'o', color = trace_colors[t], \
                label = str(E_traces[t]) + ' eV, ' + str(kx_traces[t]) + ' A^-1')
 
 for t in [2,3]:
-    ax[3].plot(ax_delay_offset, traces[t,:], color = trace_colors[t], \
+    ax[3].plot(axis_test, traces[t,:], color = trace_colors[t], \
                label = str(E_traces[t]) + ' eV, ' + str(kx_traces[t]) + ' A^-1')
 
 for f in [1,3]:
@@ -514,7 +528,7 @@ for f in [1,3]:
     for label in ax[f].xaxis.get_ticklabels()[1::2]:
         label.set_visible(False) 
     ax[f].set_xlim(delay_lim[0],delay_lim[1])
-    ax[f].set_ylim(-0.2, 1.1)
+    ax[f].set_ylim(-0.1, 1.1)
 #    ax[f].set_aspect(500)
 
     #ax[f].legend(frameon = False)
@@ -526,4 +540,4 @@ plt.rcParams.update(params)
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig((figure_file_name + '_test' +'.svg'), format='svg')

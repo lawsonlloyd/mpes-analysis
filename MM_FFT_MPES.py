@@ -5,6 +5,13 @@ Created on Tue Dec  3 20:38:09 2024
 
 @author: lawsonlloyd
 """
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as col
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import FormatStrFormatter
+from skimage.draw import disk
+from scipy.optimize import curve_fit
 
 #%%
 
@@ -18,7 +25,7 @@ if I.ndim > 3:
     neg_length = I_neg.shape[3]
     I_neg = I_neg.sum(axis=(3))
         
-    I_pos = I[:,:,:,t0+1:]
+    I_pos = I[:,:,:,t0+1:-3]
     pos_length = I_pos.shape[3]
     I_pos = I_pos.sum(axis=(3)) #Sum over delay/polarization/theta...
     
@@ -48,11 +55,8 @@ from scipy import signal
 from scipy.fft import fft, fftshift
 
 tMaps, tint  = [1.35], 6
-k_i, k_f = -.4, .4 #ky
-k_i_2, k_f_2 = 0, 1.1 #kx
-
-
-#window_choice = 
+k_i, k_f = -.3, .3 #ky
+k_i_2, k_f_2 = 0, 1.15 #kx
 
 ### Plot
 numPlots = len(tMaps)
@@ -86,7 +90,7 @@ for i in np.arange(numPlots):
     
     kspace_frame = frame_diff
     
-    mn = np.mean(kspace_frame[:,25:35])
+    #mn = np.mean(kspace_frame[:,25:35])
     #kspace_frame = kspace_frame - mn
     kspace_frame[kspace_frame<0] = 0
     
@@ -154,8 +158,9 @@ for i in np.arange(numPlots):
     win_2_box[k_i_2:k_f_2] = box_2
 
     window_4 = np.outer(win_1, win_2)
-    window_5 = np.outer(win_1_box, win_2_box)
-    window_6 = np.outer(win_1_box, win_2)
+    window_5 = np.outer(win_1_box, win_2_box) # Square Window
+    window_6 = np.outer(win_1, win_2_box)
+    #window_6 = np.outer(win_1_box, win_2)
     
     for yy in range(0,window.shape[1]):
         window[k_i:k_f,yy] = signal.windows.tukey(k_f-k_i)
@@ -170,8 +175,8 @@ for i in np.arange(numPlots):
     frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
     frame_sym =  frame_sym[:,:]/2
     
-    windowed_frame_symm = frame_sym*window_5
-    windowed_frame_nonsymm = kspace_frame*window_5
+    windowed_frame_symm = frame_sym*window_6
+    windowed_frame_nonsymm = kspace_frame*window_6
     #windowed_frame_symm = frame_sym
     
     
@@ -185,8 +190,8 @@ for i in np.arange(3):
     ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
     ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
     
-    ax[i].axvline(-1, color='blue', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(1, color='blue', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
     
     ax[i].set_aspect(1)
     #ax[0].axhline(y,color='black')
@@ -225,7 +230,7 @@ plt.show()
 ##### Plot FFT of MMs to obtain real space wavefxn #####
 #####                                              #####
 
-momentum_frame = windowed_frame_symm
+#momentum_frame = windowed_frame_symm
 momentum_frame = windowed_frame_nonsymm
 
 #momentum_frame = window_4
@@ -264,34 +269,34 @@ fft_frame = np.fft.fft2(momentum_frame_sqrt, [zplength, zplength])
 fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
 
 fft_frame_rsq = np.abs(fft_frame) 
-fft_frame_s = np.square(np.abs(fft_frame))
+fft_frame_s = np.square(np.abs(fft_frame)) #frame squared
 
 ### Take x and y cuts and extract bohr radius
-kx_cut = momentum_frame_[:,int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4].sum(axis=1)
-kx_cut = kx_cut/np.max(kx_cut)
-ky_cut = momentum_frame_[int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4,:].sum(axis=0)
+ky_cut = momentum_frame_[:,int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4].sum(axis=1)
 ky_cut = ky_cut/np.max(ky_cut)
+kx_cut = momentum_frame_[int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4,:].sum(axis=0)
+kx_cut = kx_cut/np.max(kx_cut)
 
-x_cut = fft_frame_s[:,int(zplength/2)-1]
-y_cut = fft_frame_s[int(zplength/2)-1,:]
+y_cut = fft_frame_s[:,int(zplength/2)-1]
+x_cut = fft_frame_s[int(zplength/2)-1,:]
 x_cut = x_cut/np.max(x_cut)
 y_cut = y_cut/np.max(y_cut)
 
-r2_cut_x = fft_frame_rsq[:,int(zplength/2)-1]
-r2_cut_x = np.square(np.abs(r2_cut_x*r_axis))
-r2_cut_x = r2_cut_x/np.max(r2_cut_x)
-
-r2_cut_y = fft_frame_rsq[int(zplength/2)-1,:]
+r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1]
 r2_cut_y = np.square(np.abs(r2_cut_y*r_axis))
 r2_cut_y = r2_cut_y/np.max(r2_cut_y)
 
-rdist_brad_x = np.argmax(r2_cut_x)
-rdist_brad_y = np.argmax(r2_cut_y)
+r2_cut_x = fft_frame_rsq[int(zplength/2)-1,:]
+r2_cut_x = np.square(np.abs(r2_cut_x*r_axis))
+r2_cut_x = r2_cut_x/np.max(r2_cut_x)
 
-rdist_brad_x = r_axis[rdist_brad_x]
-rdist_brad_y = r_axis[rdist_brad_y]
+rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
+rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
 
-x_brad = (np.abs(x_cut[int(zplength/2)-10:] - 0.5)).argmin()
+rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
+rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
+
+x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
 y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
 x_brad = int(zplength/2)-10 + x_brad
 y_brad = int(zplength/2)-10 + y_brad
@@ -369,7 +374,7 @@ ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
 ax[1].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
 ax[1].tick_params(axis='both', labelsize=10)
 #ax[1].set_title('$E$ = ' + str((tMaps[i])) + ' eV', fontsize = 16)
-ax[1].set_title('Windoed', fontsize = 15)
+ax[1].set_title('Windowed', fontsize = 15)
  
 ax[2].set_xlim(-2,2)
 ax[2].set_ylim(-2,2)
@@ -391,8 +396,8 @@ ax[3].plot(r_axis, y_cut/np.max(y_cut), color = 'red', label = '$r_y$')
 ax[3].axvline(x_brad, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[3].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
 
-#ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = 1.5)
-#ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
+ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
 
 #ax[3].annotate('$r^*_x$', xy = (rdist_brad+.15, 0.5), fontsize = 14, color = 'blue', weight = 'bold')
 ax[3].set_xlim([0, 2])
@@ -410,3 +415,13 @@ ax[3].legend(frameon=False, fontsize = 12)
 fig.subplots_adjust(right=0.58, top = 1.1)
 fig.tight_layout()
 plt.show()
+
+new_rc_params = {'text.usetex': False,
+"svg.fonttype": 'none'}
+
+plt.rcParams.update(new_rc_params)
+
+fig.savefig(('MM_2DFFT' +'.svg'), format='svg')
+    
+print(rdist_brad_x)
+print(rdist_brad_y)
