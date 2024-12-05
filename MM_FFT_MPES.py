@@ -277,17 +277,17 @@ ky_cut = ky_cut/np.max(ky_cut)
 kx_cut = momentum_frame_[int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4,:].sum(axis=0)
 kx_cut = kx_cut/np.max(kx_cut)
 
-y_cut = fft_frame_s[:,int(zplength/2)-1]
+y_cut = fft_frame_s[:,int(zplength/2)-1] # real space Psi*^2 cut
 x_cut = fft_frame_s[int(zplength/2)-1,:]
 x_cut = x_cut/np.max(x_cut)
 y_cut = y_cut/np.max(y_cut)
 
-r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1]
-r2_cut_y = np.square(np.abs(r2_cut_y*r_axis))
+r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1] #real space Psi cut
+r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) #|r*Psi(r)|^2
 r2_cut_y = r2_cut_y/np.max(r2_cut_y)
 
 r2_cut_x = fft_frame_rsq[int(zplength/2)-1,:]
-r2_cut_x = np.square(np.abs(r2_cut_x*r_axis))
+r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
 r2_cut_x = r2_cut_x/np.max(r2_cut_x)
 
 rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
