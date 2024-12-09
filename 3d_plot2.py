@@ -16,6 +16,18 @@ import plotly.express as px
 pio.renderers.default='browser'
 
 #%%
+def binArray(data, axis, binstep, binsize, func=np.nanmean):
+    data = np.array(data)
+    dims = np.array(data.shape)
+    argdims = np.arange(data.ndim)
+    argdims[0], argdims[axis]= argdims[axis], argdims[0]
+    data = data.transpose(argdims)
+    data = [func(np.take(data,np.arange(int(i*binstep),int(i*binstep+binsize)),0),0) for i in np.arange(dims[axis]//binstep)]
+    data = np.array(data).transpose(argdims)
+    return data
+
+#%%
+
 
 # Generate a sample 3D dataset
 x, y, z = np.indices((100, 100, 100))
@@ -25,7 +37,7 @@ data_excited =  data_excited/np.max(data_excited)
 data_ = I.sum(axis=3)  # Replace this with your dataset
 data_ = data_/np.max(data_)
 
-e = 140
+e = 106
 data_[:,:,e:] = data_excited[:,:,e:]
 data_[:,:,e:] *= 1/np.max(data_[:,:,e:])
 
@@ -82,9 +94,40 @@ fig.update_layout(
     )
 )
 
-pio.write_image(fig, "3d_plot_transparent.png", format="png", scale=2)
+#pio.write_image(fig, "3d_plot_transparent.png", format="png", scale=2)
 
 fig.show()
+
+#%%
+
+import pyvista as pv
+import numpy as np
+
+# Example dataset
+
+# Create a PyVista uniform grid
+import pyvista as pv
+import numpy as np
+
+# Example data
+data = values
+
+# Dimensions of the grid
+nx, ny, nz = data.shape
+x = np.linspace(0, nx - 1, nx)
+y = np.linspace(0, ny - 1, ny)
+z = np.linspace(0, nz - 1, nz)
+
+# Create structured grid
+grid = pv.StructuredGrid()
+grid.points = np.array(np.meshgrid(x, y, z)).T.reshape(-1, 3)
+grid.dimensions = (nx, ny, nz)
+grid["values"] = data.flatten(order="F")  # Add scalar data
+
+# Save to VTK
+vtk_file_path = "output2.vtk"
+grid.save(vtk_file_path)
+
 
 #%%
 
