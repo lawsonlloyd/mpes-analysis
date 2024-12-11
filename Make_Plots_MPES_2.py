@@ -17,10 +17,18 @@ from scipy.optimize import curve_fit
 ### Transform Data if needed....
 #I = np.transpose(I, (0,2,1,3))
 
+dkx = (ax_kx[1] - ax_kx[0])
+dE = ax_E[1] - ax_E[0]
+
+ax_E_offset = data_handler.ax_E
+ax_delay_offset = data_handler.ax_delay
+
 if I.ndim > 3:
     t0 = data_handler.get_t0()
     
-    I_neg = I[:,:,:,5:t0-7] #Sum over delay/polarization/theta...
+    neg_time = -60
+    tnf = (np.abs(ax_delay_offset - neg_time)).argmin()
+    I_neg = I[:,:,:,5:tnf+1] #Sum over delay/polarization/theta...
     neg_length = I_neg.shape[3]
     I_neg = I_neg.sum(axis=(3))
         
@@ -35,12 +43,6 @@ else:
     I_pos = I[:,:,:]
     I_sum = I
 
-dkx = (ax_kx[1] - ax_kx[0])
-dE = ax_E[1] - ax_E[0]
-
-ax_E_offset = data_handler.ax_E
-ax_delay_offset = data_handler.ax_delay
-
 cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap based and percentage of total map for new white transition map
 
 #%%
@@ -49,16 +51,16 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 ### User Inputs for Plotting MM 
 
 save_figure = True
-figure_file_name = 'test' 
+figure_file_name = 'MMs_negativedelay_RT' 
 
-E, E_int  = [0.05, -0.1, 0, 0.1], .12
+E, E_int  = [1.35, 1.55, 2.05], .12
 
 # Plot Momentum Maps at specified Energies
 
 cmap = cmap_LTL 
 
-frame_plot = I_sum
-
+frame_plot = I_neg # I_sum
+frame_plot = np.max(frame_plot)
 #### 
 fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
 ax = ax.flatten()
@@ -112,6 +114,9 @@ if save_figure is True:
 
 %matplotlib inline
 
+save_figure = False
+figure_file_name = 'MM_DIFFERENCE'
+
 tMaps, tint  = [1.35, 2], 6
 
 cmapPLOTTING = cmap_LTL #'bone_r' # cmap_LTL
@@ -124,7 +129,7 @@ frame_pos = (I_pos[:,:,:])
 #frame_neg = frame_neg/(np.max(frame_neg))
 #frame_pos = frame_pos/(np.max(frame_pos))
 frame_neg = frame_neg/((neg_length))
-frame_pos = frame_pos#/((pos_length))
+frame_pos = frame_pos/((pos_length))
 frame_sum = frame_neg + frame_pos
 
 #cts_pos = np.sum(frame_pos[:,:])
@@ -132,6 +137,7 @@ frame_sum = frame_neg + frame_pos
 #cts_total = np.sum(frame_sum)
 
 frame_diff = frame_pos - frame_neg
+#frame_diff = frame_pos
 
 frame_maxes = np.zeros(frame_diff.shape[2])
 for m in np.arange(frame_diff.shape[2]):
@@ -153,9 +159,9 @@ for i in np.arange(numPlots, dtype = int):
     tMap = (np.abs(ax_E_offset - tMap)).argmin()
     
     frame = frame_differences[:,:,tMap-int(tint/2):tMap+int(tint/2)].sum(axis=(2))
-    frame = frame - np.min(frame)
+    #frame = frame - np.min(frame)
     frame = frame/np.max(frame)
-    frame = abs(frame)
+    #frame = abs(frame)
     difference_FRAMES[i,:,:] = frame    
 
     extent =  extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
@@ -219,12 +225,18 @@ fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
 fig.tight_layout()
 plt.show()
 
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+
 #%%
 %matplotlib inline
 
 # Plot Angle Integrated Dynamics
 
-E_trace = [1.3, 2.2, 0.6] # Energies for Plotting
+save_figure = True
+figure_file_name = 'angle_integrated'
+
+E_trace = [1.35, 2.05, 0.6] # Energies for Plotting
 thirdtrace = 0
 
 ################################
@@ -241,7 +253,10 @@ edc_pos = I_pos.sum(axis=(0,1))
 edc_neg = edc_neg/neg_length
 edc_pos = edc_pos/pos_length
 
-norm_neg = np.max(edc_neg)
+e_n = -.8
+e_n_ = np.abs(ax_E_offset - e_n).argmin()
+norm_neg = np.max(edc_neg[e_n_:])
+norm_pos = np.max(edc_pos)
 edc_neg = edc_neg/norm_neg
 edc_pos = edc_pos/norm_neg
 edc_diff = edc_pos - edc_neg
@@ -251,13 +266,14 @@ ang_int = I[:,:,:,:].sum(axis=(0,1)) #Angle Integrated Spectra
 n = np.max(ang_int)
 ang_int = ang_int/np.max(ang_int)
 
-ang_int_neg = ang_int[:,5:t0-10].sum(axis=1)
+ang_int_neg = ang_int[:,5:tnf+1].sum(axis=1)
 ang_int_neg = np.expand_dims(ang_int_neg, axis=-1) # Add an extra dimension in the last axis.
-ang_int_neg = ang_int_neg/(t0-10-5)#np.max(ang_int_neg)
+ang_int_neg = ang_int_neg/((ang_int[:,5:tnf+1]).shape[1])#np.max(ang_int_neg)
 
 diff_ang = ang_int - ang_int_neg
 diff_ang = diff_ang/np.max(diff_ang)
 
+###
 mask_start = (np.abs(ax_E_offset - 0.95)).argmin()
 sat_start = (np.abs(ax_E_offset - 0.5)).argmin()
 
@@ -294,24 +310,25 @@ ax = ax.flatten()
 cmap_plot = cmap_LTL
 
 im = ax[0].plot(ax_E_offset, edc_neg, color = 'grey', label = 't < 0 fs')
-im = ax[0].plot(ax_E_offset, edc_pos, color = 'red', label = 't > 0 fs')
+im = ax[0].plot(ax_E_offset, edc_pos, color = 'purple', label = 't > 0 fs')
 im = ax[0].plot(ax_E_offset, edc_diff, color = 'green', label = 'Difference', linestyle = 'dashed')
 
 #ax[0].axvline(1.55, color = 'grey', linestyle = 'dashed')
 #ax[0].axvline(1.15, color = 'black', linestyle = 'dashed')
 #ax[0].axvline(2, color = 'black', linestyle = 'dashed')
 
-ax[0].set_ylim(0,0.002)
+ax[0].set_ylim(0,0.003)
 ax[0].set_xlabel('Energy, eV', fontsize = 18)
 ax[0].set_ylabel('Norm. Int.', fontsize = 18 )
 ax[0].legend(frameon=False)
 ax[0].set_xticks(np.arange(-1,3.5,0.5))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
-ax[0].set_xlim(-0.1,3)
+ax[0].set_xlim(0.5,3)
+#ax[0].axvline(1.35, linestyle = 'dashed', color = 'pink')
 
 color_max = 1
-#waterfall = ax[1].imshow(ang_int, clim = [0, .02], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+waterfall = ax[1].imshow(ang_int, clim = [0, .01], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 ax[1].set_xlim(-150,820)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
@@ -345,25 +362,29 @@ ax[2].legend(frameon = False)
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
     
+plt.rcParams['svg.fonttype'] = 'none'
+
 plt.rcParams.update(params)
 
 fig.tight_layout()
 #ax[1].set_tick_params(axis='both', labelsize=16)
 #plt.gca().set_aspect(200)
 
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%%
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
 
 save_figure = True
-figure_file_name = 'RT'
+figure_file_name = 'Dynamics_at_Points_RT'
 
-kx_traces, ky_traces = [0.2, 0.2, -1.05, -1.05], [0] # kx, ky for plotting
-E_traces = [1.35, 2.1, 2.1, 1.35] # Energies for Plotting
+kx_traces, ky_traces = [0.2, 0.2, -1.05, -1.05, 1.25, 1.25], [0] # kx, ky for plotting
+E_traces = [1.35, 2.1, 2.1, 1.35, 1.35, 2.1] # Energies for Plotting
 kx_int, ky_int, E_int  = 0.4, .5, 0.2 #Integration Ranges
 
-trace_colors = ['black', 'red', 'pink', 'grey']
+trace_colors = ['black', 'red', 'pink', 'grey', 'purple', 'green']
 
 cmap_to_plot = cmap_LTL
 #cmap_to_plot = 'magma_r'
@@ -375,11 +396,11 @@ delay_lim = [-160, 820]
 
 ## Extract Traces for At Different Energies with Background Subtraction
 #traces = np.zeros((4,I.shape[3]))
-traces = np.zeros((4,50))
+traces = np.zeros((6,50))
 
 E_int, kx_int, ky_int = E_int/2, kx_int/2, ky_int/2
 
-for t in range(4):
+for t in range(6):
     kxi = (np.abs(ax_kx - (kx_traces[t]-kx_int))).argmin()
     kxf = (np.abs(ax_kx - (kx_traces[t]+kx_int))).argmin()
     kyi = (np.abs(ax_ky - (ky_traces[0]-ky_int))).argmin()
@@ -503,7 +524,7 @@ ax[2].set_aspect(2.6667)
 # ax[1].set_aspect(2.5)
 
 ### Time Traces    
-for t in range(4):
+for t in range(len(E_traces)):
     rect = (Rectangle((kx_traces[t]-kx_int, E_traces[t]-E_int), 2*kx_int, 2*E_int, linewidth=1.5, \
                       edgecolor=trace_colors[t], facecolor='None'))
     ax[2].add_patch(rect)
@@ -511,7 +532,7 @@ for t in range(4):
                       edgecolor=trace_colors[t], facecolor='None', linestyle = 'dashed'))
     ax[0].add_patch(rect2)
 
-for t in [0,1]:
+for t in [0,1,2,3,4,5]:
     axis_test = np.linspace(ax_delay_offset[0], ax_delay_offset[-1], 50)
     ax[1].plot(axis_test, traces[t,:], marker = 'o', color = trace_colors[t], \
                label = str(E_traces[t]) + ' eV, ' + str(kx_traces[t]) + ' A^-1')
@@ -535,7 +556,11 @@ for f in [1,3]:
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
 
+#ax[1].set_tick_params(axis='both', labelsize=16)
+#plt.gca().set_aspect(200)
+    
 plt.rcParams.update(params)
 fig.tight_layout()
 
