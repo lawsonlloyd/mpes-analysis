@@ -17,6 +17,12 @@ from scipy.fft import fft, fftshift
 
 #%%
 
+dkx = (ax_kx[1] - ax_kx[0])
+dE = ax_E[1] - ax_E[0]
+
+ax_E_offset = data_handler.ax_E
+ax_delay_offset = data_handler.ax_delay
+
 def transform_data(data_handler, I, neg_time):
     if I.ndim > 3:
         t0 = data_handler.get_t0()
@@ -42,8 +48,8 @@ def transform_data(data_handler, I, neg_time):
 
 def make_MM_frames(I_neg, I_pos, E, E_int):
     E_int = E_int/2
-    E_i = (np.abs(ax_E_offset - (E-Eint))).argmin()
-    E_f = (np.abs(ax_E_offset - (E+Eint))).argmin()
+    E_i = (np.abs(ax_E_offset - (E-E_int))).argmin()
+    E_f = (np.abs(ax_E_offset - (E+E_int))).argmin()
     
     frame_neg = np.transpose(I_neg[:,:,E_i:E_f+1].sum(axis=(2)))
     frame_pos = np.transpose(I_pos[:,:,E_i:E_f+1].sum(axis=(2)))
@@ -55,7 +61,7 @@ def make_MM_frames(I_neg, I_pos, E, E_int):
     return frame_pos, frame_neg, frame_diff
 
 
-def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y):    
+def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx):    
 
     #mn = np.mean(kspace_frame[:,25:35])
     #kspace_frame = kspace_frame - mn
@@ -65,6 +71,14 @@ def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y):
     fwhm = 0.063
     fwhm_pixel = fwhm/dkx
     sigma = fwhm_pixel/2.355
+    
+    gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
+    gaussian_kx = gaussian_kx/np.max(gaussian_kx)
+    gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
+    gaussian_ky = gaussian_ky/np.max(gaussian_ky)
+    
+    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
     
     gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
     #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
@@ -118,11 +132,95 @@ def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y):
     windowed_frame_nonsymm = kspace_frame*window_6
     #windowed_frame_symm = frame_sym
 
-    return windowed_frame_nonsymm
+    return frame_sym, windowed_frame_nonsymm, windowed_frame_symm
 
+def FFT_MM(MM_frame, dkx, k_length, zeropad):
+    
+    #momentum_frame = windowed_frame_symm
+    momentum_frame = MM_frame
+    #momentum_frame = window_4
+    #momentum_frame = window_6
+    #momentum_frame = momentum_frame - np.mean(momentum_frame)
+
+    ##########################
+    ### Define real-space axis
+
+    k_step = dkx
+    k_length = k_length
+    #k_step_y = k-step
+    #k_length_y = len(ax_ky)
+    zplength = zeropad #5*k_length+1
+    max_r = (1/2)*1/(k_step)
+
+    #r_axis = np.linspace(-max_r, max_r, num = k_length)
+    r_axis = np.linspace(-max_r, max_r, num = zplength)
+    #r_axis = r_axis/(10)
+
+    # Shuo Method ?
+    N = 1 #(zplength)
+    Fs = 1/((2*np.max(ax_kx))/len(ax_kx))
+    r_axis = np.arange(0,zplength)*Fs/zplength
+    r_axis = r_axis - (np.max(r_axis)/2)
+    r_axis = r_axis/(1)
+
+    ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
+    momentum_frame_ = np.abs(momentum_frame)/np.max(momentum_frame)
+    momentum_frame_sqrt = np.sqrt(momentum_frame_)
+    fft_frame = np.fft.fft2(momentum_frame_sqrt, [zplength, zplength])
+    fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
+
+    fft_frame_rsq = np.abs(fft_frame) 
+    fft_frame_s = np.square(np.abs(fft_frame)) #frame squared
+
+    ### Take x and y cuts and extract bohr radius
+    ky_cut = momentum_frame_[:,int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4].sum(axis=1)
+    ky_cut = ky_cut/np.max(ky_cut)
+    kx_cut = momentum_frame_[int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4,:].sum(axis=0)
+    kx_cut = kx_cut/np.max(kx_cut)
+
+    y_cut = fft_frame_s[:,int(zplength/2)-1] # real space Psi*^2 cut
+    x_cut = fft_frame_s[int(zplength/2)-1,:]
+    x_cut = x_cut/np.max(x_cut)
+    y_cut = y_cut/np.max(y_cut)
+
+    r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1] #real space Psi cut
+    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) #|r*Psi(r)|^2
+    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
+
+    x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
+    y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
+    x_brad = int(zplength/2)-10 + x_brad
+    y_brad = int(zplength/2)-10 + y_brad
+    x_brad = r_axis[x_brad]
+    y_brad = r_axis[y_brad]
+    
+    ###
+    r2_cut_x = fft_frame_rsq[int(zplength/2)-1,:]
+    r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
+    r2_cut_x = r2_cut_x/np.max(r2_cut_x)
+
+    rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
+    rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
+
+    rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
+    rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
+
+    return r_axis, fft_frame_s, momentum_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad
+    
 #%%
 
-I_neg, I_pos, I_sum_delay, t0 = transform_data(data_handler, I, -60) # Get negative delay and positive delay data sets
+E, E_int  = 1.35, 0.160 #E center and energy total width
+k_i_y, k_f_y = -.4, .4 #ky
+k_i_x, k_f_x = 0, 1.15 #kx
+neg_time = -60
+
+I_neg, I_pos, I_sum_delay, t0 = transform_data(data_handler, I, neg_time) # Get neg & pos delay data sets
+frame_pos, frame_neg, frame_diff = make_MM_frames(I_neg, I_pos, E, E_int) # Define integrated MM frames at specified energy
+
+kspace_frame = frame_pos # Define MM frame used for FFT
+frame_sym, windowed_frame_nonsymm, windowed_frame_symm  = window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx)
+
+r_axis, rspace_frame, momentum_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(windowed_frame_nonsymm, dkx, len(ax_kx), 2048)
 
 ax_E_offset = data_handler.ax_E
 ax_delay_offset = data_handler.ax_delay
@@ -139,12 +237,8 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 # Window and Symmetrize MM for FFT
 ###
 
-save_figure = True
+save_figure = False
 figure_file_name = '2DFFT_Windowing' 
-    
-E, E_int  = 1.35, 0.160
-k_i_y, k_f_y = -.3, .3 #ky
-k_i_x, k_f_x = 0, 1.15 #kx
 
 fig, ax = plt.subplots(1, 3, sharey=True)
 plt.gcf().set_dpi(300)
@@ -198,87 +292,8 @@ if save_figure is True:
 
 %matplotlib inline
 
-
-save_figure = True
+save_figure = False
 figure_file_name = 'MM_FFT' 
-    
-
-#####                                              #####
-##### Plot FFT of MMs to obtain real space wavefxn #####
-#####                                              #####
-
-#momentum_frame = windowed_frame_symm
-momentum_frame = windowed_frame_nonsymm
-
-#momentum_frame = window_4
-#momentum_frame = window_6
-
-#momentum_frame = momentum_frame - np.mean(momentum_frame)
-
-##########################
-##########################
-### Define real-space axis
-
-k_step = np.abs((ax_kx[1] - ax_kx[0]))
-k_length = len(ax_kx)
-
-k_step_y = np.abs((ax_ky[1] - ax_ky[0]))
-k_length_y = len(ax_ky)
-
-zplength = 2024 #5*k_length+1
-max_r = (1/2)*1/(k_step)
-
-#r_axis = np.linspace(-max_r, max_r, num = k_length)
-r_axis = np.linspace(-max_r, max_r, num = zplength)
-#r_axis = r_axis/(10)
-
-# Shuo Method ?
-N = 1 #(zplength)
-Fs = 1/((2*np.max(ax_kx))/len(ax_kx))
-r_axis = np.arange(0,zplength)*Fs/zplength
-r_axis = r_axis - (np.max(r_axis)/2)
-r_axis = r_axis/(1)
-
-### Do the FFT operations to get --> |Psi(x,y)|^2 ###
-momentum_frame_ = np.abs(momentum_frame)/np.max(momentum_frame)
-momentum_frame_sqrt = np.sqrt(momentum_frame_)
-fft_frame = np.fft.fft2(momentum_frame_sqrt, [zplength, zplength])
-fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
-
-fft_frame_rsq = np.abs(fft_frame) 
-fft_frame_s = np.square(np.abs(fft_frame)) #frame squared
-
-### Take x and y cuts and extract bohr radius
-ky_cut = momentum_frame_[:,int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4].sum(axis=1)
-ky_cut = ky_cut/np.max(ky_cut)
-kx_cut = momentum_frame_[int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4,:].sum(axis=0)
-kx_cut = kx_cut/np.max(kx_cut)
-
-y_cut = fft_frame_s[:,int(zplength/2)-1] # real space Psi*^2 cut
-x_cut = fft_frame_s[int(zplength/2)-1,:]
-x_cut = x_cut/np.max(x_cut)
-y_cut = y_cut/np.max(y_cut)
-
-r2_cut_y = fft_frame_rsq[:,int(zplength/2)-1] #real space Psi cut
-r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) #|r*Psi(r)|^2
-r2_cut_y = r2_cut_y/np.max(r2_cut_y)
-
-r2_cut_x = fft_frame_rsq[int(zplength/2)-1,:]
-r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
-r2_cut_x = r2_cut_x/np.max(r2_cut_x)
-
-rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
-rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
-
-rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
-rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
-
-x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
-y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
-x_brad = int(zplength/2)-10 + x_brad
-y_brad = int(zplength/2)-10 + y_brad
-x_brad = r_axis[x_brad]
-y_brad = r_axis[y_brad]
 
 ############
 ### Plot ###
@@ -291,7 +306,7 @@ ax = ax.flatten()
 
 im00 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im0 = ax[1].imshow(momentum_frame/np.max(momentum_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
-im = ax[2].imshow(fft_frame_s, clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
+im = ax[2].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
 #single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
 #ax[1].add_patch(single_k_circle)
 ax[0].set_aspect(1)
@@ -337,9 +352,9 @@ ax[0].set_ylim(-2,2)
 ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
 ax[0].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
 ax[0].tick_params(axis='both', labelsize=10)
-ax[0].set_title('$E$ = ' + str(E) + ' eV, ' + '$\Delta$E = ' + str(tint*dE) + ' eV', fontsize = 14)
+ax[0].set_title('$E$ = ' + str(E) + ' eV, ' + '$\Delta$E = ' + str(E_int) + ' eV', fontsize = 14)
 ax[0].set_title('$E$ = ' + str(E) + ' eV ', fontsize = 14)
-fig.suptitle('E = ' + str(E) + ' eV, $\Delta$E = ' + str(tint_E) + ' meV,  $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 18)
+#fig.suptitle('E = ' + str(E) + ' eV, $\Delta$E = ' + str(1000*E_int) + ' meV,  $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 18)
 
 ax[1].set_xlim(-2,2)
 ax[1].set_ylim(-2,2)
