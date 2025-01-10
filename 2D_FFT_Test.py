@@ -7,7 +7,7 @@ t = np.linspace(-10, 10, 1000)  # Time array
 sigma = 1.0  # Width of the Gaussian signal
 
 # Define the Gaussian signal
-signal = np.exp(-t**2 / (2 * sigma**2))
+signal = np.exp(-t**2 / (2 * sigma**2))+0.1
 
 d = 3
 # Define a function to compute the FFT of the windowed signal
@@ -38,10 +38,10 @@ for i, (w, alpha, c) in enumerate(zip(window_widths, alphas, colors)):
     windowed_signal, freq, fft, window, signal_fft, window_fft = compute_fft(signal, w, t, alpha=alpha)
     
     # Plot original and windowed signal
-    axes[i, 0].plot(t, signal, label="Original Signal", color='black', linestyle='--')
-    axes[i, 0].plot(t, window, label=f"Tukey Window (Alpha={alpha})", color=c, alpha=0.7)
-    axes[i, 0].plot(t, windowed_signal, label="Windowed Signal", color=c)
-    axes[i, 0].set_title(f"Gaussian and Tukey Windowed Signal (Width={w}, Alpha={alpha})")
+    axes[i, 0].plot(t, signal, label="Orig. Sig.", color='black', linestyle='--')
+    axes[i, 0].plot(t, window, label=f"Win. (a={alpha})", color=c, alpha=0.7)
+    axes[i, 0].plot(t, windowed_signal, label="Windwd. Sig.", color=c)
+    axes[i, 0].set_title(f"Gaussian & Tukey Win. Sig. (Width={w}, Alpha={alpha})")
     axes[i, 0].set_xlabel("Time")
     axes[i, 0].set_ylabel("Amplitude")
     axes[i, 0].legend()
@@ -52,7 +52,7 @@ for i, (w, alpha, c) in enumerate(zip(window_widths, alphas, colors)):
     axes[i, 1].plot(freq, signal_fft, label="FFT Original", color='black', linestyle = '--')
     axes[i, 1].plot(freq, window_fft, label="FFT Window", color=c, linestyle = '--')
 
-    axes[i, 1].set_title(f"FFT of Windowed Signal (Width={w}, Alpha={alpha})")
+    axes[i, 1].set_title(f"FFT of Win. Sig. (Width={w}, Alpha={alpha})")
     axes[i, 1].set_xlabel("Frequency")
     axes[i, 1].set_ylabel("Amplitude")
     axes[i, 1].legend()

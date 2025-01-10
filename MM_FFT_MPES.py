@@ -61,7 +61,7 @@ def make_MM_frames(I_neg, I_pos, E, E_int):
     return frame_pos, frame_neg, frame_diff
 
 
-def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx):    
+def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx, win_type, alpha):    
 
     #mn = np.mean(kspace_frame[:,25:35])
     #kspace_frame = kspace_frame - mn
@@ -71,7 +71,6 @@ def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx):
     fwhm = 0.063
     fwhm_pixel = fwhm/dkx
     sigma = fwhm_pixel/2.355
-    
     gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
     gaussian_kx = gaussian_kx/np.max(gaussian_kx)
     gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
@@ -83,56 +82,80 @@ def window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx):
     gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
     #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
     
-    #### Apply Symm and windows
-    kspace_frame = kspace_frame/np.max(kspace_frame)
-    window = np.zeros((kspace_frame.shape))
-    window_2 = np.zeros((kspace_frame.shape))
-    
-    win_1 = np.zeros(kspace_frame.shape[0])
-    win_2 = np.zeros(kspace_frame.shape[1])
-    win_1_box = np.zeros(kspace_frame.shape[0])
-    win_2_box = np.zeros(kspace_frame.shape[1])
-
-    k_i = (np.abs(ax_ky - k_i_y)).argmin()
-    k_f = (np.abs(ax_ky - k_f_y)).argmin()
-    k_i_2 = (np.abs(ax_kx - k_i_x)).argmin()
-    k_f_2 = (np.abs(ax_kx - k_f_x)).argmin()
-    
-    tuk_1 = signal.windows.tukey(k_f-k_i)
-    box_1 = signal.windows.boxcar(k_f-k_i)
-
-    tuk_2 = signal.windows.tukey(k_f_2-k_i_2)
-    box_2 = signal.windows.boxcar(k_f_2-k_i_2)
-
-    win_1[k_i:k_f] = tuk_1
-    win_1_box[k_i:k_f] = box_1
-
-    win_2[k_i_2:k_f_2] = tuk_2
-    win_2_box[k_i_2:k_f_2] = box_2
-
-    window_4 = np.outer(win_1, win_2)
-    window_5 = np.outer(win_1_box, win_2_box) # Square Window
-    window_6 = np.outer(win_1, win_2_box)
-    #window_6 = np.outer(win_1_box, win_2)
-    
-    for yy in range(0,window.shape[1]):
-        window[k_i:k_f,yy] = signal.windows.tukey(k_f-k_i)
-        window[k_i:k_f,yy] = np.ones(k_f-k_i)
-
-    for xx in range(0, window.shape[0]):
-        window_2[xx,k_i_2:k_f_2] = signal.windows.tukey(k_f_2-k_i_2)
-        window_2[xx,k_i_2:k_f_2] = np.ones(k_f_2-k_i_2)
-   
     ### Symmetrize Data
     frame_sym = np.zeros(kspace_frame.shape)
     frame_sym[:,:] = kspace_frame[:,:]  + (kspace_frame[:,::-1])    
     frame_sym =  frame_sym[:,:]/2
     
-    windowed_frame_symm = frame_sym*window_6
-    windowed_frame_nonsymm = kspace_frame*window_6
+    ### Generate the Windows to Apodize the signal
+    kspace_frame = kspace_frame/np.max(kspace_frame)
+    k_i, k_f = (np.abs(ax_ky - k_i_y)).argmin(), (np.abs(ax_ky - k_f_y)).argmin()
+    k_i_2, k_f_2 = (np.abs(ax_kx - k_i_x)).argmin(), (np.abs(ax_kx - k_f_x)).argmin()
+    
+    bs = kspace_frame[k_i-13:k_i-3, k_i_2:k_f_2].mean()
+    #bs = 0.075
+    kspace_frame = kspace_frame - bs
+    kspace_frame = kspace_frame/np.max(kspace_frame)
+
+    win_1_tuk = np.zeros(kspace_frame.shape[0])
+    win_2_tuk = np.zeros(kspace_frame.shape[1])
+    win_1_box = np.zeros(kspace_frame.shape[0])
+    win_2_box = np.zeros(kspace_frame.shape[1])
+
+    tuk_1 = signal.windows.tukey(k_f-k_i, alpha = alpha)
+    box_1 = signal.windows.boxcar(k_f-k_i)
+
+    tuk_2 = signal.windows.tukey(k_f_2-k_i_2)
+    box_2 = signal.windows.boxcar(k_f_2-k_i_2)
+
+    win_1_tuk[k_i:k_f] = tuk_1
+    win_1_box[k_i:k_f] = box_1
+
+    win_2_tuk[k_i_2:k_f_2] = tuk_2
+    win_2_box[k_i_2:k_f_2] = box_2
+
+    window_2D_tukey = np.outer(win_1_tuk, win_2_tuk) # 2D tukey
+    window_2D_box = np.outer(win_1_box, win_2_box) # 2D Square Window
+    window_tukey_box = np.outer(win_1_tuk, win_2_box) # Tukey + Box
+    
+    window_2D_tukey = window_2D_tukey/np.max(window_2D_tukey)
+    #window_6 = np.outer(win_1_box, win_2)
+    # window_1 = np.zeros((kspace_frame.shape))
+    # window_2 = np.zeros((kspace_frame.shape))
+    # for yy in range(0,window.shape[1]):
+    #     window_1[k_i:k_f,yy] = signal.windows.tukey(k_f-k_i)
+    #     window_1[k_i:k_f,yy] = np.ones(k_f-k_i)
+
+    # for xx in range(0, window.shape[0]):
+    #     window_2[xx,k_i_2:k_f_2] = signal.windows.tukey(k_f_2-k_i_2)
+    #     window_2[xx,k_i_2:k_f_2] = np.ones(k_f_2-k_i_2)
+    
+    if win_type == 'gaussian':
+        win_1_gauss = np.zeros(kspace_frame.shape[0])
+        gaus_1 = signal.windows.gaussian(k_f-k_i, alpha)
+        win_1_gauss[k_i:k_f] = gaus_1
+        window_2D_gaussian = np.outer(win_1_gauss, win_2_box)
+        
+        windowed_frame_symm = frame_sym*window_2D_gaussian
+        windowed_frame_nonsymm = kspace_frame*window_2D_gaussian
+        kspace_window = window_2D_gaussian
+
+    if win_type == 'tukey':
+        windowed_frame_symm = frame_sym*window_2D_tukey
+        windowed_frame_nonsymm = kspace_frame*window_2D_tukey
+        kspace_window = window_2D_tukey
+
+    if win_type == 'square':
+        windowed_frame_symm = frame_sym*window_2D_box
+        windowed_frame_nonsymm = kspace_frame*window_2D_box
+        
+    if win_type == 'tukey, square':
+        windowed_frame_symm = frame_sym*window_tukey_box
+        windowed_frame_nonsymm = kspace_frame*window_tukey_box
+        kspace_window = window_tukey_box
     #windowed_frame_symm = frame_sym
 
-    return frame_sym, windowed_frame_nonsymm, windowed_frame_symm
+    return kspace_frame, frame_sym, windowed_frame_nonsymm, windowed_frame_symm, kspace_window
 
 def FFT_MM(MM_frame, dkx, k_length, zeropad):
     
@@ -209,18 +232,27 @@ def FFT_MM(MM_frame, dkx, k_length, zeropad):
     
 #%%
 
-E, E_int  = 1.35, 0.160 #E center and energy total width
-k_i_y, k_f_y = -.4, .4 #ky
-k_i_x, k_f_x = 0, 1.15 #kx
+E, E_int  = 1.34, 0.160 #E center and energy total width
+k_i_y, k_f_y = -.35, 0.35 #ky
+k_i_x, k_f_x = -0.05, 1.2 #kx
 neg_time = -60
+
+win_type = 'tukey, square'
+#win_type = 'gaussian'
+
+alpha = 0.25
 
 I_neg, I_pos, I_sum_delay, t0 = transform_data(data_handler, I, neg_time) # Get neg & pos delay data sets
 frame_pos, frame_neg, frame_diff = make_MM_frames(I_neg, I_pos, E, E_int) # Define integrated MM frames at specified energy
 
-kspace_frame = frame_pos # Define MM frame used for FFT
-frame_sym, windowed_frame_nonsymm, windowed_frame_symm  = window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx)
+kspace_frame = frame_pos/np.max(frame_pos) # Define MM frame used for FFT
+kspace_frame = frame_diff/np.max(frame_diff)
+#kspace_frame = kspace_frame_test
+#kspace_frame = kspace_window
+kspace_frame, frame_sym, windowed_frame_nonsymm, windowed_frame_symm, kspace_window  = window_MM(kspace_frame, k_i_x, k_f_x, k_i_y, k_f_y, dkx, win_type, alpha)
 
-r_axis, rspace_frame, momentum_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(windowed_frame_nonsymm, dkx, len(ax_kx), 2048)
+MM_frame = windowed_frame_symm
+r_axis, rspace_frame, momentum_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, dkx, len(ax_kx), 2048)
 
 ax_E_offset = data_handler.ax_E
 ax_delay_offset = data_handler.ax_delay
@@ -233,11 +265,9 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 #%%
 %matplotlib inline
 
-###
-# Window and Symmetrize MM for FFT
-###
+# PLOT Momentum MAPS
 
-save_figure = False
+save_figure = True
 figure_file_name = '2DFFT_Windowing' 
 
 fig, ax = plt.subplots(1, 3, sharey=True)
@@ -289,8 +319,75 @@ if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%%
+%matplotlib inline
+
+yi = 61
+xi = 50
+ky_cut = kspace_frame[:,61:65].sum(axis=1)
+kx_cut = kspace_frame[50:52,:].sum(axis=0)
+
+ky_cut_win = windowed_frame_nonsymm[:,61:65].sum(axis=1)
+kx_cut_win = windowed_frame_nonsymm[50:52,:].sum(axis=0)
+
+ky_cut = ky_cut/np.max(ky_cut)
+kx_cut = kx_cut/np.max(kx_cut)
+
+ky_cut_win = ky_cut_win/np.max(ky_cut_win)
+
+g_sig = 3.3
+g = gaussian(np.linspace(0,100,100), 1, 49.75, g_sig, .0)
+
+kspace_frame_test = np.zeros(kspace_frame.shape)
+kspace_frame_test[:,k_i_2:k_f_2] = np.tile(g, (k_f_2-k_i_2,1)).T
+
+
+###
+# Show Cuts
+###
+
+save_figure = False
+figure_file_name = '2DFFT_Windowing' 
+
+fig, ax = plt.subplots(3, 1, sharey=False)
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+ax[0].imshow(kspace_frame, cmap = cmap_LTL, origin = 'lower')
+
+ax[1].plot(kspace_window[xi, :], color =  'grey', linestyle = 'solid', linewidth = 1.5)
+ax[1].plot(kx_cut, color =  'maroon', linewidth = 2)
+ax[1].plot(kx_cut_win, color =  'blue', linestyle = 'dashed', linewidth = 1.5)
+
+ax[2].plot(kspace_window[:, 60]/np.max(kspace_window[:,60]), color =  'grey', linestyle = 'solid', linewidth = 1.5)
+ax[2].plot(ky_cut, color =  'purple', linewidth = 2)
+ax[2].plot(ky_cut_win, color =  'black', linestyle = 'dashed', linewidth = 1.5)
+ax[2].plot(g, linewidth = 1, color = 'green')
+ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
+
+ax[1].set_ylim(0,1.1)
+ax[2].set_ylim(-.2,1.1)
+ax[1].set_xlim(0,100)
+ax[2].set_xlim(0,100)
+ax[1].set_aspect(30)
+ax[2].set_aspect(30)
+
+fig.subplots_adjust(right=0.8)
+
+fig.tight_layout()
+plt.show()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+    
+
+#%%
 
 %matplotlib inline
+
+###
+# Do the FFT and extract the radii
+###
 
 save_figure = False
 figure_file_name = 'MM_FFT' 
@@ -391,7 +488,7 @@ ax[3].set_ylim([-0.025, 1.025])
 ax[3].set_xlabel('$r$, nm', fontsize = 16)
 ax[3].set_ylabel('Norm. Int.', fontsize = 16)
 ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + \
-                 ', $r^*_y$ = ' + str(round(y_brad,1))) + ' nm', fontsize = 14)
+                 ', $r^*_y$ = ' + str(round(y_brad,2))) + ' nm', fontsize = 14)
 #ax[3].set_title(('$r^*_x$ = ' + str(round(x_brad,2)) + ' nm' + ', $r^*_y$ = ' + str(round(y_brad,2))) + ' nm', fontsize = 14)
 ax[3].tick_params(axis='both', labelsize=10)
 ax[3].set_yticks(np.arange(-0,1.5,0.5))
@@ -410,5 +507,13 @@ plt.rcParams.update(new_rc_params)
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
     
-print(rdist_brad_x)
-print(rdist_brad_y)
+print("x: " + str(round(rdist_brad_x,3)))
+print("y: " + str(round(rdist_brad_y,3)))
+
+#%%
+
+y_pr = 1/(2*np.pi*g_sig*dkx)
+y_pr_rad = y_pr*2.355/2
+
+#print("predicted x: " + str(round(x_pr,3)))
+print("predicted y rad from gaussian: " + str(round(y_pr_rad,3)))
