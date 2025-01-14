@@ -293,9 +293,9 @@ trace_1 = ang_int[E_[0]-2:E_[0]+3,:].sum(axis=0)
 trace_2 = ang_int[E_[1]-2:E_[1]+3,:].sum(axis=0)
 trace_3 = ang_int[E_[2]-2:E_[2]+3,:].sum(axis=0)
 
-trace_1 = trace_1 - np.mean(trace_1[3:t0-5])
-trace_2 = trace_2 - np.mean(trace_2[3:t0-5])
-trace_3 = trace_3 - np.mean(trace_3[3:t0-5])
+trace_1 = trace_1 - np.mean(trace_1[6:t0-10])
+trace_2 = trace_2 - np.mean(trace_2[6:t0-10])
+trace_3 = trace_3 - np.mean(trace_3[6:t0-10])
 
 trace_1 = trace_1/np.max(trace_1)
 trace_2 = trace_2/np.max(trace_2)
