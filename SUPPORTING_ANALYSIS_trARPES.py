@@ -25,14 +25,13 @@ from scipy.optimize import curve_fit
 
 # CALCULATING ABSORBED EXCITATION FLUENCE.
 
-thickness = 0.518e-9 #2e-9 # m, thickness of first layer (?)
+thickness = 1.5*0.518e-9 #2e-9 # m, thickness of first layer (?)
 AOI = 35
 
 ### Load Dielectric Constant
 
 real_epsilon =  np.loadtxt('Real_epsilon.txt')
 imag_epsilon = np.loadtxt('Imaginary_epsilon.txt')
-Abs_Huber_load = np.loadtxt('Abs_Huber2.txt')
 
 real_epsilon = np.transpose(real_epsilon)
 imag_epsilon = np.transpose(imag_epsilon)
@@ -40,9 +39,6 @@ real_ = real_epsilon[1,:]
 imag_ = imag_epsilon[1,:]
 
 energy = np.asarray(imag_epsilon[0,:])
-
-Abs_Huber_load = np.transpose(Abs_Huber_load)
-Abs_Huber = np.interp(energy, Abs_Huber_load[0,:], Abs_Huber_load[1,:])
 
 theta = np.pi*AOI/180 #deg
 c = 299792458 # m/s
@@ -59,39 +55,28 @@ absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
 alpha = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
 A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
 
-penetration_depth = np.asarray(1/alpha)
-A_s_2 = 1/pen_depth
-pen_depth_2 = 1/A_s
-
-z = .518e-9
-absorbance = alpha * z
-absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
-
 fig, ax1 = plt.subplots()
 
 plt.plot(energy, imag_, color = 'red', label = 'Imaginary')
 plt.plot(energy, real_, color = 'blue', label = 'Real')
-plt.ylabel('Int', color = 'purple')
+plt.ylabel('Int')
 plt.xlabel('Energy (eV)')
 plt.xlim([1.3,2.25])
-plt.ylim([-20,90])
+plt.ylim([-30,90])
 plt.title('Calculating Absorption')
 plt.legend(frameon=False)
 
 ax2 = ax1.twinx()
 ax2.plot(energy, 100*ABS, color = 'pink', linestyle = 'dashed', label = 'Calc. Absorbance')
-plt.ylabel('% Abs', color = 'pink')
-plt.plot(energy, Abs_Huber,  color = 'purple', linestyle = 'dashed', label = 'Abs. Huber')
+plt.ylabel('% Abs')
+#plt.plot(energy, Abs_Huber,  color = 'purple', linestyle = 'dashed', label = 'Abs. Huber')
+plt.ylim([0,10])
 
 plt.legend(frameon=False)
-#plt.plot(energy, 100*absorbance_2, color = 'black', linestyle = 'dashed', label = 'Calc. Absorbance')
-#plt.plot(energy, 100*absorbance, color = 'grey', linestyle = 'dashed', label = 'Absorbance')
-#plt.plot(energy, 100*A_s, color = 'pink', linestyle = 'dashed', label = 'A_s')
-#plt.plot(energy, 100*A_s_2, color = 'purple', linestyle = 'dashed', label = 'A_s')
 
 #%%
 
-lam = 800
+lam = 915
 average_power = 120 #mW
 fwhm = 0.110 #mm #110
 rep_rate = 475000 # 475000
@@ -109,10 +94,6 @@ spectrum = spectrum/np.max(spectrum)
 
 lam_from_energy = np.asarray([1239.8/e for e in energy])
 lam_from_energy = lam_from_energy[::-1]
-
-#absorbance_to_use = absorbance_2
-#absorbance_to_use = 0.5*A_s
-#absorbance_to_use = Abs_Huber/100
 
 absorbance_test = absorbance_to_use[::-1]
 abs_spec = np.interp(wl , lam_from_energy, absorbance_test)
@@ -146,7 +127,7 @@ exc_density = (sum(neh_abs)/spot_size)/1e13
 ###
 fig, ax1 = plt.subplots()
 plt.plot(wl,abs_spec, label = 'Calc. Absorbance, %', color = 'black')
-plt.ylim([0, 0.06])
+plt.ylim([0, 0.12])
 plt.legend(frameon=False)
 plt.ylabel('Abs.')
 plt.xlabel('Wavelength, nm')
@@ -162,6 +143,9 @@ plt.legend(frameon=False)
 print('Estimated Carrier Density for ' + str(average_power) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
 plt.show()
 
+aB = 1 #bohr radius, nm
+rx = 1e7*(1/np.sqrt(np.pi*aB**2*0.3*exc_density*1e6*1e6)) ; print(rx)
+
 #%%
 
 %matplotlib inline
@@ -169,7 +153,7 @@ plt.show()
 # CALCULATING ABSORBED EXCITATION FLUENCE: ALTERNATIVE METHOD
 
 thickness = 0.518e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 35
+AOI = 30
 
 ### Load Dielectric Constant
 
@@ -190,30 +174,35 @@ Abs_Huber = np.interp(energy, Abs_Huber_load[0,:], Abs_Huber_load[1,:])
 theta = np.pi*AOI/180 #deg
 c = 299792458 # m/s
 hbar = 6.58e-16  # eV.s
+h = 4.1357e-15
 
 ### Calculate Penetration Depth and Refractive Index
+n = np.sqrt( (np.sqrt((real_)**2 + (imag_)**2) + real_) / 2)
 k =  np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2)
-n = np.sqrt((np.sqrt((real_)**2 + (imag_)**2) + real_) / 2)
 
-#
-absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
+#nu_pump = energy/(4.1357e-15)
+alpha = 1/ (np.sqrt(real_ + imag_) * c * (1 / (2*np.pi*imag_*energy/h)))
+alpha_2 = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
+alpha_3 = 4*np.pi*k*energy / (h*c)
 
-nu_pump = energy/(4.1357e-15)
-alpha = 1/ (np.sqrt(real_ + imag_) * c * (1 / (2*np.pi*imag_*nu_pump)))
-#alpha = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
-A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
 
-penetration_depth = np.asarray(1/alpha)
+#A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
+z = .518e-9
 A_s_2 = 1/pen_depth
-pen_depth_2 = 1/A_s
 
-z = 150e-9
 absorbance = alpha * z
 absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
 
+penetration_depth = np.asarray(1/alpha)
+#A_s_2 = 1/pen_depth
+#pen_depth_2 = 1/A_s
 
+z = 15e-9
+absorbance = alpha * z
 absorbance = 1 - np.exp(-z*alpha)
 
+z = np.linspace(220,0,176)
+nn =  np.exp(-alpha*z) * np.exp(-z/15)
 fig, ax1 = plt.subplots()
 
 plt.plot(energy, imag_, color = 'red', label = 'Imaginary')
