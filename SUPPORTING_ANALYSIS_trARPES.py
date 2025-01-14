@@ -18,6 +18,51 @@ from scipy.optimize import curve_fit
 
 ### ADDITIONAL SUPPORTING ANALYSIS ###
 
+%matplotlib inline
+
+#data = np.loadtxt("920nm_51fsFROG_.txt", skiprows = 1)
+
+ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
+ds800 = "800nm_opa_pumpspectrum_070624.txt"
+ds700 = "700nm_opa_pumpspectrum_24042024.txt"
+ds680 = "680nm_opa_pumpspectrum_24042024.txt"
+ds640 = "640nm_opa_pumpspectrum_24042024.txt"
+ds400 = "400nm_opa_pumpspectrum_2904_directonSpectrometer_2.txt"
+
+data_string = [ds680, ds910, ds800, ds700, ds640, ds400]
+pump_WLs = [680, 910, 800, 700, 640, 400]
+
+pump_colors = ['purple', 'black', 'red', 'brown', 'violet', 'blue']
+#data = np.loadtxt("760nm.txt", skiprows = 1)
+plt.figure()
+plt.gcf().set_dpi(300)
+
+
+for p in np.arange(0,len(pump_WLs)):
+    data = np.loadtxt(data_string[p], skiprows = 1)
+
+    wl = data[:,0]
+    lam = np.abs(wl - pump_WLs[p]).argmin()
+    
+    amp = data[:,1] - np.mean(data[-300:-1,1])
+    amp = amp/np.max(amp)
+    amp = amp[lam-250:lam+350]
+    wl = wl[lam-250:lam+350]
+    #amp = amp - np.min(amp)
+    
+    plt.plot(wl, amp, color = pump_colors[p])
+    plt.title('Pump Spectrum', fontsize = 24)
+    #plt.xlim(870, 970)
+    #plt.xlim(710, 810)
+    plt.xlabel('$\lambda$, nm', fontsize = 20)
+    plt.ylabel('Int., arb. units.', fontsize=22)
+    plt.tick_params(axis='both', labelsize=18)
+
+plt.xticks(np.arange(300,1000,100))
+for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)  
+plt.xlim([350,975])
+
 
 #%%
 
