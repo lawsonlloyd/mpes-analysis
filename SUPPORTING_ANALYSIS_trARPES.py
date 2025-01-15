@@ -27,20 +27,19 @@ figure_file_name = 'pump_spectra'
 
 ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
 ds915 = "OPA_pump_spectrum_910nm_DATA_2.txt"
-#ds800 = "800nm_opa_pumpspectrum_070624.txt"
+ds800 = "800nm_opa_pumpspectrum_070624.txt"
 ds700 = "700nm_opa_pumpspectrum_24042024.txt"
 ds680 = "680nm_opa_pumpspectrum_24042024.txt"
 ds640 = "640nm_opa_pumpspectrum_24042024.txt"
 ds400 = "400nm_opa_pumpspectrum_2904_directonSpectrometer_2.txt"
 
 data_string = [ds910, ds800, ds700, ds640, ds400]
-pump_WLs = [910, 915, 700, 640, 400]
+pump_WLs = [915, 800, 700, 640, 400]
 
 pump_colors = ['black', 'red', 'brown', 'violet', 'blue']
 #data = np.loadtxt("760nm.txt", skiprows = 1)
-plt.figure()
+fig = plt.figure()
 plt.gcf().set_dpi(300)
-
 
 for p in np.arange(0,len(pump_WLs)):
     data = np.loadtxt(data_string[p], skiprows = 1)
@@ -50,8 +49,14 @@ for p in np.arange(0,len(pump_WLs)):
     
     amp = data[:,1] - np.mean(data[-300:-1,1])
     amp = amp/np.max(amp)
-    amp = amp[lam-250:lam+350]
-    wl = wl[lam-250:lam+350]
+    
+    if p == 0:
+        amp = amp[lam-300:lam+350]
+        wl = wl[lam-300:lam+350]
+    else:
+        amp = amp[lam-250:lam+350]
+        wl = wl[lam-250:lam+350]
+
     #amp = amp - np.min(amp)
     
     plt.plot(wl, amp, color = pump_colors[p])
@@ -61,11 +66,12 @@ for p in np.arange(0,len(pump_WLs)):
     plt.xlabel('$\lambda$, nm', fontsize = 20)
     plt.ylabel('Int., arb. units.', fontsize=22)
     plt.tick_params(axis='both', labelsize=18)
-
-plt.xticks(np.arange(300,1000,100))
-for label in ax[i].xaxis.get_ticklabels()[1::2]:
+    #plt.axvline(915, linestyle = 'dashed')
+    
+plt.xticks(np.arange(300,1000,50))
+for label in plt.gca().xaxis.get_ticklabels()[1::2]:
         label.set_visible(False)  
-plt.xlim([350,975])
+plt.xlim([350,1000])
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
