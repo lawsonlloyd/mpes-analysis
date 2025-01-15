@@ -29,9 +29,9 @@ ax_delay_offset = data_handler.ax_delay
 if I.ndim > 3:
     t0 = data_handler.get_t0()
     
-    neg_time = -60
+    neg_time = -70
     tnf = (np.abs(ax_delay_offset - neg_time)).argmin()
-    I_neg = I[:,:,:,5:tnf+1] #Sum over delay/polarization/theta...
+    I_neg = I[:,:,:,6:tnf+1] #Sum over delay/polarization/theta...
     neg_length = I_neg.shape[3]
     I_neg = I_neg.sum(axis=(3))
         
@@ -51,37 +51,28 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 #%%
 ### User Inputs for Plotting MM 
 
-def plot_momentum_map():
-    save_figure = True
-    figure_file_name = 'MMs_negativedelay_RT' 
-    
-    E, E_int  = [1.35, 1.55, 2.05], .12
+def plot_momentum_map(I_res, E, E_int, fig):
     
     # Plot Momentum Maps at specified Energies
     
     cmap = cmap_LTL 
     
-    frame_plot = I_neg # I_sum
-    frame_plot = np.max(frame_plot)
-    #### 
-    fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
-    ax = ax.flatten()
+    frame_plot = I_res # I_sum
+    frame_plot = frame_plot/np.max(frame_plot)
     
-    fig.set_size_inches(8, 6, forward=False)
-    plt.gcf().set_dpi(300)
+    #### 
     cmap_plot = cmap_LTL
     
-    sat = [1, 1, 1, 1]
     for i in np.arange(len(E)):
         E_ = E[i]
     
-        Ei = (np.abs(ax_E_offset - (E_- E_int/2))).argmin()
+        Ei = (np.abs(ax_E_offset - (E_ - E_int/2))).argmin()
         Ef = (np.abs(ax_E_offset - (E_ + E_int/2))).argmin()    
-        
         frame = np.transpose(frame_plot[:,:,Ei:Ef].sum(axis=(2)))
         frame = frame/np.max(frame)
+        
         extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
-        im = ax[i].imshow((frame), origin='lower', cmap=cmap_plot, vmax=sat[i], clim=None, interpolation='none', extent = extent) #kx, ky, t
+        im = ax[i].imshow((frame), origin='lower', cmap=cmap_plot, clim=None, interpolation='none', extent = extent) #kx, ky, t
         ax[i].set_aspect(1)
         #ax[0].axhline(y,color='black')
         #ax[0].axvline(x,color='bl ack')
@@ -105,11 +96,27 @@ def plot_momentum_map():
         #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
         cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
         fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
-    
-    fig.tight_layout()
+        plt.rcParams['svg.fonttype'] = 'none'
+        fig.tight_layout()
+        #plt.show()
+
+#%%
+
+E = [1.35, 1.55, 1.8]
+
+figure_file_name = 'MMs_negativedelay_RT' 
+save_figure = True
+
+fig, ax = plt.subplots(1, len(E), squeeze = False)
+ax = ax.flatten()
+fig.set_size_inches(8, 5, forward=False)
+plt.gcf().set_dpi(300)
+
+plot_momentum_map(I_neg, E, 0.2, fig)
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
+
 
 #%%
 # Plot Difference MMs of t < 0 and t > 0 fs
