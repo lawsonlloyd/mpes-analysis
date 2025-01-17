@@ -29,7 +29,7 @@ ax_delay_offset = data_handler.ax_delay
 if I.ndim > 3:
     t0 = data_handler.get_t0()
     
-    neg_time = -70
+    neg_time = -180
     tnf = (np.abs(ax_delay_offset - neg_time)).argmin()
     I_neg = I[:,:,:,6:tnf+1] #Sum over delay/polarization/theta...
     neg_length = I_neg.shape[3]
@@ -51,24 +51,27 @@ cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap ba
 #%%
 ### User Inputs for Plotting MM 
 
-def plot_momentum_map(I_res, E, E_int, fig):
+def plot_momentum_map(I_res, E, E_int, delays, fig):
     
     # Plot Momentum Maps at specified Energies
     
     cmap = cmap_LTL 
     
-    frame_plot = I_res # I_sum
+    frame_plot = I_res[:,:,:,:] # I_sum
     frame_plot = frame_plot/np.max(frame_plot)
     
-    #### 
-    cmap_plot = cmap_LTL
-    
+    ####     
     for i in np.arange(len(E)):
         E_ = E[i]
     
         Ei = (np.abs(ax_E_offset - (E_ - E_int/2))).argmin()
-        Ef = (np.abs(ax_E_offset - (E_ + E_int/2))).argmin()    
-        frame = np.transpose(frame_plot[:,:,Ei:Ef].sum(axis=(2)))
+        Ef = (np.abs(ax_E_offset - (E_ + E_int/2))).argmin()
+        
+        di = (np.abs(ax_delay_offset - (delays[0]))).argmin()
+        df = (np.abs(ax_delay_offset - (delays[1]))).argmin() 
+        #print(di, df)
+        frame = np.transpose(frame_plot[:,:,Ei:Ef,di:df].sum(axis=(2,3)))
+        #        frame = np.transpose(frame_plot[:,:,Ei:Ef].sum(axis=(2)))
         frame = frame/np.max(frame)
         
         extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
@@ -102,17 +105,19 @@ def plot_momentum_map(I_res, E, E_int, fig):
 
 #%%
 
-E = [1.35, 1.55, 1.8]
+E = [0, 1, 1.8]
+delays = [-300, -200]
 
 figure_file_name = 'MMs_negativedelay_RT' 
-save_figure = True
+save_figure = False
 
+%matplotlib inline
 fig, ax = plt.subplots(1, len(E), squeeze = False)
 ax = ax.flatten()
 fig.set_size_inches(8, 5, forward=False)
 plt.gcf().set_dpi(300)
 
-plot_momentum_map(I_neg, E, 0.2, fig)
+plot_momentum_map(I, E, 0.2, delays, fig)
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
@@ -126,7 +131,7 @@ if save_figure is True:
 save_figure = False
 figure_file_name = 'MM_DIFFERENCE'
 
-tMaps, tint  = [1.35, 2], 6
+tMaps, E_int  = [1, 1.8], 3
 
 cmapPLOTTING = cmap_LTL #'bone_r' # cmap_LTL
 
@@ -245,15 +250,16 @@ if save_figure is True:
 save_figure = False
 figure_file_name = 'angle_integrated'
 
-E_trace = [1.35, 2.05, 0.6] # Energies for Plotting
-thirdtrace = 0
+E_trace, E_int = [.9, 1.9, .4], 0.1 # Energies for Plotting
+thirdtrace = 1
+subtract_neg = False
 
 ################################
 # Operations to Extract Traces #
 ################################
 
 ### Negative Delays Background Subtraction
-e_ = 0.5
+e_ = 0.3
 e = np.abs(ax_E_offset - e_).argmin()
 
 edc_neg = I_neg.sum(axis=(0,1))
@@ -291,18 +297,24 @@ satmax = np.max(diff_ang[sat_start:,:])
 clim = [0, 1]
 
 # Extract Traces for At Different Energies
-E_ = [0, 0, 0]
-E_[0] = np.abs(ax_E_offset - E_trace[0]).argmin()    
-E_[1] = np.abs(ax_E_offset - E_trace[1]).argmin()
-E_[2] = np.abs(ax_E_offset - E_trace[2]).argmin()      
+E_i = [0, 0, 0]
+E_f = [0, 0, 0]
 
-trace_1 = ang_int[E_[0]-2:E_[0]+3,:].sum(axis=0)
-trace_2 = ang_int[E_[1]-2:E_[1]+3,:].sum(axis=0)
-trace_3 = ang_int[E_[2]-2:E_[2]+3,:].sum(axis=0)
+E_i[0] = np.abs(ax_E_offset - (E_trace[0]-E_int/2)).argmin()    
+E_i[1] = np.abs(ax_E_offset - (E_trace[1]-E_int/2)).argmin()
+E_i[2] = np.abs(ax_E_offset - (E_trace[2]-E_int/2)).argmin()      
+E_f[0] = np.abs(ax_E_offset - (E_trace[0]+E_int/2)).argmin()    
+E_f[1] = np.abs(ax_E_offset - (E_trace[1]+E_int/2)).argmin()
+E_f[2] = np.abs(ax_E_offset - (E_trace[2]+E_int/2)).argmin()      
 
-trace_1 = trace_1 - np.mean(trace_1[6:t0-10])
-trace_2 = trace_2 - np.mean(trace_2[6:t0-10])
-trace_3 = trace_3 - np.mean(trace_3[6:t0-10])
+trace_1 = ang_int[E_i[0]:E_f[0],:].sum(axis=0)
+trace_2 = ang_int[E_i[1]:E_f[1],:].sum(axis=0)
+trace_3 = ang_int[E_i[2]:E_f[2],:].sum(axis=0)
+
+if subtract_neg is True : 
+    trace_1 = trace_1 - np.mean(trace_1[2:t0-10])
+    trace_2 = trace_2 - np.mean(trace_2[2:t0-10])
+    trace_3 = trace_3 - np.mean(trace_3[2:t0-10])
 
 trace_1 = trace_1/np.max(trace_1)
 trace_2 = trace_2/np.max(trace_2)
@@ -326,7 +338,7 @@ im = ax[0].plot(ax_E_offset, edc_diff, color = 'green', label = 'Difference', li
 #ax[0].axvline(1.15, color = 'black', linestyle = 'dashed')
 #ax[0].axvline(2, color = 'black', linestyle = 'dashed')
 
-ax[0].set_ylim(0,0.003)
+ax[0].set_ylim(-0.001,0.003)
 ax[0].set_xlabel('Energy, eV', fontsize = 18)
 ax[0].set_ylabel('Norm. Int.', fontsize = 18 )
 ax[0].legend(frameon=False)
@@ -339,7 +351,7 @@ ax[0].set_xlim(0.5,3)
 color_max = 1
 waterfall = ax[1].imshow(ang_int, clim = [0, .01], origin = 'lower', cmap = cmap_plot, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-ax[1].set_xlim(-150,820)
+ax[1].set_xlim(ax_delay_offset[1],ax_delay_offset[-1])
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
 ax[1].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
 ax[1].set_yticks(np.arange(-1,3.5,0.5))
@@ -348,7 +360,10 @@ ax[1].set_ylim(-.1, 3)
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[1].set_aspect(300)
+hor = ax_delay_offset[-1] - ax_delay_offset[1]
+ver = 3 - -.1
+aspra = hor/ver 
+ax[1].set_aspect(1.2*aspra)
 
 ax[1].axhline(E_trace[0], linestyle = 'dashed', color = 'black')
 ax[1].axhline(E_trace[1], linestyle = 'dashed', color = 'red')
@@ -362,7 +377,7 @@ if thirdtrace:
     ax[1].axhline(E_trace[2], linestyle = 'dashed', color = 'purple')
     ax[2].plot(ax_delay_offset, trace_3, color = 'purple', label = str(E_trace[2]) + ' eV')
 
-ax[2].set_xlim(-150,820)
+ax[2].set_xlim(ax_delay_offset[1],ax_delay_offset[-1])
 ax[2].set_ylim(-0.1, 1.1)
 ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
@@ -385,7 +400,6 @@ if save_figure is True:
 #%%
 
 # Plot Dynamics at Distinct Momenta and/or Energy Points
-
 save_figure = False
 figure_file_name = 'Dynamics_at_Points_RT'
 

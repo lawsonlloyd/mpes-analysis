@@ -277,18 +277,18 @@ class PlotHandler:
 
         if self.data_handler.I.ndim > 3:
             time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-            time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
+            time_trace = time_trace #- np.mean(time_trace[5:self.t0-6])
             
             self.im_4, = self.ax[1].plot(self.data_handler.ax_delay, time_trace/np.max(time_trace), color = 'black')
-            self.ax[1].set_xticks(np.arange(-400,1250,200))
+            self.ax[1].set_xticks(np.arange(-300,1250,100))
             for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
                 label.set_visible(False)
-            self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
+            self.ax[1].set_xlim([self.data_handler.ax_delay[1], self.data_handler.ax_delay[-1]])
 
         else:
             time_trace = np.zeros(1)
             
-        self.ax[1].set_ylim([-0.1, 1.1])
+        self.ax[1].set_ylim([-0.2, 1.1])
         self.ax[1].set_title("Dynamics")
         self.ax[1].set_xlabel("Delay, fs")
         self.ax[1].set_ylabel("Intensity")
@@ -335,12 +335,12 @@ class PlotHandler:
         
         if self.data_handler.I.ndim > 3:
             time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-            time_trace = time_trace - np.mean(time_trace[5:self.t0-5])
-            self.ax[1].set_xticks(np.arange(-400,1250,200))
-            for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
-                label.set_visible(False)
+            time_trace = time_trace #- np.mean(time_trace[5:self.t0-5])
+            #self.ax[1].set_xticks(np.arange(-200,1250,200))
+            #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
+             #   label.set_visible(False)
+            #self.im_4.set_xdata(self.data_handler.ax_delay)
             self.im_4.set_ydata(time_trace/np.max(time_trace))
-            self.im_4.set_xdata(self.data_handler.ax_delay)
             #self.ax[1].set_xlim([self.data_handler.ax_delay[5], self.data_handler.ax_delay[-5]])
         else:
             time_trace = np.zeros(1)

@@ -4,7 +4,7 @@
 #%% Import the Loader and Main GUI File
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import matplotlib.pyplot as plt
 
@@ -16,9 +16,9 @@ filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Analysis\Data'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
-#filename, offsets = 'Scan664_binned.h5', [2,0]
+filename, offsets = 'Scan670_binned.h5', [1.4,-105]
 
-filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [-0.2, 90]
+#filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [-0.2, 90] # Axis Offsets: [Energy (eV), delay (fs)]
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
 

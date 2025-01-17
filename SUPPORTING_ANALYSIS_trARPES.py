@@ -82,7 +82,7 @@ if save_figure is True:
 # CALCULATING ABSORBED EXCITATION FLUENCE.
 
 thickness = 1.5*0.518e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 35
+AOI = 65
 
 ### Load Dielectric Constant
 
@@ -100,10 +100,11 @@ theta = np.pi*AOI/180 #deg
 c = 299792458 # m/s
 hbar = 6.58e-16  # eV.s
 
-### Calculate Penetration Depth and Refractive Index
-k =  np.sqrt( (np.sqrt((real_)**2 + (imag_)**2) - real_) / 2)
+### Calculate the Complex Refractive Index
 n = np.sqrt((np.sqrt((real_)**2 + (imag_)**2) + real_) / 2)
+k = np.sqrt( (np.sqrt((real_)**2 + (imag_)**2) - real_) / 2)
 
+### Calculate the Penetration Depth and Absorption
 pen_depth = np.sqrt(1-((np.sin(theta))**2/n**2)) * (c*hbar/(2*k*energy))
 ABS = 1 - np.exp(-thickness/pen_depth)
 
@@ -111,6 +112,7 @@ absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
 alpha = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
 A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
 
+### Make a Few Plots
 fig, ax1 = plt.subplots()
 
 plt.plot(energy, imag_, color = 'red', label = 'Imaginary')
@@ -132,15 +134,35 @@ plt.legend(frameon=False)
 
 #%%
 
-lam = 915
-average_power = 120 #mW
-fwhm = 0.110 #mm #110
-rep_rate = 475000 # 475000
+### Define experimental pump parameters
+lam = 800
+average_power = 130 #mW
+fwhm = 0.100 #mm #110
+pump_pol = 's'
+rep_rate = 500000 # 475000
 
+### Load Pump Spectrum
+laserspectrum = np.loadtxt('910nm_opa_pumpspectrum_18042024_beforechamber.txt',skiprows=1)
+
+### Account for s- and p-pol Reflection
+
+wl_i = np.abs(energy - 4.1357e-15*c*1e9/lam).argmin()
+n1 = 1
+n2 = n[wl_i]
+Rs = ( (n1* np.cos(theta) - n2 * np.sqrt(1 - ((n1/n2)*np.sin(theta))**2 )) / (n1* np.cos(theta) + n2 * np.sqrt(1 - ((n1/n2)*np.sin(theta))**2 )) )**2
+Rp = ( (n1*np.sqrt(1- ((n1/n2)*np.sin(theta))**2 ) - n2*np.cos(theta)) / (n1*np.sqrt(1- ((n1/n2)*np.sin(theta))**2 ) + n2*np.cos(theta)) )**2
+Ts = 1 - Rs
+Tp = 1 - Rp
+
+if pump_pol == 's':
+    average_power = average_power*Ts
+elif pump_pol == 'p':
+    average_power = average_power*Tp    
+    
+### Provdie the (Calculated) Absorption Spectrum    
 absorbance_to_use = ABS
 
-laserspectrum = np.loadtxt('910nm_opa_pumpspectrum_18042024_beforechamber.txt',skiprows=1)
-wl = laserspectrum[:,0]
+wl = laserspectrum[:,0]    
 spectrum = laserspectrum[:,1]
 spectrum = spectrum - np.min(spectrum)
 spectrum = spectrum/np.max(spectrum)
@@ -154,33 +176,26 @@ lam_from_energy = lam_from_energy[::-1]
 absorbance_test = absorbance_to_use[::-1]
 abs_spec = np.interp(wl , lam_from_energy, absorbance_test)
 
-#abs_spec[wl_i-200:wl_i+200] = 0.25
-
-h = 6.6261E-34
-c = 299792458
-
-rep_rate = 475000 # 475000
+### Calculate the beam spot size and the excitation fluence
 beam_rad = 0.1*fwhm*1.699*0.5 #Get 1/e^2 beam radius, cm (from FWHM)
 beam_rad_2 = 0.1*fwhm*1.699*0.5*(1/np.cos(theta)) #Get 1/e^2 beam radius, cm (from FWHM)
 spot_size = np.pi*beam_rad*beam_rad_2/2 #cm^2
-
-#print(beam_rad, beam_rad_2)
-
 pulse_energy = (average_power/1000)/rep_rate #Joules
 energy_density = 1000*pulse_energy/(spot_size) #mJ/cm^2
 
-ph_E = h*c/(lam*1E-9)
+h, c = 6.6261E-34, 299792458 # constants
 
+ph_E = h*c/(lam*1E-9)
 num_ph = pulse_energy/ph_E
 
 spec_integration = np.sum(spectrum)
 spectrum_ph = num_ph*spectrum/spec_integration
 
 neh_abs = abs_spec*spectrum_ph
-
 exc_density = (sum(neh_abs)/spot_size)/1e13
 
-###
+##############
+### Make Plots
 fig, ax1 = plt.subplots()
 plt.plot(wl,abs_spec, label = 'Calc. Absorbance, %', color = 'black')
 plt.ylim([0, 0.12])
@@ -229,17 +244,18 @@ Abs_Huber = np.interp(energy, Abs_Huber_load[0,:], Abs_Huber_load[1,:])
 
 theta = np.pi*AOI/180 #deg
 c = 299792458 # m/s
-hbar = 6.58e-16  # eV.s
-h = 4.1357e-15
+hbar = 6.582e-16  # eV.s
+h = 4.1357e-15 # eV.s
 
 ### Calculate Penetration Depth and Refractive Index
 n = np.sqrt( (np.sqrt((real_)**2 + (imag_)**2) + real_) / 2)
 k =  np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2)
 
 #nu_pump = energy/(4.1357e-15)
-alpha = 1/ (np.sqrt(real_ + imag_) * c * (1 / (2*np.pi*imag_*energy/h)))
-alpha_2 = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
-alpha_3 = 4*np.pi*k*energy / (h*c)
+alpha_0 = 1/( np.sqrt(1-((np.sin(theta))**2/n**2)) * (c*hbar/(2*k*energy)))
+alpha_1 = (2*energy)/(c*hbar) * k
+
+alpha_2 = 1/ (np.sqrt(real_ + imag_) * c * (1 / (2*np.pi*imag_*energy/h)))
 
 
 #A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
@@ -248,6 +264,8 @@ A_s_2 = 1/pen_depth
 
 absorbance = alpha * z
 absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
+
+
 
 penetration_depth = np.asarray(1/alpha)
 #A_s_2 = 1/pen_depth
