@@ -81,8 +81,8 @@ if save_figure is True:
 
 # CALCULATING ABSORBED EXCITATION FLUENCE.
 
-thickness = 1.5*0.518e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 65
+thickness =  1 * 0.57e-9 #2e-9 # m, thickness of first layer (?)
+AOI = 40
 
 ### Load Dielectric Constant
 
@@ -107,6 +107,8 @@ k = np.sqrt( (np.sqrt((real_)**2 + (imag_)**2) - real_) / 2)
 ### Calculate the Penetration Depth and Absorption
 pen_depth = np.sqrt(1-((np.sin(theta))**2/n**2)) * (c*hbar/(2*k*energy))
 ABS = 1 - np.exp(-thickness/pen_depth)
+
+A_ = 1 - np.exp(-thickness * energy*imag_/(hbar*c))
 
 absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
 alpha = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
@@ -135,20 +137,24 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 800
-average_power = 130 #mW
+lam = 700
+average_power = 60 #mW
 fwhm = 0.100 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
 
 ### Load Pump Spectrum
-laserspectrum = np.loadtxt('910nm_opa_pumpspectrum_18042024_beforechamber.txt',skiprows=1)
+if lam == 800:
+    laserspectrum = np.loadtxt('800nm_opa_pumpspectrum_070624.txt',skiprows=1)
+elif lam == 915:
+    laserspectrum = np.loadtxt('910nm_opa_pumpspectrum_18042024_beforechamber.txt',skiprows=1)
+elif lam == 700:
+    laserspectrum = np.loadtxt('700nm_opa_pumpspectrum_24042024.txt',skiprows=1)
 
 ### Account for s- and p-pol Reflection
-
-wl_i = np.abs(energy - 4.1357e-15*c*1e9/lam).argmin()
+e_i = np.abs(energy - 4.1357e-15*c*1e9/lam).argmin()
 n1 = 1
-n2 = n[wl_i]
+n2 = n[e_i]
 Rs = ( (n1* np.cos(theta) - n2 * np.sqrt(1 - ((n1/n2)*np.sin(theta))**2 )) / (n1* np.cos(theta) + n2 * np.sqrt(1 - ((n1/n2)*np.sin(theta))**2 )) )**2
 Rp = ( (n1*np.sqrt(1- ((n1/n2)*np.sin(theta))**2 ) - n2*np.cos(theta)) / (n1*np.sqrt(1- ((n1/n2)*np.sin(theta))**2 ) + n2*np.cos(theta)) )**2
 Ts = 1 - Rs
@@ -166,6 +172,7 @@ wl = laserspectrum[:,0]
 spectrum = laserspectrum[:,1]
 spectrum = spectrum - np.min(spectrum)
 spectrum = spectrum/np.max(spectrum)
+wl_i = np.abs(wl - lam).argmin()
 
 #wl_i = np.abs(wl-915).argmin()
 #abs_spec = np.zeros((laserspectrum.shape[0]))
@@ -197,21 +204,21 @@ exc_density = (sum(neh_abs)/spot_size)/1e13
 ##############
 ### Make Plots
 fig, ax1 = plt.subplots()
-plt.plot(wl,abs_spec, label = 'Calc. Absorbance, %', color = 'black')
+plt.plot(wl, abs_spec, label = 'Calc. Absorbance, %', color = 'black')
 plt.ylim([0, 0.12])
 plt.legend(frameon=False)
 plt.ylabel('Abs.')
 plt.xlabel('Wavelength, nm')
 
 ax2 = ax1.twinx()
-ax2.plot(wl[2925-400:2925+400],spectrum_ph[2925-400:2925+400]/np.max(spectrum_ph), color = 'red',label = 'Norm. Laser Spectrum')
+ax2.plot(wl[wl_i-400:wl_i+400],spectrum_ph[wl_i-400:wl_i+400]/np.max(spectrum_ph), color = 'red',label = 'Norm. Laser Spectrum')
 #plt.plot(wl,abs_spec*spectrum_ph/spectrum_ph.max(), color = 'pink', linestyle = 'dashed', label = 'Effective Absorbed')
 plt.xlim([600, 1000])
 plt.ylim([0,1.05])
 plt.title('Estimated Carrier Density')
-plt.axvline(915, linestyle = 'dashed', color = 'pink')
+plt.axvline(lam, linestyle = 'dashed', color = 'pink')
 plt.legend(frameon=False)
-print('Estimated Carrier Density for ' + str(average_power) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
+print('Est. Carrier Density for ' + str(round(average_power,1)) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
 plt.show()
 
 aB = 1 #bohr radius, nm
