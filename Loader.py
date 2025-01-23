@@ -4,10 +4,11 @@ Created on Wed Sep 18 15:52:01 2024
 
 @author: lloyd
 """
-#data_loader.py
+#Loader.py
 
 import h5py
 import numpy as np 
+import xarray as xr
 
 class DataLoader:
     def __init__(self, filename):
@@ -61,3 +62,17 @@ class DataLoader:
             print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
             
             return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC
+        
+    def load_phoibos(self):
+        with h5py.File(self.filename, 'r') as f:
+        
+            group_keys = list(f.keys())
+        
+            # Load axes data
+            ax_angle = f['axes/ax0'][()].astype(np.float32)
+            ax_E = f['axes/ax1'][()].astype(np.float32)
+            ax_delay = f['axes/ax2'][()].astype(np.float32)
+            data = f['binned/BinnedData'][()].astype(np.float32)
+        
+            return xr.DataArray(data, dims = ("Angle", "Energy", "Delay"), coords = [ax_angle, ax_E, ax_delay])
+
