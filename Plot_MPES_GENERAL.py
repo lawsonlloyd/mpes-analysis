@@ -203,11 +203,12 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [0.4, 0.6, 1.3], 0.1 # Energies for Plotting Time Traces ; 1st Energy for MM
-k, k_int = [0, -1.9], .2 # Central (kx, ky) point and k-integration
+E_trace, E_int = [0.2, 0.6, 1.3], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+k, k_int = [0, 0], 2 # Central (kx, ky) point and k-integration
+
+colors = ['blue', 'purple', 'red'] #colors for plotting the traces
 
 subtract_neg = False #If you want to subtract negative time delay baseline
-colors = ['blue', 'purple', 'red'] #colors for plotting the traces
 
 #######################
 ### Do the Plotting ###
@@ -284,7 +285,6 @@ for i in np.arange(len(E_trace)):
     ax[2].plot(ax_delay_offset, trace, color = colors[i], label = str(E_trace[i]) + ' eV')
     ax[1].axhline(E_trace[i]-E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
-    if k_int 
     rect = (Rectangle((k[0]-k_int, k[1]-k_int), 2*k_int, 2*k_int, linewidth=1.5,\
                       edgecolor=colors[i], facecolor='None'))
     ax[0].add_patch(rect)
