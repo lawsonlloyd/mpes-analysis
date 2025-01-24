@@ -63,7 +63,7 @@ def get_momentum_map(I_res, E, E_int, delays):
     return frame
 
 # Fucntion for Extracting time Traces
-def get_time_traces(i, I, E_trace, E_int, ax_E_offset, t0, k, k_int):
+def get_time_traces(i, I, E_trace, E_int, ax_E_offset, t0, k, k_int, subtract_neg):
     E_i = np.abs(ax_E_offset - (E_trace-E_int/2)).argmin()    
     E_f = np.abs(ax_E_offset - (E_trace+E_int/2)).argmin()
     kx_i = np.abs(ax_kx - (k[0]-k_int/2)).argmin()    
@@ -74,15 +74,18 @@ def get_time_traces(i, I, E_trace, E_int, ax_E_offset, t0, k, k_int):
     trace = I[kx_i:kx_f,ky_i:ky_f,E_i:E_f,:].sum(axis=(0,1,2))
 
     if subtract_neg is True : 
-        trace = trace - np.mean(trace[3:t0-5])
+        trace = trace - np.mean(trace[2:t0-5])
     
-    trace = trace/np.max(trace)
+    if norm_trace is True : 
+        trace = trace/np.max(trace)
     
     return trace
 
 #%%
+
 dkx = (ax_kx[1] - ax_kx[0])
 dE = ax_E[1] - ax_E[0]
+dt = ax_delay_offset[1] - ax_delay_offset[0]
 
 ax_E_offset = data_handler.ax_E
 ax_delay_offset = data_handler.ax_delay
@@ -203,12 +206,13 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [0.2, 0.6, 1.3], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [0.3, 0.8, 1.6], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = [0, 0], 2 # Central (kx, ky) point and k-integration
 
 colors = ['blue', 'purple', 'red'] #colors for plotting the traces
 
-subtract_neg = False #If you want to subtract negative time delay baseline
+subtract_neg = True #If you want to subtract negative time delay baseline
+norm_trace = True
 
 #######################
 ### Do the Plotting ###
@@ -274,14 +278,16 @@ for label in ax[1].yaxis.get_ticklabels()[1::2]:
 hor = ax_delay_offset[-1] - ax_delay_offset[1]
 ver =  energy_limits[1] - energy_limits[0]
 aspra = hor/ver 
-ax[1].set_aspect(aspra/1.5)
+#ax[1].set_aspect(aspra)
 ax[1].set_aspect("auto")
 fig.colorbar(waterfall, ax=ax[1], shrink = 0.8, ticks = [0, color_max/2, color_max])
 
 ### THIRD PLOT: DELAY TRACES (Angle-Integrated)
+trace_norms = []
 for i in np.arange(len(E_trace)):
-    trace = get_time_traces(i, I, E_trace[i], E_int, ax_E_offset, t0, k, k_int)
-
+    trace = get_time_traces(i, I, E_trace[i], E_int, ax_E_offset, t0, k, k_int, subtract_neg)
+    trace_norms.append(np.max(trace))
+    
     ax[2].plot(ax_delay_offset, trace, color = colors[i], label = str(E_trace[i]) + ' eV')
     ax[1].axhline(E_trace[i]-E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
@@ -290,7 +296,12 @@ for i in np.arange(len(E_trace)):
     ax[0].add_patch(rect)
     
 ax[2].set_xlim(ax_delay_offset[1],ax_delay_offset[-1])
-ax[2].set_ylim(-0.1, 1.1)
+
+if norm_trace is True:
+    ax[2].set_ylim(-0.1, 1.1)
+else:
+    ax[2].set_ylim(-0.1*np.max(trace_norms), 1.1*np.max(trace_norms))
+    
 ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
 ax[2].legend(frameon = False)
@@ -307,4 +318,5 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
-    
+
+#%% Do Fourier Transform Analysis

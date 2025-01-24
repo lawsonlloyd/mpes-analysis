@@ -14,6 +14,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from skimage.draw import disk
 from scipy.optimize import curve_fit
+import csv
 from Loader import DataLoader
 
 #%%
@@ -26,14 +27,32 @@ filename = 'your_file_name.h5'
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9217
+scan = 9539
 filename = f"Scan{scan}.h5"
 
 data_loader = DataLoader(data_path + '//' + filename)
 res = data_loader.load_phoibos()
 
-energy_offset = + 19.65
+energy_offset = + 19.6
 res = res.assign_coords(Energy=(res.Energy-energy_offset))
+
+#%%
+
+filename = '2024 Bulk CrSBr Phoibos.csv'
+
+scan_info = {}
+data_path = 'R:\Lawson\Data'
+
+reader = csv.DictReader(open(data_path + '//' + filename))
+
+for row in reader:
+    key = row.pop('Scan')
+    if key in scan_info:
+        # implement your duplicate row handling here
+        pass
+    scan_info[key] = row
+    
+#print(scan_info)
 
 #%% # PLOT DATA PANEL: Initial Overview
 
@@ -43,16 +62,22 @@ E1, E2, Eint = 1.375, 2.125, 0.1
 
 colormap = 'terrain_r'
 
+WL = scan_info[str(scan)].get("Wavelength")
+per = float(scan_info[str(scan)].get("Percent"))
+Temp = float(scan_info[str(scan)].get("Temperature"))
+
 fig, axx = plt.subplots(2, 2)
 fig.set_size_inches(8, 8, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
 im1 = res.loc[{'Delay':slice(-1000,5000)}].sum(axis=2).T.plot(ax = axx[0], cmap = colormap)
+axx[0].set_title(f"Scan{scan}: {WL} nm, {per}%, T = {Temp}")
+
 im2 = res.loc[{'Energy':slice(E1-1,E2+0.8), 'Angle':slice(-12,12)}].sum(axis=0).plot(ax = axx[1], vmax = .3e7, cmap = colormap)
 axx[1].axvline(0, color = 'black')
 
-im3 = res.loc[{'Angle':slice(-5,-2), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
+im3 = res.loc[{'Angle':slice(-12,-10), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
 #im3 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(1,2.5), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
 axx[2].axvline(0)
 
@@ -95,13 +120,21 @@ res_pos = res_pos.sum(axis=2)/pos_length
 res_diff = res_pos - res_neg
 res_diff_angle = res_diff/np.max(res_diff)
 
+E_inset = 0.75
 im1 = res_neg.T.plot(ax = axx[0], cmap = colormap)
 im2 = res_pos.T.plot(ax = axx[1], cmap = colormap)
-im3 = res_diff_angle.T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
+#im3 = (res_diff_angle).T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
+d1 = (res_diff_angle.loc[{'Energy':slice(-1,E_inset)}])
+d2 = (10*res_diff_angle.loc[{'Energy':slice(E_inset,3)}])
+d3 = xr.concat([d1, d2], dim = "Energy")
+d3.T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
+axx[2].axhline(E_inset, color = 'black', linewidth = 1)
+axx[2].set_title(f"Scan{scan}")
 
 fig.tight_layout()
 plt.show()
 
+############
 ############
 res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
@@ -122,8 +155,25 @@ fig.set_size_inches(8, 3, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-im1 = res_diff_angle.T.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
-im2 = res_diff_delay.plot(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
+#im1 = res_diff_angle.T.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
+im2 = res_diff_delay.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
+
+trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint, E1+Eint)}].sum(axis=(0,1))
+trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint, E2+Eint)}].sum(axis=(0,1))
+trace_1 = trace_1 - trace_1.loc[{'Delay':slice(-1000,-300)}].mean()
+trace_2 = trace_2 - trace_2.loc[{'Delay':slice(-1000,-300)}].mean()
+
+trace_2 = trace_2/trace_1.max()
+trace_1 = trace_1/trace_1.max()
+
+im4 = trace_1.plot(ax = axx[1], color = 'black')
+im4 = trace_2.plot(ax = axx[1], color = 'red')
+axx[0].axhline(E1,  color = 'black')
+axx[0].axhline(E2,  color = 'red')
+axx[0].set_ylim(-0.25,2.5)
+axx[1].set_xlim(res.Delay[0], res.Delay[-1])
+axx[0].set_title(f"Scan{scan}")
+axx[1].set_title(f"{WL} nm, {per}%, T = {Temp}")
 
 fig.tight_layout()
 plt.show()
