@@ -16,6 +16,25 @@ from skimage.draw import disk
 from scipy.optimize import curve_fit
 import csv
 from Loader import DataLoader
+import xarray as xr
+
+#%%
+
+filename = '2024 Bulk CrSBr Phoibos.csv'
+
+scan_info = {}
+data_path = 'R:\Lawson\Data'
+
+with open(data_path + '//' + filename) as f:
+    
+    reader = csv.DictReader(f
+                            )
+    for row in reader:
+        key = row.pop('Scan')
+        if key in scan_info:
+            # implement your duplicate row handling here
+            pass
+        scan_info[key] = row
 
 #%%
 
@@ -27,7 +46,7 @@ filename = 'your_file_name.h5'
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9539
+scan = 9370
 filename = f"Scan{scan}.h5"
 
 data_loader = DataLoader(data_path + '//' + filename)
@@ -35,24 +54,6 @@ res = data_loader.load_phoibos()
 
 energy_offset = + 19.6
 res = res.assign_coords(Energy=(res.Energy-energy_offset))
-
-#%%
-
-filename = '2024 Bulk CrSBr Phoibos.csv'
-
-scan_info = {}
-data_path = 'R:\Lawson\Data'
-
-reader = csv.DictReader(open(data_path + '//' + filename))
-
-for row in reader:
-    key = row.pop('Scan')
-    if key in scan_info:
-        # implement your duplicate row handling here
-        pass
-    scan_info[key] = row
-    
-#print(scan_info)
 
 #%% # PLOT DATA PANEL: Initial Overview
 
@@ -63,7 +64,7 @@ E1, E2, Eint = 1.375, 2.125, 0.1
 colormap = 'terrain_r'
 
 WL = scan_info[str(scan)].get("Wavelength")
-per = float(scan_info[str(scan)].get("Percent"))
+per = (scan_info[str(scan)].get("Percent"))
 Temp = float(scan_info[str(scan)].get("Temperature"))
 
 fig, axx = plt.subplots(2, 2)
@@ -75,16 +76,22 @@ im1 = res.loc[{'Delay':slice(-1000,5000)}].sum(axis=2).T.plot(ax = axx[0], cmap 
 axx[0].set_title(f"Scan{scan}: {WL} nm, {per}%, T = {Temp}")
 
 im2 = res.loc[{'Energy':slice(E1-1,E2+0.8), 'Angle':slice(-12,12)}].sum(axis=0).plot(ax = axx[1], vmax = .3e7, cmap = colormap)
-axx[1].axvline(0, color = 'black')
-
-im3 = res.loc[{'Angle':slice(-12,-10), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
-#im3 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(1,2.5), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
-axx[2].axvline(0)
-
-im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint, E1+Eint)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'black')
-im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint, E2+Eint)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'red')
+axx[1].axvline(0, color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E1, color = 'black')
 axx[1].axhline(E2, color = 'red')
+
+im3 = res.loc[{'Angle':slice(-12,-8), 'Delay':slice(-1000,-400)}].sum(axis=(0,2)).plot(ax = axx[2], label = 'Neg', color = 'grey')
+im3 = res.loc[{'Angle':slice(-12,-8), 'Delay':slice(50,450)}].sum(axis=(0,2)).plot(ax = axx[2], label = 'Pos', color = 'green')
+#im3 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(1,2.5), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
+axx[2].axvline(0, color = 'grey', linestyle = 'dashed')
+axx[2].legend(frameon=False)
+#axx[2].set_ylim(0,.3e9)
+axx[2].set_yscale('log')
+axx[2].set_ylabel('Int.')
+
+im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint/2, E1+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'black')
+im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint/2, E2+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'red')
+axx[3].axvline(0, color = 'grey', linestyle = 'dashed')
 
 params = {'lines.linewidth' : 2, 'axes.linewidth' : 1.5, 'axes.labelsize' : 16, 
           'xtick.labelsize' : 14, 'ytick.labelsize' : 14, 'axes.titlesize' : 16, 'legend.fontsize' : 12}
@@ -94,6 +101,122 @@ fig.tight_layout()
 plt.show()
 
 #fig.savefig('Scan' + str(scan_to_plot) + '.svg')
+
+#%% # PLOT THREE PANEL DIFFERENCE
+
+delays = [0,3000]
+
+res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+res_pos = res.loc[{'Delay':slice(0,5000)}]
+
+res_neg_mean = res_neg.mean(axis=2)
+res_pos_mean = res_pos.mean(axis=2)
+
+#res_diff_E_Ang = res_pos_mean - res_neg_mean
+
+res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+#res_diff_E_Ang = res.loc[{'Delay':slice(-100,0)}].mean(axis=2) - res_neg_mean
+#res_diff_E_Ang = res.loc[{'Delay':slice(250,350)}].mean(axis=2) - res_neg_mean
+
+res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
+
+E_inset = 0.75
+d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])
+d2 = (res_diff_E_Ang.loc[{'Energy':slice(E_inset,3)}])
+d2 = d2/np.max(abs(d2))
+d3 = xr.concat([d1, d2], dim = "Energy")
+res_diff_sum_Angle_Normed = d3
+
+res_diff = res - res_neg.mean(axis=2)
+res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-12,12)}].sum(axis=0)
+res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
+
+trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint/2, E1+Eint/2)}].sum(axis=(0,1))
+trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint/2, E2+Eint/2)}].sum(axis=(0,1))
+trace_1 = trace_1 - trace_1.loc[{'Delay':slice(-1000,-350)}].mean()
+trace_2 = trace_2 - trace_2.loc[{'Delay':slice(-1000,-350)}].mean()
+
+trace_2 = trace_2/trace_1.max()
+trace_1 = trace_1/trace_1.max()
+
+############
+### PLOT ###
+############
+
+fig, axx = plt.subplots(1, 3)
+fig.set_size_inches(12, 4, forward=False)
+plt.gcf().set_dpi(200)
+axx = axx.flatten()
+
+im1 = res_diff_sum_Angle_Normed.T.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
+
+im2 = res_diff_sum_Angle.plot(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
+
+im3 = trace_1.plot(ax = axx[2], color = 'black')
+im3 = trace_2.plot(ax = axx[2], color = 'red')
+
+axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
+axx[1].axhline(E1,  color = 'black')
+axx[1].axhline(E2,  color = 'red')
+axx[0].set_title(f"I({delays[0]}:{delays[1]} fs) - I(<-300 fs)")
+axx[0].set_ylim(-1,3)
+axx[1].set_ylim(-1,3)
+axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
+
+#axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
+axx[1].set_title(f"Scan{scan}. Angle-Integr.")
+axx[2].set_xlim(res.Delay[0], res.Delay[-1])
+axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
+
+fig.tight_layout()
+plt.show()
+
+#%% # PLOT THREE PANEL DIFFERENCE
+
+def make_diff_ARPES(res, delays, E_inset):
+
+    res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+    res_pos = res.loc[{'Delay':slice(0,5000)}]
+    
+    res_neg_mean = res_neg.mean(axis=2)
+    res_pos_mean = res_pos.mean(axis=2)
+    
+    #res_diff_E_Ang = res_pos_mean - res_neg_mean
+    res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+    res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
+    
+    d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])
+    d2 = (res_diff_E_Ang.loc[{'Energy':slice(E_inset,3)}])
+    d2 = d2/np.max(abs(d2))
+    d3 = xr.concat([d1, d2], dim = "Energy")
+    res_diff_sum_Angle_Normed = d3
+
+    return res_diff_sum_Angle_Normed
+
+############
+### PLOT ###
+############
+
+fig, axx = plt.subplots(1, 3)
+fig.set_size_inches(12, 4, forward=False)
+plt.gcf().set_dpi(200)
+axx = axx.flatten()
+
+ts = [0, 250, 1250]
+
+for i in np.arange(len(ts)):
+    
+    panel = make_diff_ARPES(res, [ts[i]-50, ts[i]+50], 0.75)
+    im1 = panel.T.plot(ax = axx[i], cmap = 'seismic', vmin = -1, vmax = 1)
+    
+    axx[i].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
+    axx[i].set_title(f"I(t = {ts[i]} fs) - I(t<-300 fs)")
+    axx[i].set_ylim(-1,3)
+    #axx[1].set_title(f"Scan{scan}. Angle-Integr.")
+    #axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
+
+fig.tight_layout()
+plt.show()
 
 #%% # PLOT THREE PANEL DIFFERENCE
 
@@ -108,24 +231,13 @@ fig.set_size_inches(8, 3, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-res_neg = res.loc[{'Delay':slice(-1000,-300)}]
-res_pos = res.loc[{'Delay':slice(0,5000)}]
-
-neg_length = res_neg.shape[2]
-pos_length = res_pos.shape[2]
-
-res_neg = res_neg.sum(axis=2)/neg_length
-res_pos = res_pos.sum(axis=2)/pos_length
-
-res_diff = res_pos - res_neg
-res_diff_angle = res_diff/np.max(res_diff)
-
 E_inset = 0.75
-im1 = res_neg.T.plot(ax = axx[0], cmap = colormap)
-im2 = res_pos.T.plot(ax = axx[1], cmap = colormap)
+im1 = res_neg_mean.T.plot(ax = axx[0], cmap = colormap)
+im2 = res_pos_mean.T.plot(ax = axx[1], cmap = colormap)
 #im3 = (res_diff_angle).T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
 d1 = (res_diff_angle.loc[{'Energy':slice(-1,E_inset)}])
-d2 = (10*res_diff_angle.loc[{'Energy':slice(E_inset,3)}])
+d2 = (res_diff_angle.loc[{'Energy':slice(E_inset,3)}])
+d2 = d2/np.max(np.abs(d2))
 d3 = xr.concat([d1, d2], dim = "Energy")
 d3.T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
 axx[2].axhline(E_inset, color = 'black', linewidth = 1)
@@ -136,46 +248,4 @@ plt.show()
 
 ############
 ############
-res_neg = res.loc[{'Delay':slice(-1000,-300)}]
-res_pos = res.loc[{'Delay':slice(0,5000)}]
-
-neg_length = res_neg.shape[2]
-pos_length = res_pos.shape[2]
-
-#res_neg = res_neg/neg_length
-res_pos = res_pos/pos_length
-
-res_diff = res - res_neg.mean(axis=2)
-
-res_diff = res_diff.loc[{'Angle':slice(-10,10)}].sum(axis=0)
-res_diff_delay = res_diff/np.max(res_diff)
-
-fig, axx = plt.subplots(1, 2)
-fig.set_size_inches(8, 3, forward=False)
-plt.gcf().set_dpi(200)
-axx = axx.flatten()
-
-#im1 = res_diff_angle.T.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
-im2 = res_diff_delay.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
-
-trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint, E1+Eint)}].sum(axis=(0,1))
-trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint, E2+Eint)}].sum(axis=(0,1))
-trace_1 = trace_1 - trace_1.loc[{'Delay':slice(-1000,-300)}].mean()
-trace_2 = trace_2 - trace_2.loc[{'Delay':slice(-1000,-300)}].mean()
-
-trace_2 = trace_2/trace_1.max()
-trace_1 = trace_1/trace_1.max()
-
-im4 = trace_1.plot(ax = axx[1], color = 'black')
-im4 = trace_2.plot(ax = axx[1], color = 'red')
-axx[0].axhline(E1,  color = 'black')
-axx[0].axhline(E2,  color = 'red')
-axx[0].set_ylim(-0.25,2.5)
-axx[1].set_xlim(res.Delay[0], res.Delay[-1])
-axx[0].set_title(f"Scan{scan}")
-axx[1].set_title(f"{WL} nm, {per}%, T = {Temp}")
-
-fig.tight_layout()
-plt.show()
-
 #%%

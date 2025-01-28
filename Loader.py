@@ -67,12 +67,19 @@ class DataLoader:
         with h5py.File(self.filename, 'r') as f:
         
             group_keys = list(f.keys())
-        
-            # Load axes data
+            a_group_key = group_keys[0]
+
+            # Load axes and data
+            data = f['binned/BinnedData'][()].astype(np.float32)
             ax_angle = f['axes/ax0'][()].astype(np.float32)
             ax_E = f['axes/ax1'][()].astype(np.float32)
-            ax_delay = f['axes/ax2'][()].astype(np.float32)
-            data = f['binned/BinnedData'][()].astype(np.float32)
-        
-            return xr.DataArray(data, dims = ("Angle", "Energy", "Delay"), coords = [ax_angle, ax_E, ax_delay])
+            
+            if 'ax2' in list(f[a_group_key]):
+                ax_delay = f['axes/ax2'][()].astype(np.float32)
+                return xr.DataArray(data, dims = ("Angle", "Energy", "Delay"), coords = [ax_angle, ax_E, ax_delay])
+            else:
+                return xr.DataArray(data, dims = ("Angle", "Energy"), coords = [ax_angle, ax_E])
+
+            print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
+
 
