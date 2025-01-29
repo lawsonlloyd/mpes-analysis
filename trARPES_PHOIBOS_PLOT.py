@@ -52,14 +52,17 @@ filename = f"Scan{scan}.h5"
 data_loader = DataLoader(data_path + '//' + filename)
 res = data_loader.load_phoibos()
 
-energy_offset = + 19.6
+energy_offset = + 19.545
 res = res.assign_coords(Energy=(res.Energy-energy_offset))
 
 #%% # PLOT DATA PANEL: Initial Overview
 
 %matplotlib inline
 
-E1, E2, Eint = 1.375, 2.125, 0.1
+E1, E2, E3 = 1.37, 2.1, 0.1
+A1, A2 = -13,-9
+d1, d2 = -1000, -400
+d3, d4 = 0, 200
 
 colormap = 'terrain_r'
 
@@ -80,14 +83,26 @@ axx[1].axvline(0, color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E1, color = 'black')
 axx[1].axhline(E2, color = 'red')
 
-im3 = res.loc[{'Angle':slice(-12,-8), 'Delay':slice(-1000,-400)}].sum(axis=(0,2)).plot(ax = axx[2], label = 'Neg', color = 'grey')
-im3 = res.loc[{'Angle':slice(-12,-8), 'Delay':slice(50,450)}].sum(axis=(0,2)).plot(ax = axx[2], label = 'Pos', color = 'green')
+edc_1 = res.loc[{'Angle':slice(A1, A2), 'Delay':slice(d1,-d2)}].mean(axis=(0,2))
+edc_2 = res.loc[{'Angle':slice(A1,A2), 'Delay':slice(d3,d4)}].mean(axis=(0,2)) 
+edc_norm = np.max(edc_1)
+
+edc_1 = edc_1/edc_norm
+edc_2 = edc_2/edc_norm
+edc_diff = edc_2 - edc_1
+#edc_diff = edc_diff/np.max(edc_diff.loc[{'Energy':slice(0.6,3)}])
+
+im3 = edc_1.plot(ax = axx[2], label = f"t < {d2} fs", color = 'grey')
+im3 = edc_2.plot(ax = axx[2], label = f"t = {d3} fs to {d4} fs", color = 'green')
+im3d = edc_diff.loc[{'Energy':slice(0.6,2.5)}].plot(ax = axx[2], label = 'Diff.', color = 'purple')
 #im3 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(1,2.5), 'Delay':slice(-1000,5000)}].sum(axis=(0,2)).plot(ax = axx[2])
 axx[2].axvline(0, color = 'grey', linestyle = 'dashed')
 axx[2].legend(frameon=False)
-#axx[2].set_ylim(0,.3e9)
-axx[2].set_yscale('log')
+#axx[2].set_yscale('log')
+#axx[2].set_ylim(0,0.0025)
+axx[2].set_xlim(-1,2.75)
 axx[2].set_ylabel('Int.')
+axx[2].set_title('EDCs: Norm. to Neg.')
 
 im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint/2, E1+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'black')
 im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint/2, E2+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'red')
@@ -154,6 +169,9 @@ im2 = res_diff_sum_Angle.plot(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1
 
 im3 = trace_1.plot(ax = axx[2], color = 'black')
 im3 = trace_2.plot(ax = axx[2], color = 'red')
+#im_dyn = axx[2].plot(trace_1.Delay.loc[{"Delay":slice(0,50000)}].values, \
+ #                  0.6*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/18000) +
+  #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
 
 axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E1,  color = 'black')
@@ -166,7 +184,9 @@ axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
 #axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
 axx[1].set_title(f"Scan{scan}. Angle-Integr.")
 axx[2].set_xlim(res.Delay[0], res.Delay[-1])
+#axx[2].set_xlim(res.Delay[0], 25000)
 axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
+axx[2].set_xlim(-500,3000)
 
 fig.tight_layout()
 plt.show()
@@ -249,3 +269,63 @@ plt.show()
 ############
 ############
 #%%
+
+
+#%%
+
+def func(x, a, b, tau1, tau2):
+    return a*np.exp(-x/tau1)+b*np.exp(-x/tau2)
+
+delays_trunc = trace_1.loc[{"Delay":slice(0,20000)}].Delay.values
+trace_trunc =  trace_1.loc[{"Delay":slice(0,20000)}].values
+
+delays = trace_1.Delay.values
+trace =  trace_1.values
+
+popt, pcov = curve_fit(func, delays_trunc, trace_trunc, p0=(1,1,2000,15000))
+
+fit = func(delays_trunc, *popt)
+
+fig = plt.figure()
+plt.plot(delays, trace, 'o', color = 'grey')
+plt.plot(delays_trunc, fit, color = 'blue')
+plt.title(f"Biexp: tau_1 = {round(popt[2])}, tau_2 = {round(popt[3],0)}")
+plt.xlim(-600,20000)
+plt.ylabel('Int.')
+plt.xlabel('Delay, fs')
+#print(popt)
+
+save_figure = False
+figure_file_name = f"Long_Delays_{scan}"
+#plt.rcParams['svg.fonttype'] = 'none'
+new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
+plt.rcParams.update(new_rc_params)
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+
+
+#%%
+
+def gaussian(x, amp_1, mean_1, stddev_1, offset):
+    
+    g1 = np.exp(-0.5*((x - mean_1) / stddev_1)**2)+np.abs(offset)
+    g1 = g1/np.max(g1)
+    
+    g1 = g1*amp_1
+    
+    return g1
+
+energy = edc_1.Energy.values
+edc = edc_1.values
+energy_tr = edc_1.loc[{'Energy':slice(-0.12,.5)}].Energy.values
+edc_tr = edc_1.loc[{'Energy':slice(-0.12,.5)}].values
+
+popt, pcov = curve_fit(gaussian, energy_tr, edc_tr, p0=(.8,.2,.1,.1))
+
+fit = gaussian(energy, *popt)
+
+plt.plot(energy, edc, color = 'grey')
+plt.plot(energy, fit, color = 'green', linestyle = 'dashed')
+plt.title(f"E0 = {round(popt[1],3)}")
+plt.xlim(-1,2)

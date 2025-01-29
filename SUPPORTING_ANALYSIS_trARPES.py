@@ -20,7 +20,7 @@ from scipy.optimize import curve_fit
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'pump_spectra'
 
 #data = np.loadtxt("920nm_51fsFROG_.txt", skiprows = 1)
@@ -110,7 +110,7 @@ ABS = 1 - np.exp(-thickness/pen_depth)
 
 A_ = 1 - np.exp(-thickness * energy*imag_/(hbar*c))
 
-absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
+#absorbance_2 = np.asarray([(1 - np.exp(-z*aa)) for aa in A_s_2])
 alpha = (2*energy)/(c*hbar) * np.sqrt((np.sqrt((real_)**2 + (imag_)**2) - real_) / 2) #1/m
 A_s = 4*n*np.cos(theta)/(n**2 + k**2+2*n*np.cos(theta)+(np.cos(theta))**2)
 
@@ -137,8 +137,8 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 700
-average_power = 60 #mW
+lam = 915
+average_power = 75 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
@@ -147,7 +147,7 @@ rep_rate = 500000 # 475000
 if lam == 800:
     laserspectrum = np.loadtxt('800nm_opa_pumpspectrum_070624.txt',skiprows=1)
 elif lam == 915:
-    laserspectrum = np.loadtxt('910nm_opa_pumpspectrum_18042024_beforechamber.txt',skiprows=1)
+    laserspectrum = np.loadtxt('OPA_pump_spectrum_910nm_DATA_2.txt',skiprows=1)
 elif lam == 700:
     laserspectrum = np.loadtxt('700nm_opa_pumpspectrum_24042024.txt',skiprows=1)
 
@@ -231,7 +231,7 @@ rx = 1e7*(1/np.sqrt(np.pi*aB**2*0.3*exc_density*1e6*1e6)) ; print(rx)
 # CALCULATING ABSORBED EXCITATION FLUENCE: ALTERNATIVE METHOD
 
 thickness = 0.518e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 30
+AOI = 40
 
 ### Load Dielectric Constant
 
