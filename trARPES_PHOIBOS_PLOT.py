@@ -46,13 +46,13 @@ filename = 'your_file_name.h5'
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9370
+scan = 9220
 filename = f"Scan{scan}.h5"
 
 data_loader = DataLoader(data_path + '//' + filename)
 res = data_loader.load_phoibos()
 
-energy_offset = + 19.545
+energy_offset = + 19.65
 res = res.assign_coords(Energy=(res.Energy-energy_offset))
 
 #%% # PLOT DATA PANEL: Initial Overview
@@ -60,7 +60,7 @@ res = res.assign_coords(Energy=(res.Energy-energy_offset))
 %matplotlib inline
 
 E1, E2, E3 = 1.37, 2.1, 0.1
-A1, A2 = -13,-9
+A1, A2 = -10 , 10
 d1, d2 = -1000, -400
 d3, d4 = 0, 200
 
@@ -99,7 +99,7 @@ im3d = edc_diff.loc[{'Energy':slice(0.6,2.5)}].plot(ax = axx[2], label = 'Diff.'
 axx[2].axvline(0, color = 'grey', linestyle = 'dashed')
 axx[2].legend(frameon=False)
 #axx[2].set_yscale('log')
-#axx[2].set_ylim(0,0.0025)
+axx[2].set_ylim(0,0.0075)
 axx[2].set_xlim(-1,2.75)
 axx[2].set_ylabel('Int.')
 axx[2].set_title('EDCs: Norm. to Neg.')
