@@ -61,7 +61,10 @@ class DataLoader:
             print('The data shape is: ' + str(self.data.shape))
             print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
             
-            return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC
+            res_4D = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+            
+            return res_4D
+            #return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC
         
     def load_phoibos(self):
         with h5py.File(self.filename, 'r') as f:

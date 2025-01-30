@@ -138,7 +138,7 @@ class PlotHandler:
         self.t0 = self.data_handler.get_t0()
 
         # Initial setup for plots
-        self.initialize_plots()
+        #self.initialize_plots()
 
     def initialize_plots(self,):
         
