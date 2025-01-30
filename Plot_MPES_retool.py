@@ -473,19 +473,26 @@ def objective(params, x, data):
 
 %matplotlib inline
 
-k_int, kx, ky, E, delay = value_manager.get_values()
-idx_kx, idx_ky, idx_E, d_i = data_handler.get_closest_indices(kx, ky, E, delay)
+I_res = I/np.max(I)
 
-k_int = 0.4
-idx_k_int = round(0.5*k_int/data_handler.calculate_dk())
 
-edcs = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, :].sum(axis=(0,1))
-edcs = edcs/np.max(edcs[0:])
-#edcs = edcs - np.mean(edcs[5:15])
+fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1]})
+fig.set_size_inches(10, 4, forward=False)
+ax = ax.flatten()
 
-plt.imshow((edcs), cmap = cmap_LTL, extent = [data_handler.ax_delay[0], data_handler.ax_delay[-1], data_handler.ax_E[0], data_handler.ax_E[-1]], aspect = 'auto', origin = 'lower', vmin = 0, vmax = 1)
-plt.ylim([-0.5,1])
-plt.xlim([-160,800])
+### Plot EDCs at GAMMA vs time
+
+(kx, ky), k_int = (0, 0), 0.2
+edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
+edc_gamma = edc_gamma/np.max(edc_gamma)
+
+im = edc_gamma.plot(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
+cbar_ax = fig.add_axes([1, 0.275, 0.025, 0.5])
+cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
+cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
+
+ax[0].set_ylim([-1,1])
+ax[0].set_xlim([-160,800])
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
 #plt.axvline(0, linestyle = 'dashed', color = 'black')
 plt.xlabel('Delay, fs')
@@ -494,14 +501,11 @@ plt.ylabel('Energy, eV')
 pts = [100, 200]
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 
-fig = plt.figure()
-
 for i in np.arange(len(pts)):
-    d = pts[i]
-    _, _, _, dd = data_handler.get_closest_indices(0, 0, 0, d)
-    edc = I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, dd-2:dd+2].sum(axis=(0,1,3))
-    edc = edc/np.max(edc[48:]) + 0.05*i
-    plt.plot(data_handler.ax_E, edc, color = colors[i], label = (str(round(data_handler.ax_delay[dd])) +' fs'))
+    edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(pts[i]-5:pts[i]+5)}].sum(dim=("kx","ky","delay"))
+    edc = edc/np.max(edc)
+    
+    e = edc.plot(ax = ax[1], cmap = cmap_LTL, color = colors[i])
 
 #plt.legend(frameon = False)
 plt.xlim([-2, 1]) 
