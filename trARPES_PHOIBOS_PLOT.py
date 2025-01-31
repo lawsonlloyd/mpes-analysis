@@ -75,10 +75,10 @@ fig.set_size_inches(8, 8, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-im1 = res.loc[{'Delay':slice(-1000,5000)}].sum(axis=2).T.plot(ax = axx[0], cmap = colormap)
+im1 = res.loc[{'Delay':slice(-1000,5000)}].sum(axis=2).T.plot.imshow(ax = axx[0], cmap = colormap)
 axx[0].set_title(f"Scan{scan}: {WL} nm, {per}%, T = {Temp}")
 
-im2 = res.loc[{'Energy':slice(E1-1,E2+0.8), 'Angle':slice(-12,12)}].sum(axis=0).plot(ax = axx[1], vmax = .3e7, cmap = colormap)
+im2 = res.loc[{'Energy':slice(E1-1,E2+0.8), 'Angle':slice(-12,12)}].sum(axis=0).plot.imshow(ax = axx[1], vmax = .3e7, cmap = colormap)
 axx[1].axvline(0, color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E1, color = 'black')
 axx[1].axhline(E2, color = 'red')
@@ -163,9 +163,9 @@ fig.set_size_inches(12, 4, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-im1 = res_diff_sum_Angle_Normed.T.plot(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
+im1 = res_diff_sum_Angle_Normed.T.plot.imshow(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
 
-im2 = res_diff_sum_Angle.plot(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
+im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
 
 im3 = trace_1.plot(ax = axx[2], color = 'black')
 im3 = trace_2.plot(ax = axx[2], color = 'red')
@@ -227,7 +227,7 @@ ts = [0, 250, 1250]
 for i in np.arange(len(ts)):
     
     panel = make_diff_ARPES(res, [ts[i]-50, ts[i]+50], 0.75)
-    im1 = panel.T.plot(ax = axx[i], cmap = 'seismic', vmin = -1, vmax = 1)
+    im1 = panel.T.plot.imshow(ax = axx[i], cmap = 'seismic', vmin = -1, vmax = 1)
     
     axx[i].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
     axx[i].set_title(f"I(t = {ts[i]} fs) - I(t<-300 fs)")
