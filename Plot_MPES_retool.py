@@ -6,6 +6,7 @@ Created on Wed Nov 27 08:47:53 2024
 @author: lawsonlloyd
 """
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
 from matplotlib.patches import Rectangle
@@ -13,9 +14,10 @@ from matplotlib.ticker import FormatStrFormatter
 from skimage.draw import disk
 from scipy.optimize import curve_fit
 from obspy.imaging.cm import viridis_white
+import xarray as xr
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -24,8 +26,8 @@ from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, Slide
 data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
-data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
+#data_path = 'R:\Lawson\Data\metis'
+data_path = '/Users/lawsonlloyd/Desktop/Data/'
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
@@ -85,7 +87,7 @@ def get_data_chunks(neg_times, t0, ax_delay_offset):
 def get_momentum_map(I_res, E, E_int, delays, delay_int):
     # Momentum Maps at specified Energies and Delays
         
-    frame = I_res.loc[{"E":slice(E-E_int/2, E+Eint/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
+    frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
                              
     return frame
 
@@ -107,7 +109,7 @@ def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
     (kx, ky) = k
     (kx_int, ky_int) = k_int
     
-    trace = I_res.loc[{"E":slice(E-E_int/2, E+Eint/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(axis=(0,1,2))
+    trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(axis=(0,1,2))
 
     if subtract_neg is True : 
         trace = trace - np.mean(trace.loc[{"delay":slice(-100,-50)}])
@@ -180,8 +182,34 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot):
 
 
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
+def custom_colormap(CMAP, lower_portion_percentage):
+    # create a colormap that consists of
+    # - 1/5 : custom colormap, ranging from white to the first color of the colormap
+    # - 4/5 : existing colormap
+    
+    # set upper part: 4 * 256/4 entries
+    
+    upper =  CMAP(np.arange(256))
+    upper = upper[56:,:]
+    
+    # - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
+    lower_portion = int(1/lower_portion_percentage) - 1
+    
+    lower = np.ones((int(200/lower_portion),4))
+    # - modify the first three columns (RGB):
+    #   range linearly between white (1,1,1) and the first color of the upper colormap
+    for i in range(3):
+      lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
+    
+    # combine parts of colormap
+    cmap = np.vstack(( lower, upper ))
+    
+    # convert to matplotlib colormap
+    custom_cmap = mpl.colors.ListedColormap(cmap, name='custom', N=cmap.shape[0])
+    
+    return custom_cmap
 
-cmap_LTL = plot_manager.custom_colormap(plt.cm.viridis, 0.2) #choose colormap based and percentage of total map for new white transition map
+cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
 
 #%% Plot Momentum Maps at Constant Energy
 
@@ -289,7 +317,7 @@ ax[1].set_aspect("auto")
 trace_norms = []
 for i in np.arange(len(E_trace)):
     
-    trace = get_time_traces(I, E_trace[i], E_int, k , k_int, subtract_neg, norm_trace)
+    trace = get_time_trace(I, E_trace[i], E_int, k , k_int, subtract_neg, norm_trace)
     trace_norms.append(np.max(trace))
     
     trace.plot(ax = ax[2], color = colors[i], label = str(E_trace[i]) + ' eV')
@@ -475,14 +503,13 @@ def objective(params, x, data):
 
 I_res = I/np.max(I)
 
-
 fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [1, 1, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), k_int = (0, 0), 0.2
+(kx, ky), k_int = (-1.9, 0), 0.2
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -498,31 +525,31 @@ ax[0].set_xlim([-160,800])
 plt.xlabel('Delay, fs')
 plt.ylabel('Energy, eV')
 
-pts = [100, 200]
+pts = [-120, 0, 50, 100, 500]
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 
 for i in np.arange(len(pts)):
-    edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(pts[i]-5:pts[i]+5)}].sum(dim=("kx","ky","delay"))
+    edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(pts[i]-5,pts[i]+5)}].sum(dim=("kx","ky","delay"))
     edc = edc/np.max(edc)
     
-    e = edc.plot(ax = ax[1], cmap = cmap_LTL, color = colors[i])
+    e = edc.plot(ax = ax[1], color = colors[i], label = f"${pts[i]} fs")
 
 #plt.legend(frameon = False)
-plt.xlim([-2, 1]) 
-plt.ylim([0, 1.5])
-plt.ylabel('Norm. Int. + offset, arb. units.')
-plt.xlabel('Energy, eV')
-plt.axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
-plt.gca().set_aspect(2)
+ax[1].set_xlim([-1.5, 1]) 
+ax[1].set_ylim([0, 1.1])
+ax[1].set_ylabel('Norm. Int.')
+ax[1].set_xlabel('Energy, eV')
+ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
+ax[1].legend(frameon=False)
+ax[1]
+#plt.ax[1].gca().set_aspect(2)
 
 # Fit to Gaussian
 #################
 
 ##### VBM #####
 trunc_e1 = -1
-_, _, trunc1, _ = data_handler.get_closest_indices(0, 0, trunc_e1, 0)
 trunc_e2 = 0.5
-_, _, trunc2, _ = data_handler.get_closest_indices(0, 0, trunc_e2, 0)
 
 p0 = [1, -.3, .5, 0] # Fitting params initial guess [amp, center, width, offset]
 bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
