@@ -472,7 +472,6 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
-
 #%%
 
 from lmfit import Parameters, minimize, report_fit
@@ -488,7 +487,16 @@ def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
     g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
     g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
     
-    return g1, g2, offset
+    g = g1 + g2 + offset
+    return g
+
+def two_gaussians_report(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
+    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
+    
+    g = g1 + g2 + offset
+    return g, g1, g2, offset
 
 def objective(params, x, data):
     
@@ -499,11 +507,150 @@ def objective(params, x, data):
     return resid
 
 
-#%% Plot and Fit EDCs
+#%% TEST: CBM EDC Fitting: Extract Binding Energy
+
+E_trace, E_int = [1.35, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+k, k_int = (0, 0), .2 # Central (kx, ky) point and k-integration
+delay, delay_int = 200, 20
+
+kx_frame = get_kx_E_frame(I, ky, k_int, delay, delay_int)
+
+kx_edc = kx_frame.loc[{"kx":slice(-2,2)}].sum(dim="kx")
+kx_edc = kx_edc/np.max(kx_edc.loc[{"E":slice(0.8,3)}])
+
+##### X and CBM ####
+e1 = 1.15
+e2 = 3
+p0 = [1, 0.3,  1.35, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
+
+popt_2, _ = curve_fit(two_gaussians, kx_edc.loc[{"E":slice(e1,e2)}].E.values, kx_edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, *popt_2)
+Eb = round(popt_2[3] - popt_2[2],2)
+
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
+fig.set_size_inches(10, 4, forward=False)
+ax = ax.flatten()
+
+kx_edc.plot(ax=ax[0], color = 'black')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
+ax[0].set_title(f"$\Delta t = {delay}$ fs : $E_B = {1000*Eb}$ meV")
+ax[0].set_xlim(0.5,3)
+ax[0].set_ylim(0, 1.1)
+
+#%% # Do the Excited State Fits for all Delay Times
+
+##### CBM AND EXCITON #####
+delay_int = 20
+e1 = 1.1
+e2 = 3
+p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
+bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
+
+centers_CBM = np.zeros(len(I.delay))
+centers_EX = np.zeros(len(I.delay))
+Ebs = np.zeros(len(I.delay))
+
+p_fits_excited = np.zeros((len(I.delay),7))
+p_err_excited = np.zeros((len(I.delay),7))
+p_err_eb = np.zeros((len(I.delay)))
+
+n = len(I.delay.values)
+for t in range(n):
+
+    kx_frame = get_kx_E_frame(I, ky, k_int, I.delay.values[t], delay_int)
+
+    kx_edc_i = kx_frame.loc[{"kx":slice(-2,2)}].sum(dim="kx")
+    kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"E":slice(0.8,3)}])
+    
+    try:
+        popt, pcov = curve_fit(two_gaussians, kx_edc_i.loc[{"E":slice(e1,e2)}].E.values, kx_edc_i.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+    except ValueError:
+        popt = [0,0,0,0]
+   
+    centers_EX[t] = popt[2]
+    centers_CBM[t] = popt[3]
+    Eb = round(popt[3] - popt[2],3)
+    Ebs[t] = Eb
+    perr = np.sqrt(np.diag(pcov))
+    p_fits_excited[t,:] = popt
+    
+    p_err_excited[t,:] = perr 
+    p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
+
+#%% Plot Excited State EDC Fits and Binding Energy
+
+figure_file_name = 'EDC_fits_metis_excted2'
+save_figure = True
+
+fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1, 1.25, 1.25], 'height_ratios':[1]})
+fig.set_size_inches(13, 4, forward=False)
+ax = ax.flatten()
+
+kx_edc.plot(ax=ax[0], color = 'black')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
+ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
+ax[0].set_title(f"$\Delta t = {delay}$ fs : $E_B = {1000*Eb}$ meV")
+ax[0].set_xlim(0.5,3)
+ax[0].set_ylim(0, 1.1)
+ax[0].set_ylabel('Norm. Int.')
+ax[0].set_xlabel('$E - E_{VBM}$, eV', color = 'black')
+
+# PLOT CBM and EX SHIFT DYNAMICS
+#fig = plt.figure()
+t = 32 # Show only after 50 (?) fs
+tt = 32
+y_ex, y_ex_err = 1*(centers_EX[t:] - 0*centers_EX[-12].mean()), 1*p_err_excited[t:,2]
+y_cb, y_cb_err = 1*(centers_CBM[tt:]- 0*centers_CBM[-12].mean()),  1*p_err_excited[tt:,3]
+
+ax[1].plot(I.delay.values[t:], y_ex, color = 'black', label = 'EX')
+ax[1].fill_between(I.delay.values[t:], y_ex - y_ex_err, y_ex + y_ex_err, color = 'grey', alpha = 0.5)
+ax[1].set_xlim([0, edc_gamma.delay.values[-1]])
+#ax[1].set_ylim([1.1,2.3])
+ax[1].set_xlim([0, edc_gamma.delay.values[-1]])
+ax[1].set_ylim([1,1.4])
+ax[1].set_xlabel('Delay, fs')
+
+ax2 = ax[1].twinx()
+ax2.plot(I.delay.values[tt:], y_cb, color = 'red', label = 'CBM')
+ax2.fill_between(I.delay.values[tt:], y_cb - y_cb_err, y_cb + y_cb_err, color = 'pink', alpha = 0.5)
+ax2.set_ylim([2,2.4])
+#ax[1].errorbar(I.delay.values[t:], 1*(centers_EX[t:]), yerr = p_err_excited[t:,2], marker = 'o', color = 'black', label = 'EX')
+#ax[1].errorbar(I.delay.values[t:], 1*(centers_CBM[t:]), yerr = p_err_excited[t:,3], marker = 'o', color = 'red', label = 'CBM')
+#ax[1].set_ylim([1.1,2.3])
+ax[1].set_ylabel('$E_{EX}$, eV', color = 'black')
+ax2.set_ylabel('$E_{CBM}$, eV', color = 'red')
+ax[1].set_title(f"From {round(I.delay.values[t])} fs")
+ax[1].legend(frameon=False, loc = 'upper right')
+ax2.legend(frameon=False, loc = 'upper left' )
+
+ax[2].plot(I.delay.values[t:], 1000*Ebs[t:], color = 'purple', label = '$E_{B}$')
+ax[2].fill_between(I.delay.values[t:], 1000*Ebs[t:] - 1000*p_err_eb[t:], 1000*Ebs[t:] + 1000*p_err_eb[t:], color = 'violet', alpha = 0.5)
+ax[2].set_xlim([0, edc_gamma.delay.values[-1]])
+ax[2].set_ylim([700,950])
+ax[2].set_xlabel('Delay, fs')
+ax[2].set_ylabel('$E_{B}$, meV', color = 'black')
+ax[2].legend(frameon=False)
+
+# # PLOT VBM PEAK WIDTH DYNAMICS
+# ax2 = ax[1].twinx()
+# ax2.plot(edc_gamma.delay.values, 1000*(p_fits_VBM[:,2] - 0*p_fits_VBM[0:10,2].mean()), color = 'maroon')
+# #ax2.set_ylim([-75,50])
+# ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+
+#%% Plot and Fit EDCs of the VBM
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'EDC_metis'
 
 #I_res = I.groupby_bins('delay', 50)
@@ -565,6 +712,7 @@ bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
 
 centers_VBM = np.zeros(len(I.delay))
 p_fits_VBM = np.zeros((len(I.delay),4))
+p_err_VBM = np.zeros((len(I.delay),2))
 
 n = len(I.delay)
 for t in np.arange(n):
@@ -572,16 +720,14 @@ for t in np.arange(n):
     edc_i = edc_i/np.max(edc_i)
     
     try:
-        popt, _ = curve_fit(gaussian, edc_gamma.loc[{"E":slice(e1,e2)}].E.values, edc_i, p0, method=None, bounds = bnds)
+        popt, pcov = curve_fit(gaussian, edc_gamma.loc[{"E":slice(e1,e2)}].E.values, edc_i, p0, method=None, bounds = bnds)
     except ValueError:
         popt = [0,0,0,0]
         
     centers_VBM[t] = popt[1]
-    p_fits_VBM[t,:] = popt 
-
-# VBM FIT TESTS
-t = 6
-gauss_test = gaussian(edc_gamma.E.values, *p_fits_VBM[t,:])
+    p_fits_VBM[t,:] = popt
+    perr = np.sqrt(np.diag(pcov))
+    p_err_VBM[t,:] = perr[1:2+1]
 
 # #ax[1].plot(edc_gamma.E.values, edc_gamma[:,t].values/edc_gamma.loc[{"E":slice(e1,e2)}][:,t].values.max(), color = 'pink')
 # ax[1].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey')
@@ -612,7 +758,7 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg', dpi = 300)
 
-#%%
+#%% Fit VBM
 
 figure_file_name = 'EDC_metis_fits'
 save_figure = True
@@ -621,29 +767,39 @@ fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
+# VBM FIT TESTS FOR ONE POINT
 t = 9
+gauss_test = gaussian(edc_gamma.E.values, *p_fits_VBM[t,:])
 ax[0].plot(edc_gamma.E.values, edc_gamma[:,t].values/edc_gamma.loc[{"E":slice(e1,e2)}][:,t].values.max(), color = 'black')
 ax[0].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey')
 #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
 ax[0].set_xlim([-2,1.5])
 ax[0].set_xlabel('E - E$_{VBM}$, eV')
 ax[0].set_ylabel('Norm. Int.')
-#ax[0].axvline(e1, linestyle = 'dashed', color = 'black')
+#ax[0].axvline(0, linestyle = 'dashed', color = 'grey')
 #ax[0].axvline(e2, linestyle = 'dashed', color = 'black')
 
 # PLOT VBM SHIFT DYNAMICS
-#fig = plt.figure()
-ax[1].plot(edc_gamma.delay.values, 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean()), color = 'navy')
+
+t = 39 # Show only after 50 (?) fs
+y_vb, y_vb_err = 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean()), 1000*p_err_VBM[:,0]
+y_vb_w, y_vb_w_err = 1000*(p_fits_VBM[:,2]),  1000*p_err_VBM[:,1]
+
+ax[1].plot(I.delay.values, y_vb, color = 'navy', label = '$\Delta E_{VBM}$')
+ax[1].fill_between(I.delay.values, y_vb - y_vb_err, y_vb + y_vb_err, color = 'navy', alpha = 0.5)
+
 ax[1].set_xlim([edc_gamma.delay.values[1], edc_gamma.delay.values[-1]])
 ax[1].set_ylim([-30,20])
 ax[1].set_xlabel('Delay, fs')
 ax[1].set_ylabel('$\Delta E_{VBM}$, meV', color = 'navy')
-
+ax[1].legend(frameon=False)
 
 # PLOT VBM PEAK WIDTH DYNAMICS
 ax2 = ax[1].twinx()
-ax2.plot(edc_gamma.delay.values, 1000*(p_fits_VBM[:,2] - 0*p_fits_VBM[0:10,2].mean()), color = 'maroon')
-#ax2.set_ylim([-75,50])
+ax2.plot(I.delay.values, y_vb_w, color = 'maroon', label = '$\sigma_{VBM}$')
+ax2.fill_between(I.delay.values, y_vb_w - y_vb_w_err, y_vb_w + y_vb_w_err, color = 'maroon', alpha = 0.5)
+ax2.set_ylim([150,250])
+ax2.legend(frameon=False, loc = 'upper left')
 ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
 
 fig.tight_layout()
