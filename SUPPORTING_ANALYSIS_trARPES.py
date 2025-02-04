@@ -75,6 +75,15 @@ plt.xlim([350,1000])
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
+    
+#%% Power Calilbration
+
+percentage = np.asarray([28.84, 19.95, 15.85, 12.58, 10, 7.94, 3.898, 1.99, 1.58, 0.9])
+power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
+
+fig = plt.figure()
+plt.plot(percentage, power, 'o')
+
 #%%
 
 %matplotlib inline
@@ -121,7 +130,7 @@ plt.plot(energy, imag_, color = 'red', label = 'Imaginary')
 plt.plot(energy, real_, color = 'blue', label = 'Real')
 plt.ylabel('Int')
 plt.xlabel('Energy (eV)')
-plt.xlim([1.3,2.25])
+plt.xlim([1.25,2.25])
 plt.ylim([-30,90])
 plt.title('Calculating Absorption')
 plt.legend(frameon=False)
@@ -138,7 +147,7 @@ plt.legend(frameon=False)
 
 ### Define experimental pump parameters
 lam = 915
-average_power = 75 #mW
+average_power = 116.6 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000

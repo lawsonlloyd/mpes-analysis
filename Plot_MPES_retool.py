@@ -33,6 +33,7 @@ data_path = '/Users/lawsonlloyd/Desktop/Data/'
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
+#filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
 
 #filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 
@@ -180,7 +181,6 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot):
                 
 #%%
 
-
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
 def custom_colormap(CMAP, lower_portion_percentage):
     # create a colormap that consists of
@@ -213,18 +213,19 @@ cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [1.35, 2.1], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [200, 200], 100 #Integration range for delays
+E, E_int = [0.2, 1.3, 2.05], 0.1 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [0, 0, 0], 50 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
-figure_file_name = f'MM_delays_1' 
+figure_file_name = f'MM_delays_3' 
 save_figure = True
 
 #cmap_plot = viridis_white
 cmap_plot = cmap_LTL
+#cmap_plot = 'turbo'
 
 fig = plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
 

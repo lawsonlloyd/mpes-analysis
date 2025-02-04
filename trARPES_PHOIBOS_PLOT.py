@@ -50,6 +50,22 @@ def load_data(scan, energy_offset, delay_offset):
 
 #%%
 
+# Fucntion for Extracting time Traces
+def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
+        
+    
+    trace = res.loc[{"Energy":slice(E-E_int/2, E+E_int/2), "Angle":slice(k-k_int/2, k+k_int/2)}].sum(dim=("Energy","Angle"))
+
+    if subtract_neg is True : 
+        trace = trace - np.mean(trace.loc[{"Delay":slice(-1000,-300)}])
+    
+    if norm_trace is True : 
+        trace = trace/np.max(trace)
+    
+    return trace
+
+#%%
+
 phoibos = True
 
 data_path = 'path_to_your_data'
@@ -144,7 +160,7 @@ plt.plot(energy, edc, color = 'grey')
 plt.plot(energy, fit, color = 'green', linestyle = 'dashed')
 plt.title(f"E0 = {round(popt[1],3)}")
 plt.xlim(-1,2)
-#%% # PLOT THREE PANEL DIFFERENCE
+#%% # PLOT THREE PANEL DIFFERENCE SPECTRA
 
 delays = [0,3000]
 
@@ -218,7 +234,7 @@ axx[2].set_xlim(-500,3000)
 fig.tight_layout()
 plt.show()
 
-#%% # PLOT THREE PANEL DIFFERENCE
+#%% # PLOT THREE PANEL DIFFERENCE arpes at different Delays
 
 def make_diff_ARPES(res, delays, E_inset):
 
@@ -265,7 +281,7 @@ for i in np.arange(len(ts)):
 fig.tight_layout()
 plt.show()
 
-#%% # PLOT THREE PANEL DIFFERENCE
+#%% # Plot Panels
 
 %matplotlib inline
 
@@ -297,7 +313,68 @@ plt.show()
 ############
 #%%
 
+#%% # PLOT TIME TRACES
 
+save_figure = True
+figure_file_name = 'phoibosfluencetraces'
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(12, 4, forward=False)
+axx = axx.flatten()
+
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
+fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
+
+k, k_int = (0), 24
+E1, E2, E3, E_int = 1.37, 2.1, 0.1, 0.1
+subtract_neg = True
+norm_trace = False
+
+cn = 100
+p_min = .1
+p_max = 3.5
+
+colors2 = plt.cm.Reds(np.linspace(p_min, 3.5, cn))
+cm = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Reds)
+
+colors1 = plt.cm.bone_r(np.linspace(p_min, 3.5, cn)) 
+cm2 = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.bone_r)
+
+fluence_cbar = np.linspace(p_min, p_max, cn)
+
+i = 0
+for scan_i in scans:
+    
+    res = load_data(scan_i, energy_offset, delay_offset)
+    trace_1 = get_time_trace(res, E1, E_int, k , k_int, subtract_neg, norm_trace)
+    trace_2 = get_time_trace(res, E2, E_int, k , k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_1)
+    trace_1 = trace_1/np.max(trace_1)
+
+    j_fluence = (np.abs(fluence_cbar-fluence[i])).argmin()
+
+    t1 = trace_1.plot(ax = axx[0], color = colors1[j_fluence])
+    t2 = trace_2.plot(ax = axx[1], color = colors2[j_fluence])
+    
+    i += 1
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylabel('Int., a.u.')
+cbar = plt.colorbar(cm, ax=axx[1])
+cbar.set_label('Fluence', rotation=90, fontsize=22)
+cbar.ax.tick_params(labelsize=20)
+
+cbar = plt.colorbar(cm2, ax=axx[0])
+cbar.set_label('Fluence', rotation=90, fontsize=22)
+cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+    
 #%%
 
 def func(x, a, b, tau1, tau2):
@@ -789,6 +866,7 @@ ax = ax.flatten()
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 offset = np.linspace(0,100,6)
 i = 0
+(kx), k_int = (-3), 4
 
 for scan_i in scans:
     res = load_data(scan_i, energy_offset, delay_offset)
@@ -799,6 +877,140 @@ for scan_i in scans:
     plot_band_dynamics(ax)
     i += 1
     
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+
+
+#%%
+
+def fit_vbm_int(res, k, k_int):
+    e1 = -.2
+    e2 = 0.6
+    p0 = [1, 0, .2, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
+    
+    (kx), k_int = k, k_int
+    edc_gamma = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Delay":slice(0,3000)}].sum(dim=("Angle", "Delay"))
+    edc_gamma = edc_gamma/np.max(edc_gamma)
+    
+    edc_i = edc_gamma.loc[{"Energy":slice(e1,e2)}].values
+    edc_i = edc_i/np.max(edc_i)
+    
+    try:
+        popt, pcov = curve_fit(gaussian, edc_gamma.loc[{"Energy":slice(e1,e2)}].Energy.values, edc_i, p0, method=None, bounds = bnds)
+    except ValueError:
+        print('oops')
+        popt = [0,0,0,0]
+        
+    centers_VBM_i = popt[1]
+    p_fits_VBM_i = popt
+    perr = np.sqrt(np.diag(pcov))
+    p_err_VBM_i = perr[1:2+1]
+        
+    return centers_VBM_i, p_fits_VBM_i, p_err_VBM_i
+
+##### CBM AND EXCITON #####
+
+def fit_ex_cbm_int(res):
+    delay_int = 50
+    e1 = 1.1
+    e2 = 3
+    p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
+    
+    centers_CBM = np.zeros(len(res.Delay))
+    centers_EX = np.zeros(len(res.Delay))
+    Ebs = np.zeros(len(res.Delay))
+    
+    p_fits_excited = np.zeros((len(res.Delay),7))
+    p_err_excited = np.zeros((len(res.Delay),7))
+    p_err_eb = np.zeros((len(res.Delay)))
+
+    #kx_frame = res.loc[{"Delay":slice(res.Delay.values[t]-delay_int/2, res.Delay.values[t]+delay_int/2)}].mean(dim="Delay")
+    kx_frame = res - res.loc[{"Delay":slice(-1000,-150)}].mean(dim="Delay")
+
+    kx_frame = kx_frame.loc[{"Delay":slice(0,3000)}].mean(dim="Delay")
+    kx_edc_i = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
+    kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"Energy":slice(0.8,3)}])
+    
+    try:
+        popt, pcov = curve_fit(two_gaussians, kx_edc_i.loc[{"Energy":slice(e1,e2)}].Energy.values, kx_edc_i.loc[{"Energy":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+    except ValueError:
+        print('Oops!')
+        popt = [0,0,0,0]
+   
+    centers_EX_i = popt[2]
+    centers_CBM_i = popt[3]
+    Eb = round(popt[3] - popt[2],3)
+    Ebs_i = Eb
+    perr = np.sqrt(np.diag(pcov))
+    p_fits_excited_i = popt
+    
+    p_err_excited_i = perr[2:3+1] 
+    p_err_eb_i = np.sqrt(perr[3]**2+perr[2]**2)
+        
+    return centers_EX_i, centers_CBM_i, Ebs_i, p_fits_excited_i, p_err_excited_i, p_err_eb_i
+
+
+#%%
+save_figure = True
+figure_file_name = 'phoibos_power_fits2'
+
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+offset = np.linspace(0,100,6)
+i = 0
+(kx), k_int = (-3), 4
+
+centers_VBM, p_fits_VBM, p_err_VBM = [], [], []
+centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = [], [], [], [], [], []
+
+for scan_i in scans:
+    res = load_data(scan_i, energy_offset, delay_offset)
+    
+    centers_VBM_i, p_fits_VBM_i, p_err_VBM_i = fit_vbm_int(res, kx, 4)
+    centers_EX_i, centers_CBM_i, Ebs_i, p_fits_excited_i, p_err_excited_i, p_err_eb_i = fit_ex_cbm_int(res)
+    
+    i += 1
+    
+    centers_VBM.append(centers_VBM_i)
+    p_fits_VBM.append(p_fits_VBM_i)
+    p_err_VBM.append(p_err_VBM_i)
+    
+    centers_EX.append(centers_EX_i)
+    centers_CBM.append(centers_CBM_i)
+    Ebs.append(Ebs_i)
+    p_fits_excited.append(p_fits_excited_i)
+    p_err_excited.append(p_err_excited_i)
+    p_err_eb.append(p_err_eb_i)
+    
+p_err_eb = np.asarray(p_err_eb)
+p_err_excited = np.asarray(p_err_excited)
+p_err_VBM = np.asarray(p_err_VBM)
+
+#%%
+fig, ax = plt.subplots(1, 2)
+fig.set_size_inches(12, 4, forward=False)
+ax = ax.flatten()
+
+y1, y_vb_err = 1000*(centers_VBM - centers_VBM[0]), 1000*p_err_VBM[:,0]
+y2, y_ex_err = 1000*(centers_EX - centers_EX[0]), 1000*p_err_excited[:,0]
+y3, y_cb_err = 1000*(centers_CBM - centers_CBM[0]), 1000*p_err_excited[:,1]
+y4, y_eb_err = 1000*(Ebs - Ebs[0]), 1000*p_err_eb
+
+colors = ['grey', 'black', 'red']
+i = 0
+#ax[0].plot(y1, color = 'grey')
+ax[0].errorbar(x = range(0,6), y = y1, yerr = y_vb_err, marker = 'o', color = 'grey', label = 'VBM')
+ax[0].errorbar(x = range(0,6), y = y2, yerr = y_ex_err, marker = 'o', color = 'black', label = 'ex')
+ax[0].errorbar(x = range(0,6), y = y3, yerr = y_cb_err, marker = 'o', color = 'red', label = 'CBM')
+ax[0].axhline(0, color = 'grey', linestyle = 'dashed')
+#ax[0].fill_between(y1 - y_vb_err, y1 + y_vb_err, color = colors[i], alpha = 0.5)
+
+ax[1].errorbar(x = range(0,6), y = y4, yerr = y_eb_err, marker = 'o', color = 'purple', label = '$E_{b}$')
+ax[1].axhline(0, color = 'grey', linestyle = 'dashed')
+
 fig.tight_layout()
 
 if save_figure is True:
