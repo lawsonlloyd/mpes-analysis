@@ -213,15 +213,15 @@ cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [0.2, 1.3, 2.05], 0.1 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [0, 0, 0], 50 #Integration range for delays
+E, E_int = [2, 2.5, 3.5], 0.5 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [500, 500, 250], 1000 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
 figure_file_name = f'MM_delays_3' 
-save_figure = True
+save_figure = False
 
 #cmap_plot = viridis_white
 cmap_plot = cmap_LTL
@@ -238,8 +238,8 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [1.35, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
-k, k_int = (0, 0), (4, .4) # Central (kx, ky) point and k-integration
+E_trace, E_int = [1.35, 2.6], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+k, k_int = (0, 0), (4, 2) # Central (kx, ky) point and k-integration
 
 colors = ['black', 'red'] #colors for plotting the traces
 

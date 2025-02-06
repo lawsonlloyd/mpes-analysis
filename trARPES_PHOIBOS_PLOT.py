@@ -64,6 +64,42 @@ def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
     
     return trace
 
+def make_diff_ARPES(res, delays, E_inset):
+
+    res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+    res_pos = res.loc[{'Delay':slice(0,5000)}]
+    
+    res_neg_mean = res_neg.mean(axis=2)
+    res_pos_mean = res_pos.mean(axis=2)
+    
+    #res_diff_E_Ang = res_pos_mean - res_neg_mean
+    res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+    res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
+    
+    d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])
+    d2 = (res_diff_E_Ang.loc[{'Energy':slice(E_inset,3)}])
+    d2 = d2/np.max(abs(d2))
+    d3 = xr.concat([d1, d2], dim = "Energy")
+    res_diff_sum_Angle_Normed = d3
+
+    return res_diff_sum_Angle_Normed
+
+def enhance_features(I_res, Ein, factor, norm):
+    
+    I1 = I_res.loc[{"Energy":slice(-3.5,Ein)}]
+    I2 = I_res.loc[{"Energy":slice(Ein,3.5)}]
+
+    if norm is True:
+        I1 = I1/np.max(I1)
+        I2 = I2/np.max(I2)
+    else:
+        I1 = I1/factor[0]
+        I2 = I2/factor[1]
+        
+    I3 = xr.concat([I1, I2], dim = "Energy")
+    
+    return I3
+
 #%%
 
 phoibos = True
@@ -236,30 +272,6 @@ plt.show()
 
 #%% # PLOT THREE PANEL DIFFERENCE arpes at different Delays
 
-def make_diff_ARPES(res, delays, E_inset):
-
-    res_neg = res.loc[{'Delay':slice(-1000,-300)}]
-    res_pos = res.loc[{'Delay':slice(0,5000)}]
-    
-    res_neg_mean = res_neg.mean(axis=2)
-    res_pos_mean = res_pos.mean(axis=2)
-    
-    #res_diff_E_Ang = res_pos_mean - res_neg_mean
-    res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
-    res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
-    
-    d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])
-    d2 = (res_diff_E_Ang.loc[{'Energy':slice(E_inset,3)}])
-    d2 = d2/np.max(abs(d2))
-    d3 = xr.concat([d1, d2], dim = "Energy")
-    res_diff_sum_Angle_Normed = d3
-
-    return res_diff_sum_Angle_Normed
-
-############
-### PLOT ###
-############
-
 fig, axx = plt.subplots(1, 3)
 fig.set_size_inches(12, 4, forward=False)
 plt.gcf().set_dpi(200)
@@ -287,7 +299,7 @@ plt.show()
 
 E1, E2, Eint = 1.375, 2.125, 0.1
 
-colormap = 'terrain_r'
+colormap = 'Purples' #'bone_r'
 
 fig, axx = plt.subplots(1, 3)
 fig.set_size_inches(8, 3, forward=False)
@@ -295,27 +307,87 @@ plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
 E_inset = 0.75
-im1 = res_neg_mean.T.plot(ax = axx[0], cmap = colormap)
-im2 = res_pos_mean.T.plot(ax = axx[1], cmap = colormap)
-#im3 = (res_diff_angle).T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
-d1 = (res_diff_angle.loc[{'Energy':slice(-1,E_inset)}])
-d2 = (res_diff_angle.loc[{'Energy':slice(E_inset,3)}])
-d2 = d2/np.max(np.abs(d2))
-d3 = xr.concat([d1, d2], dim = "Energy")
-d3.T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
+
+neg_enh = enhance_features(res_neg_mean, E_inset, 1, True)
+pos_enh = enhance_features(res_pos_mean, E_inset, 1, True)
+diff_enh = enhance_features(res_diff_sum_Angle_Normed, E_inset, 1, True) 
+
+im1 = neg_enh.T.plot(ax = axx[0], cmap = colormap)
+im2 = pos_enh.T.plot(ax = axx[1], cmap = colormap)
+diff_enh.T.plot(ax = axx[2], cmap = 'seismic', vmin = -1, vmax = 1)
+
 axx[2].axhline(E_inset, color = 'black', linewidth = 1)
 axx[2].set_title(f"Scan{scan}")
 
 fig.tight_layout()
 plt.show()
-
-############
-############
 #%%
 
-#%% # PLOT TIME TRACES
+#%% # PLOT Fluence Delay TRACES All Together
 
 save_figure = True
+figure_file_name = 'Combined'
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(12, 4, forward=False)
+axx = axx.flatten()
+
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
+fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
+
+k, k_int = (0), 24
+E1, E2, E3, E_int = 1.75, 2.1, 0.1, 1
+subtract_neg = True
+norm_trace = False
+
+cn = 100
+p_min = .1
+p_max = 3.5
+
+colors1 = plt.cm.Purples(np.linspace(p_min, 3.5, cn)) 
+cm2 = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Purples)
+
+colors2 = plt.cm.Reds(np.linspace(p_min, 3.5, cn))
+cm = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Reds)
+
+fluence_cbar = np.linspace(p_min, p_max, cn)
+
+i = 0
+for scan_i in scans:
+    
+    res = load_data(scan_i, energy_offset, delay_offset)
+    trace_1 = get_time_trace(res, E1, E_int, k , k_int, subtract_neg, norm_trace)
+    trace_2 = get_time_trace(res, E2, E_int, k , k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_1)
+    trace_1 = trace_1/np.max(trace_1)
+
+    j_fluence = (np.abs(fluence_cbar-fluence[i])).argmin()
+
+    t1 = trace_1.plot(ax = axx[0], color = colors1[j_fluence])
+    t2 = trace_2.plot(ax = axx[1], color = colors2[j_fluence])
+    
+    i += 1
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylabel('Int., a.u.')
+cbar = plt.colorbar(cm, ax=axx[1])
+cbar.set_label('Fluence', rotation=90, fontsize=22)
+cbar.ax.tick_params(labelsize=20)
+
+cbar = plt.colorbar(cm2, ax=axx[0])
+cbar.set_label('Fluence', rotation=90, fontsize=22)
+cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+    
+#%% # PLOT Fluence Delay TRACES All Together
+
+save_figure = False
 figure_file_name = 'phoibosfluencetraces'
 
 fig, axx = plt.subplots(1, 2)
@@ -374,6 +446,7 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
+    
     
 #%%
 
