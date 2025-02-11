@@ -17,7 +17,7 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -148,8 +148,13 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot):
     for i in np.arange(len(E)):
             
         frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
+        frame_neg = get_momentum_map(I, E[i], E_int, -140, 50)
+        #frame = frame - frame_neg
         
-        im = frame.plot.imshow(ax = ax[i], clim = None, cmap = cmap_plot, add_colorbar=False)
+        f_norm = np.max(frame)
+        frame = frame/f_norm
+        
+        im = frame.plot.imshow(ax = ax[i], clim = None, vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
         ax[i].set_aspect(1)        
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(-2,2)
@@ -213,15 +218,15 @@ cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [2, 2.5, 3.5], 0.5 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [500, 500, 250], 1000 #Integration range for delays
+E, E_int = [1.35, 1.35, 1.35], 0.20 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [0, 100, 250], 30 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
-figure_file_name = f'MM_delays_3' 
-save_figure = False
+figure_file_name = f'MM_delays_ex' 
+save_figure = True
 
 #cmap_plot = viridis_white
 cmap_plot = cmap_LTL

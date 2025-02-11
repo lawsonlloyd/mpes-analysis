@@ -24,6 +24,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data'
+data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
 with open(data_path + '//' + filename) as f:
     
@@ -53,11 +54,10 @@ def load_data(scan, energy_offset, delay_offset):
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
         
-    
     trace = res.loc[{"Energy":slice(E-E_int/2, E+E_int/2), "Angle":slice(k-k_int/2, k+k_int/2)}].sum(dim=("Energy","Angle"))
 
     if subtract_neg is True : 
-        trace = trace - np.mean(trace.loc[{"Delay":slice(-1000,-300)}])
+        trace = trace - np.mean(trace.loc[{"Delay":slice(-1000,-350)}])
     
     if norm_trace is True : 
         trace = trace/np.max(trace)
@@ -100,17 +100,47 @@ def enhance_features(I_res, Ein, factor, norm):
     
     return I3
 
+def gaussian(x, amp_1, mean_1, stddev_1, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
+    
+    return g1
+
+def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
+    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
+    
+    g = g1 + g2 + np.abs(offset)
+    return g
+
+def two_gaussians_report(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
+    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
+    
+    g = g1 + g2 + offset
+    return g, g1, g2, offset
+
+def objective(params, x, data):
+    
+    g1, g2, offset = two_gaussians(x, **params)
+    fit = g1+g2+offset
+    resid = np.abs(data-fit)**2
+    
+    return resid
+
 #%%
 
 phoibos = True
 
-data_path = 'path_to_your_data'
-filename = 'your_file_name.h5'
+#data_path = 'path_to_your_data'
+#filename = 'your_file_name.h5'
 
-data_path = 'R:\Lawson\Data\phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9216
+scan = 9410
 energy_offset = + 19.72
 delay_offset = -80
 
@@ -120,8 +150,8 @@ res = load_data(scan, energy_offset, delay_offset)
 
 %matplotlib inline
 
-E1, E2, E3 = 1.37, 2.1, 0.1
-A1, A2 = -10, -8
+E1, E2, E_int = 1.35, 2.05, 0.1
+A1, A2 = -12, -10
 d1, d2 = -1000, -400
 d3, d4 = 0, 200
 
@@ -167,8 +197,8 @@ axx[2].set_xlim(-1,2.75)
 axx[2].set_ylabel('Int.')
 axx[2].set_title('EDCs: Norm. to Neg.')
 
-im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint/2, E1+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'black')
-im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint/2, E2+Eint/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'red')
+im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-E_int/2, E1+E_int/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'black')
+im4 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-E_int/2, E2+E_int/2)}].sum(axis=(0,1)).plot(ax = axx[3], color = 'red')
 axx[3].axvline(0, color = 'grey', linestyle = 'dashed')
 
 params = {'lines.linewidth' : 2, 'axes.linewidth' : 1.5, 'axes.labelsize' : 16, 
@@ -179,7 +209,6 @@ fig.tight_layout()
 plt.show()
 
 #fig.savefig('Scan' + str(scan_to_plot) + '.svg')
-
 
 #%%
 
@@ -196,10 +225,17 @@ plt.plot(energy, edc, color = 'grey')
 plt.plot(energy, fit, color = 'green', linestyle = 'dashed')
 plt.title(f"E0 = {round(popt[1],3)}")
 plt.xlim(-1,2)
+
 #%% # PLOT THREE PANEL DIFFERENCE SPECTRA
 
-delays = [0,3000]
+save_figure = True
+figure_file_name = 'DIFFERENCE_PANELS3'
 
+delays = [0,3000]
+E1, E2, E_int = 1.35, 2.05, 0.1
+A, A_int = 0, 20
+
+colormap = 'terrain_r'
 res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
 
@@ -215,20 +251,16 @@ res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - re
 res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
 
 E_inset = 0.75
-d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])
-d2 = (res_diff_E_Ang.loc[{'Energy':slice(E_inset,3)}])
-d2 = d2/np.max(abs(d2))
-d3 = xr.concat([d1, d2], dim = "Energy")
-res_diff_sum_Angle_Normed = d3
 
 res_diff = res - res_neg.mean(axis=2)
-res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-12,12)}].sum(axis=0)
+res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
 res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
 
-trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-Eint/2, E1+Eint/2)}].sum(axis=(0,1))
-trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E2-Eint/2, E2+Eint/2)}].sum(axis=(0,1))
-trace_1 = trace_1 - trace_1.loc[{'Delay':slice(-1000,-350)}].mean()
-trace_2 = trace_2 - trace_2.loc[{'Delay':slice(-1000,-350)}].mean()
+res_diff_sum_Angle_Normed = enhance_features(res_diff_E_Ang, E_inset, _ , True)
+res_diff_sum_Angle = enhance_features(res_diff_sum_Angle, E_inset, _ , True)
+
+trace_1 = get_time_trace(res, E1, E_int, A, A_int, True, True)
+trace_2 = get_time_trace(res, E2, E_int, A, A_int, True, True)
 
 trace_2 = trace_2/trace_1.max()
 trace_1 = trace_1/trace_1.max()
@@ -253,12 +285,15 @@ im3 = trace_2.plot(ax = axx[2], color = 'red')
   #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
 
 axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
-axx[1].axhline(E1,  color = 'black')
-axx[1].axhline(E2,  color = 'red')
 axx[0].set_title(f"I({delays[0]}:{delays[1]} fs) - I(<-300 fs)")
 axx[0].set_ylim(-1,3)
-axx[1].set_ylim(-1,3)
-axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
+
+axx[1].axhline(E1,  color = 'black')
+axx[1].axhline(E2,  color = 'red')
+axx[1].set_ylim(-0,2.5)
+axx[1].set_xlim(-200, 3000)
+#axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
+axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 
 #axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
 axx[1].set_title(f"Scan{scan}. Angle-Integr.")
@@ -268,7 +303,11 @@ axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
 axx[2].set_xlim(-500,3000)
 
 fig.tight_layout()
-plt.show()
+#plt.show()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+    
 
 #%% # PLOT THREE PANEL DIFFERENCE arpes at different Delays
 
@@ -293,11 +332,11 @@ for i in np.arange(len(ts)):
 fig.tight_layout()
 plt.show()
 
-#%% # Plot Panels
+#%% Plot Panels
 
 %matplotlib inline
 
-E1, E2, Eint = 1.375, 2.125, 0.1
+E1, E2, E_int = 1.375, 2.125, 0.1
 
 colormap = 'Purples' #'bone_r'
 
@@ -306,11 +345,11 @@ fig.set_size_inches(8, 3, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-E_inset = 0.75
+E_inset = 1
 
 neg_enh = enhance_features(res_neg_mean, E_inset, 1, True)
 pos_enh = enhance_features(res_pos_mean, E_inset, 1, True)
-diff_enh = enhance_features(res_diff_sum_Angle_Normed, E_inset, 1, True) 
+diff_enh = enhance_features(res_diff_E_Ang, E_inset, 1, True) 
 
 im1 = neg_enh.T.plot(ax = axx[0], cmap = colormap)
 im2 = pos_enh.T.plot(ax = axx[1], cmap = colormap)
@@ -321,7 +360,6 @@ axx[2].set_title(f"Scan{scan}")
 
 fig.tight_layout()
 plt.show()
-#%%
 
 #%% # PLOT Fluence Delay TRACES All Together
 
@@ -481,41 +519,6 @@ plt.rcParams.update(new_rc_params)
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
-
-#%%
-
-def gaussian(x, amp_1, mean_1, stddev_1, offset):
-    
-    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
-    
-    return g1
-
-def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
-    
-    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
-    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
-    
-    g = g1 + g2 + np.abs(offset)
-    return g
-
-def two_gaussians_report(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
-    
-    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
-    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
-    
-    g = g1 + g2 + offset
-    return g, g1, g2, offset
-
-def objective(params, x, data):
-    
-    g1, g2, offset = two_gaussians(x, **params)
-    fit = g1+g2+offset
-    resid = np.abs(data-fit)**2
-    
-    return resid
-
-
-
 #%% Do the EDC Fits: Functions
 
 ###################
@@ -604,7 +607,7 @@ def fit_ex_cbm_dynamics(res, delay_int):
 
 res = load_data(scan, energy_offset, delay_offset)
 
-centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, kx, 4)
+centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, -3, 4)
 
 centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = fit_ex_cbm_dynamics(res, delay_int)
 
@@ -870,36 +873,40 @@ if save_figure is True:
 
 def plot_band_dynamics(ax):
 
-    # PLOT VBM SHIFT DYNAMICS
-    y_vb, y_vb_err = 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean())+offset[i], 1000*(p_err_VBM[:,0])
+    M, F = 0, 0
+    t = 1
+    tt = 1
+    
+    y_vb, y_vb_err = 1000*(p_fits_VBM[:,1] - 1*p_fits_VBM[0:7,1].mean())+F*offset[i], 1000*(p_err_VBM[:,0])
     y_vb_w, y_vb_w_err = 1000*(p_fits_VBM[:,2]),  1000*p_err_VBM[:,1]
     
+    y_ex, y_ex_err = 1*(centers_EX[t:] - M*1*centers_EX[-4:].mean())+F*0.01*offset[i], 1*p_err_excited[t:,2]
+    y_cb, y_cb_err = 1*(centers_CBM[tt:] - M*1*centers_CBM[-4:].mean())+F*0.01*offset[i],  1*p_err_excited[tt:,3]
+    
+    y_eb =  1000*Ebs[:] - M*1000*Ebs[-4:].mean() + F*7.5*offset[i]
+    y_eb_err = 1000*p_err_eb[:]
+    
+    #########################
+    # PLOT VBM SHIFT DYNAMICS
     colors = ['black', 'blue', 'purple', 'green', 'orange', 'red']
     #colors = mpl.cm.jet(np.linspace(0,.9,len(scans)))
-
     ax[0].plot(res.Delay.values, y_vb, color = colors[i], label = '$\Delta E_{VBM}$')
     ax[0].fill_between(res.Delay.values, y_vb - y_vb_err, y_vb + y_vb_err, color = colors[i], alpha = 0.5)
-    ax[0].axhline(offset[i], color = 'grey', linestyle = 'dashed')
+    #ax[0].axhline(offset[i], color = 'grey', linestyle = 'dashed')
     ax[0].set_xlim([-20, edc_gamma.Delay.values[-1]])
-    ax[0].set_ylim([-20,115])
+    ax[0].set_ylim([-30,20])
     ax[0].set_xlabel('Delay, fs')
     ax[0].set_ylabel('$\Delta E_{VBM}$, meV', color = 'navy')
     #ax[0].legend(frameon=False)
     
     # PLOT CBM and EX SHIFT DYNAMICS
-    t = 1
-    tt = 1
-    y_ex, y_ex_err = 1*(centers_EX[t:] - 1*centers_EX[-4:].mean())+0.01*offset[i], 1*p_err_excited[t:,2]
-    y_cb, y_cb_err = 1*(centers_CBM[tt:]- 1*centers_CBM[-4:].mean())+0.01*offset[i],  1*p_err_excited[tt:,3]
-    
     #colors = mpl.cm.jet(np.linspace(0,.9,len(scans)))
-
     ax[1].plot(res.Delay.values[t:], y_ex, color = colors[i], label = 'EX')
     ax[1].fill_between(res.Delay.values[t:], y_ex - y_ex_err, y_ex + y_ex_err, color = colors[i], alpha = 0.5)
-    ax[1].axhline(0.01*offset[i], color = 'grey', linestyle = 'dashed')
+    #ax[1].axhline(0.01*offset[i], color = 'grey', linestyle = 'dashed')
     ax[1].set_xlim([-20, edc_gamma.Delay.values[-1]])
     #ax[1].set_ylim([1.1,2.3])
-    ax[1].set_ylim([-0.2,1.2])
+    ax[1].set_ylim([1.225,1.425])
     ax[1].set_xlabel('Delay, fs')
     ax[1].set_ylabel('$E_{EX}$, eV', color = 'black')
 
@@ -907,8 +914,8 @@ def plot_band_dynamics(ax):
 #    ax2 = ax[1].twinx()
     ax[2].plot(res.Delay.values[tt:], y_cb, color = colors[i], label = 'CBM')
     ax[2].fill_between(res.Delay.values[tt:], y_cb - y_cb_err, y_cb + y_cb_err, color = colors[i], alpha = 0.5)
-    ax[2].axhline(0.01*offset[i], color = 'grey', linestyle = 'dashed')
-    ax[2].set_ylim([-0.2,1.2])
+    #ax[2].axhline(0.01*offset[i], color = 'grey', linestyle = 'dashed')
+    ax[2].set_ylim([1.95,2.2])
     ax[2].set_xlim([-20, edc_gamma.Delay.values[-1]])
     ax[2].set_ylabel('$E_{CBM}$, eV', color = 'red')
     #ax[1].set_title(f"From {round(res.Delay.values[t])} fs")
@@ -916,12 +923,11 @@ def plot_band_dynamics(ax):
     #ax2.legend(frameon=False, loc = 'upper left' )
     
    # colors = mpl.cm.jet(np.linspace(0,.9,len(scans)))
-    y_eb =  1000*Ebs[:] - 1000*Ebs[-4:].mean() + 7.5*offset[i]
     ax[3].plot(res.Delay.values[:], y_eb, color = colors[i], label = '$E_{B}$')
-    ax[3].fill_between(res.Delay.values[:], y_eb - 1000*p_err_eb[:], y_eb + 1000*p_err_eb[:], color = colors[i], alpha = 0.5)
-    ax[3].axhline(7.5*offset[i], color = 'grey', linestyle = 'dashed')
+    ax[3].fill_between(res.Delay.values[:], y_eb - y_eb_err, y_eb + y_eb_err, color = colors[i], alpha = 0.5)
+    #ax[3].axhline(7.5*offset[i], color = 'grey', linestyle = 'dashed')
     ax[3].set_xlim([-20, edc_gamma.Delay.values[-1]])
-    ax[3].set_ylim([-150,850])
+    ax[3].set_ylim([600,900])
     ax[3].set_xlabel('Delay, fs')
     ax[3].set_ylabel('$E_{B}$, meV', color = 'black')
     #ax[2].legend(frameon=False)
@@ -929,17 +935,21 @@ def plot_band_dynamics(ax):
 
 #%%
 
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+offset = np.linspace(0,100,6)
+energy_offset = + 19.72
+delay_offset = -80
+i = 0
+(kx), k_int = (-3), 4
+
+peaks_dynamics = np.zeros((6,4,76))
+
 save_figure = True
-figure_file_name = 'phoibos_power_fits'
+figure_file_name = 'phoibos_power_fits2'
 
 fig, ax = plt.subplots(2, 2)
 fig.set_size_inches(12, 8, forward=False)
 ax = ax.flatten()
-
-scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offset = np.linspace(0,100,6)
-i = 0
-(kx), k_int = (-3), 4
 
 for scan_i in scans:
     res = load_data(scan_i, energy_offset, delay_offset)
@@ -947,14 +957,19 @@ for scan_i in scans:
     centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, kx, 4)
     centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = fit_ex_cbm_dynamics(res, delay_int)
     
-    plot_band_dynamics(ax)
-    i += 1
+    # peaks_dynamics[i,0,:] = centers_VBM
+    # peaks_dynamics[i,1,:] = centers_EX
+    # peaks_dynamics[i,2,:] = centers_CBM
+    # peaks_dynamics[i,3,:] = Ebs
     
+    plot_band_dynamics(ax)
+
+    i += 1
+
 fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
-
 
 #%%
 
