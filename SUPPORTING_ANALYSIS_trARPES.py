@@ -20,12 +20,12 @@ from scipy.optimize import curve_fit
 
 %matplotlib inline
 
-save_figure = False
+save_figure = True
 figure_file_name = 'pump_spectra'
 
 #data = np.loadtxt("920nm_51fsFROG_.txt", skiprows = 1)
 
-ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
+#ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
 ds915 = "OPA_pump_spectrum_910nm_DATA_2.txt"
 ds800 = "800nm_opa_pumpspectrum_070624.txt"
 ds700 = "700nm_opa_pumpspectrum_24042024.txt"
@@ -33,10 +33,10 @@ ds680 = "680nm_opa_pumpspectrum_24042024.txt"
 ds640 = "640nm_opa_pumpspectrum_24042024.txt"
 ds400 = "400nm_opa_pumpspectrum_2904_directonSpectrometer_2.txt"
 
-data_string = [ds910, ds800, ds700, ds640, ds400]
+data_string = [ds915, ds800, ds700, ds640, ds400]
 pump_WLs = [915, 800, 700, 640, 400]
 
-pump_colors = ['black', 'red', 'brown', 'violet', 'blue']
+pump_colors = ['black', 'brown', 'red', 'orange', 'blue']
 #data = np.loadtxt("760nm.txt", skiprows = 1)
 fig = plt.figure()
 plt.gcf().set_dpi(300)
