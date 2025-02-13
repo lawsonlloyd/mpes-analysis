@@ -20,7 +20,7 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -875,18 +875,15 @@ if save_figure is True:
 
 #%% Do Fourier Transform Analysis
 
-dkx = (I_res.kx.values[1] - I_res.kx.values[0])
-dE = (I_res.E.values[1] - I_res.E.values[0])
-
 def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):    
     
     ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
     fwhm = 0.063
     fwhm_pixel = fwhm/dkx
     sigma = fwhm_pixel/2.355
-    gaussian_kx = signal.gaussian(len(I_res.kx), std = sigma)
+    gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
     gaussian_kx = gaussian_kx/np.max(gaussian_kx)
-    gaussian_ky = signal.gaussian(len(I_res.ky), std = sigma)
+    gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
     gaussian_ky = gaussian_ky/np.max(gaussian_ky)
     
     gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
@@ -900,10 +897,10 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):
     kspace_frame_sym =  kspace_frame_sym[:,:]/2
 
     ### Generate the Windows to Apodize the signal
-    k_x_i = np.abs(ax_kx.values-(kx-kx_int/2)).argmin()
-    k_x_f = np.abs(ax_kx.values-(kx+kx_int/2)).argmin()
-    k_y_i = np.abs(ax_kx.values-(ky-ky_int/2)).argmin()
-    k_y_f = np.abs(ax_kx.values-(ky+ky_int/2)).argmin()
+    k_x_i = np.abs(ax_kx-(kx-kx_int/2)).argmin()
+    k_x_f = np.abs(ax_kx-(kx+kx_int/2)).argmin()
+    k_y_i = np.abs(ax_kx-(ky-ky_int/2)).argmin()
+    k_y_f = np.abs(ax_kx-(ky+ky_int/2)).argmin()
     #I_res.indexes["kx"].get_indexer([kx-kx_int/2], method = 'nearest')[0]
     
     # kx Axis
@@ -965,14 +962,16 @@ def FFT_MM(MM_frame, zeropad):
 
     #r_axis = np.linspace(-max_r, max_r, num = k_length)
     r_axis = np.linspace(-max_r, max_r, num = zplength)
+    freq = np.fft.fftshift(np.fft.fftfreq(len(ax_kx), d=dkx))  # Frequency array
+
     #r_axis = r_axis/(10)
 
     # Shuo Method ?
     N = 1 #(zplength)Fs
-    Fs = 1/((2*np.max(I_res.kx.values))/len(I_res.kx.values))
-    r_axis = np.arange(0,zplength)*Fs/zplength
+    Fs = 1/((2*np.max(ax_kx))/len(ax_kx))
+    r_axis = np.arange(0,zplength)*Fs/1
     r_axis = r_axis - (np.max(r_axis)/2)
-    r_axis = r_axis/(1)
+    r_axis = r_axis/(1*zplength)
 
     ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
     I_MM = np.abs(I_MM)/np.max(I_MM)
@@ -982,11 +981,12 @@ def FFT_MM(MM_frame, zeropad):
 
     fft_frame = np.abs(fft_frame) 
     I_xy = np.square(np.abs(fft_frame)) #frame squared
-
+    I_xy = I_xy/np.max(I_xy)
+    
     ### Take x and y cuts and extract bohr radius
-    ky_cut = I_MM[:,int(len(I.ky)/2)-1-4:int(len(I.ky)/2)-1+4].sum(axis=1)
+    ky_cut = I_MM[:,int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4].sum(axis=1)
     ky_cut = ky_cut/np.max(ky_cut)
-    kx_cut = I_MM[int(len(I.kx)/2)-1-4:int(len(I.kx)/2)-1+4,:].sum(axis=0)
+    kx_cut = I_MM[int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4,:].sum(axis=0)
     kx_cut = kx_cut/np.max(kx_cut)
 
     y_cut = I_xy[:,int(zplength/2)-1] # real space Psi*^2 cut
@@ -1027,6 +1027,12 @@ delays, delay_int = 500, 500
 
 win_type = 'tukey, square'
 alpha = 0.25
+zeropad = 2048
+
+ax_kx, ax_ky = I.kx, I.ky
+ax_kx, ax_ky = np.linspace(-2,2,1000), np.linspace(-2,2,1000)
+dkx = (ax_kx[1] - ax_kx[0])
+dE = (I_res.E.values[1] - I_res.E.values[0])
 
 frame_pos = get_momentum_map(I_res, E, E_int, delays, delay_int)  # Get Positive Delay MM frame (takes mean over ranges)
 frame_neg = get_momentum_map(I_res, E, E_int, -130, 50) # Get Negative Delay MM frame (takes mean over ranges)
@@ -1035,9 +1041,10 @@ frame_diff = frame_pos - frame_neg
 kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
 #kspace_frame = frame_diff/np.max(frame_diff)
 
-g_test = gaussian(np.linspace(0,100,100), *[1, 50, 1.53, 0])
-kspace_frame_test = np.zeros(frame_pos.shape)
-kspace_frame_test[:,45:80] = np.tile(g_test, (80-45,1)).T
+g_test = gaussian(ax_kx, *[1, 0, 0.1, 0])
+kspace_frame_test = np.zeros((g_test.shape[0], g_test.shape[0]))
+i, f = round(0.45*len(g_test)), round(0.8*len(g_test))
+kspace_frame_test[:,i:f] = np.tile(g_test, (f-i,1)).T
 
 #kspace_frame_test = np.outer(g_test, g_test)
 kspace_frame = kspace_frame_test
@@ -1045,8 +1052,9 @@ kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 #MM_frame = window_tukey_box
-r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad= FFT_MM(MM_frame, 2048) # Do the 2D FFT and extract real-space map and cuts
+r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
+r_axis = 6.28*r_axis
 #%% # Plot MM, Windowed Map, I_xy, and r-space cuts
 
 ### PLOT ###
@@ -1058,9 +1066,6 @@ fig, ax = plt.subplots(2, 2)
 fig.set_size_inches(6,8)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
-
-ax_kx = I.kx
-ax_ky = I.ky
 
 im0 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im1 = ax[1].imshow(MM_frame/np.max(MM_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
@@ -1231,68 +1236,92 @@ if save_figure is True:
 #kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
 #ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
 
-ky_cut = g_test
-
-kx_win = kspace_window[55,:]
-ky_win = kspace_window[:,55]
-
-kx_cut = kx_cut/np.max(kx_cut)
+ky_cut = MM_frame[:,int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4].sum(axis=1)
 ky_cut = ky_cut/np.max(ky_cut)
+kx_cut = MM_frame[int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4,:].sum(axis=0)
+kx_cut = kx_cut/np.max(kx_cut)
 
+kx_win_cut = kspace_frame_win[int(0.5*MM_frame.shape[1]),:]
+ky_win_cut = kspace_frame_win[:,int(0.7*MM_frame.shape[1])]
 kx_win_cut = kx_win_cut/np.max(kx_win_cut)
 ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 
-kx_win = kx_win/np.max(kx_win)
-ky_win = ky_win/np.max(ky_win)
+k_sig = 0.1
+g = gaussian(ax_kx, 1, 0, k_sig, .0)
 
-g_sig = 1.53
-g = gaussian(np.linspace(0,100,100), 1, 49.75, g_sig, .0)
+p0 = [1, 0, .08, 0.0]
+bnds = ((0.1, -0.5, 0, 0), (1.5, 0.5, .5, 0.3))
+popt, pcov = curve_fit(gaussian, ax_kx, ky_cut, p0, method=None, bounds = bnds)
+g_fit = gaussian(ax_kx, *popt)
+k_sig_fit = popt[2]
 
-x = np.linspace(0,100,100)
-p0 = [1, 50, 3, 0.1]
-bnds = ((0.3, 42, 1, 0), (1.5, 55, 6, 0.2))
+p0 = [1, 0, 14, 0.0]
+bnds = ((0.1, -1, 1, 0), (1.5, 2, 50, 0.3))
+popt_r, pcov_r = curve_fit(gaussian, r_axis, y_cut, p0, method=None, bounds = bnds)
+g_fit_r = gaussian(r_axis, *popt_r)
+r_sig_fit = popt_r[2]
 
-popt, pcov = curve_fit(gaussian, np.linspace(25,75,50), np.sqrt((g_test[25:75])), p0, method=None, bounds = bnds)
-g_sig = popt[2]
-
-dkx = (I_res.kx.values[1] - I_res.kx.values[0])
+g_fit_fft = np.abs(np.fft.fftshift(np.fft.fft(g_fit**0.5, zeropad)))  # Compute FFT
+g_fit_fft = g_fit_fft / np.max(g_fit_fft)
+g_fit_fft = g_fit_fft**2
 
 ### Fourier Transform Relation: k-space to r-space
-y_pr = 1/(g_sig*dkx)
-y_pr_rad = y_pr*2.355/2
+r_sig = 1/(2*k_sig_fit)
+r_sig_rad = np.sqrt(2)*r_sig
 
+r_sig_rad_fit = np.sqrt(2)*r_sig_fit
 #print("predicted x: " + str(round(x_pr,3)))
-print("predicted y rad from gaussian: " + str(round(y_pr_rad,3)))
 
 #####################################################
 save_figure = False
 figure_file_name = '2DFFT_Windowing' 
 
-fig, ax = plt.subplots(1, 3, sharey=False, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1]})
-fig.set_size_inches(8, 2.5, forward=False)
+fig, ax = plt.subplots(2, 3, sharey=False, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1, 1]})
+fig.set_size_inches(8, 4, forward=False)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
 ax[0].imshow(kspace_frame, cmap = cmap_LTL, origin = 'lower', aspect = 1)
 
-ax[1].plot(kx_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[1].plot(kx_cut, color =  'maroon', linewidth = 2)
-ax[1].plot(kx_win_cut, color =  'blue', linestyle = 'dashed', linewidth = 1.5)
+ax[1].plot(ax_kx, kx_win, color =  'grey', linestyle = 'solid', linewidth = 1.5, label = 'Window')
+ax[1].plot(ax_kx, kx_cut, color =  'maroon', linewidth = 2, label = 'Data')
+ax[1].plot(ax_kx, kx_win_cut, color =  'blue', linestyle = 'dashed', linewidth = 1.5, label = 'Win. Data.')
 
-ax[2].plot(x, ky_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[2].plot(x, ky_cut, color =  'purple', linewidth = 2)
-ax[2].plot(x, ky_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
-ax[2].plot(x, g, linewidth = 1, color = 'green')
+ax[2].plot(ax_kx, g_fit, linewidth = 4, color = 'pink', label = 'Fit')
+ax[2].plot(ax_kx, ky_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
+ax[2].plot(ax_kx, ky_cut, color =  'purple', linewidth = 2)
+ax[2].plot(ax_kx, ky_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
 #ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
 #ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
 
-ax[1].set_xlim(0,100)
+ax[1].set_xlim(-0.5,1.5)
 ax[1].set_ylim(-.2,1.1)
-ax[2].set_xlim(20,80)
+ax[2].set_xlim(-0.5,0.5)
 ax[2].set_ylim(-.2,1.1)
 #ax[1].set_aspect(60)
 #ax[2].set_aspect(30)
 
+ax[3].imshow(rspace_frame/np.max(rspace_frame), cmap = cmap_LTL, origin = 'lower', aspect = 1)
+ax[3].set_xlim(1000,1048)
+ax[3].set_ylim(1000,1048)
+
+ax[4].plot(r_axis, x_cut, linewidth = 4, color = 'pink', label = 'Fit')
+ax[4].plot(r_axis, x_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
+ax[4].plot(r_axis, x_cut, color =  'purple', linewidth = 2)
+ax[4].plot(r_axis, x_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
+ax[4].set_xlim(-2,2)
+
+ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'blue', label = 'Fit FFT')
+#ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
+ax[5].plot(r_axis, rspace_frame[:,1024], color =  'purple', linewidth = 2)
+ax[5].plot(r_axis, y_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
+ax[5].set_xlim(-5,5)
+
+print(f"Pred. Ry (radius) from Fit of k Peak: {round(r_sig_rad,3)}")
+print(f"Pred. Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit,3)}")
+
+
+fig.legend(frameon=False)
 #fig.subplots_adjust(right=0.8)
 
 fig.tight_layout()
