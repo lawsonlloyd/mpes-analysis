@@ -1250,14 +1250,14 @@ ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 k_sig = 0.1
 g = gaussian(ax_kx, 1, 0, k_sig, .0)
 
-p0 = [1, 0, .08, 0.0]
+p0 = [1, 0, .07, 0.0]
 bnds = ((0.1, -0.5, 0, 0), (1.5, 0.5, .5, 0.3))
 popt, pcov = curve_fit(gaussian, ax_kx, ky_cut, p0, method=None, bounds = bnds)
 g_fit = gaussian(ax_kx, *popt)
 k_sig_fit = popt[2]
 
-p0 = [1, 0, 14, 0.0]
-bnds = ((0.1, -1, 1, 0), (1.5, 2, 50, 0.3))
+p0 = [1, 0, 1.4, 0.0]
+bnds = ((0.5, -1, .5, 0), (1.5, 2, 50, 0.3))
 popt_r, pcov_r = curve_fit(gaussian, r_axis, y_cut, p0, method=None, bounds = bnds)
 g_fit_r = gaussian(r_axis, *popt_r)
 r_sig_fit = popt_r[2]
@@ -1313,13 +1313,15 @@ ax[4].plot(r_axis, x_cut, color =  'black', linestyle = 'dashed', linewidth = 1.
 ax[4].set_xlim(-2,2)
 
 ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'blue', label = 'FFT of k-fit')
+ax[5].plot(r_axis, g_fit_r, linewidth = 3, color = 'purple', label = 'fit of r-data')
+
 #ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
 #ax[5].plot(r_axis, rspace_frame[:,1024], color =  'purple', linewidth = 2)
 ax[5].plot(r_axis, y_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
 ax[5].set_xlim(-2,2)
 
 print(f"Pred. Ry (radius) from Fit of k Peak: {round(r_sig_rad,3)}")
-print(f"Pred. Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit,3)}")
+print(f"Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit,3)}")
 
 ax[2].legend(frameon=False)
 ax[5].legend(frameon=False)
