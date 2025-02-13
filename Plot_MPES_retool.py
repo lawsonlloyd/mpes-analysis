@@ -617,9 +617,9 @@ y_cb, y_cb_err = 1*(centers_CBM[tt:]- 0*centers_CBM[-12].mean()),  1*p_err_excit
 
 ax[1].plot(I.delay.values[t:], y_ex, color = 'black', label = 'EX')
 ax[1].fill_between(I.delay.values[t:], y_ex - y_ex_err, y_ex + y_ex_err, color = 'grey', alpha = 0.5)
-ax[1].set_xlim([0, edc_gamma.delay.values[-1]])
+ax[1].set_xlim([0, I.delay.values[-1]])
 #ax[1].set_ylim([1.1,2.3])
-ax[1].set_xlim([0, edc_gamma.delay.values[-1]])
+ax[1].set_xlim([0, I.delay.values[-1]])
 ax[1].set_ylim([1,1.4])
 ax[1].set_xlabel('Delay, fs')
 
@@ -638,7 +638,7 @@ ax2.legend(frameon=False, loc = 'upper left' )
 
 ax[2].plot(I.delay.values[t:], 1000*Ebs[t:], color = 'purple', label = '$E_{B}$')
 ax[2].fill_between(I.delay.values[t:], 1000*Ebs[t:] - 1000*p_err_eb[t:], 1000*Ebs[t:] + 1000*p_err_eb[t:], color = 'violet', alpha = 0.5)
-ax[2].set_xlim([0, edc_gamma.delay.values[-1]])
+ax[2].set_xlim([0, I.delay.values[-1]])
 ax[2].set_ylim([700,950])
 ax[2].set_xlabel('Delay, fs')
 ax[2].set_ylabel('$E_{B}$, meV', color = 'black')
@@ -900,10 +900,10 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):
     kspace_frame_sym =  kspace_frame_sym[:,:]/2
 
     ### Generate the Windows to Apodize the signal
-    k_x_i = np.abs(kspace_frame.kx.values-(kx-kx_int/2)).argmin()
-    k_x_f = np.abs(kspace_frame.kx.values-(kx+kx_int/2)).argmin()
-    k_y_i = np.abs(kspace_frame.ky.values-(ky-ky_int/2)).argmin()
-    k_y_f = np.abs(kspace_frame.ky.values-(ky+ky_int/2)).argmin()
+    k_x_i = np.abs(ax_kx.values-(kx-kx_int/2)).argmin()
+    k_x_f = np.abs(ax_kx.values-(kx+kx_int/2)).argmin()
+    k_y_i = np.abs(ax_kx.values-(ky-ky_int/2)).argmin()
+    k_y_f = np.abs(ax_kx.values-(ky+ky_int/2)).argmin()
     #I_res.indexes["kx"].get_indexer([kx-kx_int/2], method = 'nearest')[0]
     
     # kx Axis
@@ -968,7 +968,7 @@ def FFT_MM(MM_frame, zeropad):
     #r_axis = r_axis/(10)
 
     # Shuo Method ?
-    N = 1 #(zplength)
+    N = 1 #(zplength)Fs
     Fs = 1/((2*np.max(I_res.kx.values))/len(I_res.kx.values))
     r_axis = np.arange(0,zplength)*Fs/zplength
     r_axis = r_axis - (np.max(r_axis)/2)
@@ -984,9 +984,9 @@ def FFT_MM(MM_frame, zeropad):
     I_xy = np.square(np.abs(fft_frame)) #frame squared
 
     ### Take x and y cuts and extract bohr radius
-    ky_cut = I_MM[:,int(len(ax_ky)/2)-1-4:int(len(ax_ky)/2)-1+4].sum(axis=1)
+    ky_cut = I_MM[:,int(len(I.ky)/2)-1-4:int(len(I.ky)/2)-1+4].sum(axis=1)
     ky_cut = ky_cut/np.max(ky_cut)
-    kx_cut = I_MM[int(len(ax_kx)/2)-1-4:int(len(ax_kx)/2)-1+4,:].sum(axis=0)
+    kx_cut = I_MM[int(len(I.kx)/2)-1-4:int(len(I.kx)/2)-1+4,:].sum(axis=0)
     kx_cut = kx_cut/np.max(kx_cut)
 
     y_cut = I_xy[:,int(zplength/2)-1] # real space Psi*^2 cut
@@ -1020,9 +1020,9 @@ def FFT_MM(MM_frame, zeropad):
     
 #%% Do the 2D FFT of MM to Extract Real-Space Information
 
-E, E_int  = 2.05, 0.200 #Energy and total width in eV
-kx, kx_int = 0.5, 1.25
-ky, ky_int = 0, 2
+E, E_int  = 1.35, 0.200 #Energy and total width in eV
+kx, kx_int = .5, 1.25
+ky, ky_int = 0, 1
 delays, delay_int = 500, 500 
 
 win_type = 'tukey, square'
@@ -1034,6 +1034,13 @@ frame_diff = frame_pos - frame_neg
 
 kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
 #kspace_frame = frame_diff/np.max(frame_diff)
+
+g_test = gaussian(np.linspace(0,100,100), *[1, 50, 1.53, 0])
+kspace_frame_test = np.zeros(frame_pos.shape)
+kspace_frame_test[:,45:80] = np.tile(g_test, (80-45,1)).T
+
+#kspace_frame_test = np.outer(g_test, g_test)
+kspace_frame = kspace_frame_test
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
@@ -1041,7 +1048,6 @@ MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad= FFT_MM(MM_frame, 2048) # Do the 2D FFT and extract real-space map and cuts
 
 #%% # Plot MM, Windowed Map, I_xy, and r-space cuts
-%matplotlib inline
 
 ### PLOT ###
 
@@ -1052,6 +1058,9 @@ fig, ax = plt.subplots(2, 2)
 fig.set_size_inches(6,8)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
+
+ax_kx = I.kx
+ax_ky = I.ky
 
 im0 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im1 = ax[1].imshow(MM_frame/np.max(MM_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
@@ -1161,7 +1170,6 @@ if save_figure is True:
 #print("x: " + str(round(rdist_brad_x,3)))
 #print("y: " + str(round(rdist_brad_y,3)))
 
-
 #%% #Plot Momentum MAPS
 
 save_figure = False
@@ -1217,11 +1225,13 @@ if save_figure is True:
 
 #%%
 
-kx_cut = kspace_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
-ky_cut = kspace_frame.loc[{"kx":slice(0.2,.6)}].sum(dim="kx")
+#kx_cut = kspace_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
+#ky_cut = kspace_frame.loc[{"kx":slice(0.2,.6)}].sum(dim="kx")
 
-kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
-ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
+#kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
+#ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
+
+ky_cut = g_test
 
 kx_win = kspace_window[55,:]
 ky_win = kspace_window[:,55]
@@ -1235,24 +1245,20 @@ ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 kx_win = kx_win/np.max(kx_win)
 ky_win = ky_win/np.max(ky_win)
 
-g_sig = 3.3
+g_sig = 1.53
 g = gaussian(np.linspace(0,100,100), 1, 49.75, g_sig, .0)
 
 x = np.linspace(0,100,100)
 p0 = [1, 50, 3, 0.1]
 bnds = ((0.3, 42, 1, 0), (1.5, 55, 6, 0.2))
 
-popt, pcov = curve_fit(gaussian, np.linspace(25,75,50), ky_cut[25:75], p0, method=None, bounds = bnds)
+popt, pcov = curve_fit(gaussian, np.linspace(25,75,50), np.sqrt((g_test[25:75])), p0, method=None, bounds = bnds)
 g_sig = popt[2]
-g = gaussian(np.linspace(0,100,100), *popt)
-
-kspace_frame_test = np.zeros(kspace_frame.shape)
-kspace_frame_test[:,60:80] = np.tile(g, (80-60,1)).T
 
 dkx = (I_res.kx.values[1] - I_res.kx.values[0])
 
 ### Fourier Transform Relation: k-space to r-space
-y_pr = 1/(2*g_sig*dkx)
+y_pr = 1/(g_sig*dkx)
 y_pr_rad = y_pr*2.355/2
 
 #print("predicted x: " + str(round(x_pr,3)))
