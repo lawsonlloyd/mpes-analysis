@@ -1022,39 +1022,40 @@ def FFT_MM(MM_frame, zeropad):
 
 E, E_int  = 1.35, 0.200 #Energy and total width in eV
 kx, kx_int = .5, 1.25
-ky, ky_int = 0, 1
+ky, ky_int = 0, .75
 delays, delay_int = 500, 500 
 
 win_type = 'tukey, square'
 alpha = 0.25
 zeropad = 2048
 
-ax_kx, ax_ky = I.kx, I.ky
-ax_kx, ax_ky = np.linspace(-2,2,1000), np.linspace(-2,2,1000)
-dkx = (ax_kx[1] - ax_kx[0])
-dE = (I_res.E.values[1] - I_res.E.values[0])
-
 frame_pos = get_momentum_map(I_res, E, E_int, delays, delay_int)  # Get Positive Delay MM frame (takes mean over ranges)
 frame_neg = get_momentum_map(I_res, E, E_int, -130, 50) # Get Negative Delay MM frame (takes mean over ranges)
 frame_diff = frame_pos - frame_neg
 
-kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
-#kspace_frame = frame_diff/np.max(frame_diff)
+testing = 0
+if testing == 1:
+    g_test = gaussian(ax_kx, *[1, 0, 0.05, 0])
+    kspace_frame_test = np.zeros((g_test.shape[0], g_test.shape[0]))
+    i, f = round(0.45*len(g_test)), round(0.8*len(g_test))
+    kspace_frame_test[:,i:f] = np.tile(g_test, (f-i,1)).T
+    ax_kx, ax_ky = np.linspace(-2,2,1000), np.linspace(-2,2,1000)
+    kspace_frame = kspace_frame_test
 
-g_test = gaussian(ax_kx, *[1, 0, 0.1, 0])
-kspace_frame_test = np.zeros((g_test.shape[0], g_test.shape[0]))
-i, f = round(0.45*len(g_test)), round(0.8*len(g_test))
-kspace_frame_test[:,i:f] = np.tile(g_test, (f-i,1)).T
+elif testing == 0:
+    kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
+    ax_kx, ax_ky = I.kx.values, I.ky.values
+    dkx = (ax_kx[1] - ax_kx[0])
 
-#kspace_frame_test = np.outer(g_test, g_test)
-kspace_frame = kspace_frame_test
+
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 #MM_frame = window_tukey_box
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
-r_axis = 6.28*r_axis
+r_axis = 6.28*r_axis/10
+
 #%% # Plot MM, Windowed Map, I_xy, and r-space cuts
 
 ### PLOT ###
@@ -1283,12 +1284,12 @@ ax = ax.flatten()
 
 ax[0].imshow(kspace_frame, cmap = cmap_LTL, origin = 'lower', aspect = 1)
 
-ax[1].plot(ax_kx, kx_win, color =  'grey', linestyle = 'solid', linewidth = 1.5, label = 'Window')
+#ax[1].plot(ax_kx, kx_win, color =  'grey', linestyle = 'solid', linewidth = 1.5, label = 'Window')
 ax[1].plot(ax_kx, kx_cut, color =  'maroon', linewidth = 2, label = 'Data')
 ax[1].plot(ax_kx, kx_win_cut, color =  'blue', linestyle = 'dashed', linewidth = 1.5, label = 'Win. Data.')
 
 ax[2].plot(ax_kx, g_fit, linewidth = 4, color = 'pink', label = 'Fit')
-ax[2].plot(ax_kx, ky_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
+#ax[2].plot(ax_kx, ky_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
 ax[2].plot(ax_kx, ky_cut, color =  'purple', linewidth = 2)
 ax[2].plot(ax_kx, ky_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
 #ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
@@ -1301,9 +1302,9 @@ ax[2].set_ylim(-.2,1.1)
 #ax[1].set_aspect(60)
 #ax[2].set_aspect(30)
 
-ax[3].imshow(rspace_frame/np.max(rspace_frame), cmap = cmap_LTL, origin = 'lower', aspect = 1)
-ax[3].set_xlim(1000,1048)
-ax[3].set_ylim(1000,1048)
+ax[3].imshow(rspace_frame/np.max(rspace_frame), cmap = cmap_LTL, origin = 'lower', aspect = 1, extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]])
+ax[3].set_xlim(-5,5)
+ax[3].set_ylim(-5,5)
 
 ax[4].plot(r_axis, x_cut, linewidth = 4, color = 'pink', label = 'Fit')
 ax[4].plot(r_axis, x_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
@@ -1311,17 +1312,17 @@ ax[4].plot(r_axis, x_cut, color =  'purple', linewidth = 2)
 ax[4].plot(r_axis, x_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
 ax[4].set_xlim(-2,2)
 
-ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'blue', label = 'Fit FFT')
+ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'blue', label = 'FFT of k-fit')
 #ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[5].plot(r_axis, rspace_frame[:,1024], color =  'purple', linewidth = 2)
-ax[5].plot(r_axis, y_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
-ax[5].set_xlim(-5,5)
+#ax[5].plot(r_axis, rspace_frame[:,1024], color =  'purple', linewidth = 2)
+ax[5].plot(r_axis, y_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
+ax[5].set_xlim(-2,2)
 
 print(f"Pred. Ry (radius) from Fit of k Peak: {round(r_sig_rad,3)}")
 print(f"Pred. Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit,3)}")
 
-
-fig.legend(frameon=False)
+ax[2].legend(frameon=False)
+ax[5].legend(frameon=False)
 #fig.subplots_adjust(right=0.8)
 
 fig.tight_layout()
