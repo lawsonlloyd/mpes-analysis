@@ -20,7 +20,7 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -30,7 +30,7 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
+data_path = '/Users/lawsonlloyd/Desktop/Data/'
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
@@ -1022,7 +1022,7 @@ def FFT_MM(MM_frame, zeropad):
 
 E, E_int  = 1.35, 0.200 #Energy and total width in eV
 kx, kx_int = .5, 1.25
-ky, ky_int = 0, .75
+ky, ky_int = 0, 1
 delays, delay_int = 500, 500 
 
 win_type = 'tukey, square'
@@ -1054,7 +1054,7 @@ MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 #MM_frame = window_tukey_box
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
-r_axis = 6.28*r_axis/10
+r_axis = 2*np.pi*r_axis/10
 
 #%% # Plot MM, Windowed Map, I_xy, and r-space cuts
 
@@ -1231,19 +1231,19 @@ if save_figure is True:
 
 #%%
 
-#kx_cut = kspace_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
-#ky_cut = kspace_frame.loc[{"kx":slice(0.2,.6)}].sum(dim="kx")
-
+kx_cut = kspace_frame.loc[{"ky":slice(-.2,.2)}].sum(dim="ky")
+ky_cut = kspace_frame.loc[{"kx":slice(0.2,.6)}].sum(dim="kx")
+kx_win_cut = kspace_frame_win.loc[{"ky":slice(-.2,.2)}].sum(dim="ky")
+ky_win_cut = kspace_frame_win.loc[{"kx":slice(0.2,.6)}].sum(dim="kx")
 #kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
 #ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
 
-ky_cut = MM_frame[:,int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4].sum(axis=1)
+#ky_cut = MM_frame[:,int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4].sum(axis=1)
+#kx_cut = MM_frame[int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4,:].sum(axis=0)
+
 ky_cut = ky_cut/np.max(ky_cut)
-kx_cut = MM_frame[int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4,:].sum(axis=0)
 kx_cut = kx_cut/np.max(kx_cut)
 
-kx_win_cut = kspace_frame_win[int(0.5*MM_frame.shape[1]),:]
-ky_win_cut = kspace_frame_win[:,int(0.7*MM_frame.shape[1])]
 kx_win_cut = kx_win_cut/np.max(kx_win_cut)
 ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 
@@ -1262,7 +1262,7 @@ popt_r, pcov_r = curve_fit(gaussian, r_axis, y_cut, p0, method=None, bounds = bn
 g_fit_r = gaussian(r_axis, *popt_r)
 r_sig_fit = popt_r[2]
 
-g_fit_fft = np.abs(np.fft.fftshift(np.fft.fft(g_fit**0.5, zeropad)))  # Compute FFT
+g_fit_fft = np.abs(np.fft.fftshift(np.fft.fft((g_fit-popt[3])**0.5, zeropad)))  # Compute FFT
 g_fit_fft = g_fit_fft / np.max(g_fit_fft)
 g_fit_fft = g_fit_fft**2
 
@@ -1295,9 +1295,9 @@ ax[2].plot(ax_kx, ky_win_cut, color =  'black', linestyle = 'dashed', linewidth 
 #ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
 #ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
 
-ax[1].set_xlim(-0.5,1.5)
+ax[1].set_xlim(-0.75,1.75)
 ax[1].set_ylim(-.2,1.1)
-ax[2].set_xlim(-0.5,0.5)
+ax[2].set_xlim(-1,1)
 ax[2].set_ylim(-.2,1.1)
 #ax[1].set_aspect(60)
 #ax[2].set_aspect(30)
@@ -1309,22 +1309,21 @@ ax[3].set_ylim(-5,5)
 ax[4].plot(r_axis, x_cut, linewidth = 4, color = 'pink', label = 'Fit')
 ax[4].plot(r_axis, x_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
 ax[4].plot(r_axis, x_cut, color =  'purple', linewidth = 2)
-ax[4].plot(r_axis, x_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5)
+ax[4].plot(r_axis, x_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
 ax[4].set_xlim(-2,2)
 
-ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'blue', label = 'FFT of k-fit')
-ax[5].plot(r_axis, g_fit_r, linewidth = 3, color = 'purple', label = 'fit of r-data')
-
+ax[5].plot(r_axis, g_fit_fft, linewidth = 3, color = 'pink', label = 'FFT of k-fit')
+ax[5].plot(r_axis, g_fit_r/np.max(g_fit_r), linewidth = 3, color = 'green', label = 'fit')
 #ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-#ax[5].plot(r_axis, rspace_frame[:,1024], color =  'purple', linewidth = 2)
-ax[5].plot(r_axis, y_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
+ax[5].plot(r_axis, y_cut, color =  'black', linewidth = 2, label = 'FFT of k-data')
+#ax[5].plot(r_axis, kx_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
 ax[5].set_xlim(-2,2)
 
 print(f"Pred. Ry (radius) from Fit of k Peak: {round(r_sig_rad,3)}")
 print(f"Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit,3)}")
 
-ax[2].legend(frameon=False)
-ax[5].legend(frameon=False)
+ax[2].legend(frameon=False, fontsize = 12)
+ax[5].legend(frameon=False, fontsize = 12)
 #fig.subplots_adjust(right=0.8)
 
 fig.tight_layout()
