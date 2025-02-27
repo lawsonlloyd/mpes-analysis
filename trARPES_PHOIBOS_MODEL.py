@@ -272,8 +272,8 @@ t_values = np.arange(-500,3100,50)
 
 tau_ex_r = 15000
 tau_EEA = 4500
-tau_ex_f = 55 #40
-tau_hc = 200 #258
+tau_ex_f = 200 #40
+tau_hc = 50 #258
 fwhm = 80
 F = 1
 H = 1
@@ -343,8 +343,8 @@ from lmfit import Parameters, minimize, report_fit
 
 tau_ex_r = 15000
 tau_EEA = 4500
-tau_ex_f = 55 #40
-tau_hc = 200 #258
+tau_ex_f = 200 #40
+tau_hc = 50 #258
 fwhm = 80
 F = 1
 H = 1
@@ -384,9 +384,7 @@ data = data_traces
 out = minimize(objective_GLOBAL, fit_params, args=(delay_axes, data_traces))
 report_fit(out)
 
-#%%
-
-#GLOBAL: Plot the Results!
+#%% GLOBAL: Plot the Results!
 import time
 ym = time.strftime("%Y%m%d")
 
