@@ -24,7 +24,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data'
-data_path = '/Users/lawsonlloyd/Desktop/phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
 with open(data_path + '//' + filename) as f:
     
@@ -137,10 +137,10 @@ phoibos = True
 #data_path = 'path_to_your_data'
 #filename = 'your_file_name.h5'
 
-#data_path = 'R:\Lawson\Data\phoibos'
+data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9410
+scan = 9228
 energy_offset = + 19.72
 delay_offset = -80
 
@@ -225,6 +225,71 @@ plt.plot(energy, edc, color = 'grey')
 plt.plot(energy, fit, color = 'green', linestyle = 'dashed')
 plt.title(f"E0 = {round(popt[1],3)}")
 plt.xlim(-1,2)
+
+
+#%% Define t0 from Exciton Rise
+from scipy.special import erf
+
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+offsets_t0 = [-162.1, -152.7, -183.2, -118.4, -113.2, -125.0]
+
+offsets_t0 = [-162.1, -152.7, -183.2, -118.4, -113.2, -125.0]
+
+scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231,    9525, 9517, 9526]
+offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
+
+t0_offsets = []
+
+fig, ax = plt.subplots(4, 3)
+fig.set_size_inches(8, 12, forward=False)
+ax = ax.flatten()
+
+i = 0    
+for scan_i in scans:
+    
+    res = load_data(scan_i, 19.72, offsets_t0[i])
+
+    ### Plot EDCs at GAMMA vs time
+    
+    (kx, ky), k_int = (0  , 0), 24
+    trace = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-E_int/2, E1+E_int/2)}].sum(axis=(0,1))
+    trace = trace - trace[3:8].mean()
+    trace = trace/np.max(trace)
+#    trace.plot(ax = ax[i], color = 'red')
+    
+    trace_ex = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Energy":slice(1.95,2.1)}].sum(dim=("Angle","Energy"))
+    trace_ex = trace_ex - trace_ex[2:6].mean()
+    trace_ex = trace_ex/np.max(trace_ex.loc[{"Delay":slice(-200,250)}])
+    
+    t0 = 0
+    tau = 55
+    def rise_erf(t, t0, tau):
+        r = 0.5 * (1 + erf((t - t0) / tau))
+        return r
+    
+    rise = rise_erf(res.Delay, 30, 45)
+    
+    p0 = [-30, 45]
+    popt, pcov = curve_fit(rise_erf, trace_ex.loc[{"Delay":slice(-180,200)}].Delay.values ,
+                                    trace_ex.loc[{"Delay":slice(-180,200)}].values,
+                                    p0, method="lm")
+    
+    rise_fit = rise_erf(np.linspace(-200,200,50), *popt)
+    
+    ax[i].plot(res.Delay, trace_ex, 'ko')
+    ax[i].plot(np.linspace(-200,200,50), rise_fit, 'pink')
+    #ax[1].plot(I_res.delay, rise, 'red')
+    
+    ax[i].axvline(0, color = 'grey', linestyle = 'dashed')
+    
+    ax[i].set_xlim([-250, 500]) 
+    ax[i].set_ylim(-.1,1.25)
+    ax[i].set_title(f"t0 offset = {round(popt[0],3)}")
+    print(round(popt[0],3))
+    t0_offsets.append(popt[0])
+    i += 1
+
+fig.tight_layout()
 
 #%% # PLOT THREE PANEL DIFFERENCE SPECTRA
 
@@ -1100,61 +1165,6 @@ ax[1].errorbar(x = range(0,6), y = y4, yerr = y_eb_err, marker = 'o', color = 'p
 ax[1].axhline(0, color = 'grey', linestyle = 'dashed')
 
 fig.tight_layout()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
-    
-#%% Plot Difference of MMs
-
-%matplotlib inline
-
-save_figure = False
-figure_file_name = 'MM_DIFFERENCE'
-
-E, E_int  = [.5, .1], .2
-delays = [-160, 1200] #Integration range for delays
-
-MM_1  = get_momentum_map(I, E[0], E_int, [100, 2000])
-MM_2  = get_momentum_map(I, E[1], E_int, [100, 2000])
-diff_MM = MM_2 - MM_1
-
-########################
-%matplotlib inline
-fig, ax = plt.subplots(1, 3, squeeze = False)
-ax = ax.flatten()
-fig.set_size_inches(8, 5, forward=False)
-plt.gcf().set_dpi(300)
-
-extent =  extent=[ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
-im = ax[0].imshow(np.transpose(MM_1), origin='lower', cmap=cmap_plot, clim=[0,1], interpolation='none', extent=extent) #kx, ky, t
-im = ax[1].imshow(np.transpose(MM_2), origin='lower', cmap=cmap_plot, clim=[0,1], interpolation='none', extent=extent) #kx, ky, t
-im = ax[2].imshow(np.transpose(diff_MM), origin='lower', cmap='seismic', clim=[0,1], interpolation='none', extent=extent) #kx, ky, t
-
-for i in np.arange(3):
-    ax[i].set_aspect(1)    
-    ax[i].set_xlim(-2,2)
-    ax[i].set_ylim(-2,2)
-    ax[i].set_xticks(np.arange(-2,2.2,1))
-    for label in ax[i].xaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    ax[i].set_yticks(np.arange(-2,2.1,1))
-    for label in ax[i].yaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    #ax[0].set_box_aspect(1)
-    ax[i].set_xlabel('$k_x$, $A^{-1}$', fontsize = 14)
-    ax[i].set_ylabel('$k_y$, $A^{-1}$', fontsize = 14)
-    ax[i].tick_params(axis='both', labelsize=12)
-
-ax[0].set_title('$E$ = ' + str((E[0])) + ' eV', fontsize = 14)
-ax[1].set_title('$E$ = ' + str((E[1])) + ' eV', fontsize = 14)
-ax[2].set_title('$\\Delta$MM ', fontsize = 14)
-
-fig.subplots_adjust(right=0.8)
-cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
-fig.colorbar(im, cax=cbar_ax, ticks = [-1,0,1])
-
-fig.tight_layout()
-plt.show()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')

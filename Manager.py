@@ -115,7 +115,6 @@ class ValueHandler:
 
 class FigureHandler:
     def __init__(self):
-        test = 0
         self.fig, self.ax = self.create_fig_axes()
         
     def create_fig_axes(self):
@@ -138,15 +137,15 @@ class PlotHandler:
         self.t0 = self.data_handler.get_t0()
 
         # Initial setup for plots
-        #self.initialize_plots()
+        self.initialize_plots()
 
-    def initialize_plots(self,):
+    def initialize_plots(self):
         
         # Define intial kx, ky, Energy, and Delay Points for Images
         k_int, kx, ky, E, delay = self.value_manager.get_values()
         idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
     
-        # Initial Momentum Map kx, ky Image  (top left)
+        # Initial Momentum Map kx, ky Image (top left)
         frame_temp = self.data_handler.get_momentum_map()
         self.im_1 = self.ax[0].imshow(frame_temp/np.max(frame_temp),\
                                       extent = [self.data_handler.ax_kx[0], self.data_handler.ax_kx[-1],  self.data_handler.ax_ky[0], self.data_handler.ax_ky[-1]],\

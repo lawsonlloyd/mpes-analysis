@@ -34,7 +34,7 @@ data_path = 'R:\Lawson\Data\metis'
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
-filename, offsets = 'Scan162_RT_120x120x110x50_binned.h5', [0.835, -120]
+filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.835, -120]
 
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
@@ -115,7 +115,7 @@ def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
     (kx, ky) = k
     (kx_int, ky_int) = k_int
     
-    trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(axis=(0,1,2))
+    trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky", "E"))
 
     if subtract_neg is True : 
         trace = trace - np.mean(trace.loc[{"delay":slice(-100,-50)}])
@@ -228,7 +228,7 @@ fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), k_int = (-1.75, 0), 0.2
+(kx, ky), k_int = (-2*x, 0), 0.2
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -236,7 +236,7 @@ im = I_res.loc[{"E":slice(0,1), "delay":slice(-300,-100)}].mean(dim=("E","delay"
 # cbar_ax = fig.add_axes([.51, 0.275, 0.025, 0.5])
 cbar = fig.colorbar(im, ax = ax[0], ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
-rect = (Rectangle((kx-k_int, ky-k_int), 2*k_int, 2*k_int, linewidth=1.5,\
+rect = (Rectangle((kx-k_int/2, ky-k_int/2), k_int, k_int, linewidth=1.5,\
                          edgecolor='k', facecolor='None'))
 fig.axes[0].add_patch(rect)
 ax[0].set_ylim([-2,2])
@@ -332,14 +332,16 @@ ax[1].plot(np.linspace(-200,200,50), rise_fit, 'pink')
 #ax[1].plot(I_res.delay, rise, 'red')
 
 ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
+
 ax[1].set_xlim([-250, 250]) 
 ax[1].set_ylim(-.1,1.05)
 
 print(round(popt[0],3))
+
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [0, 0.25, 1.35], 0.20 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [0, 100, 250], 500 #Integration range for delays
+E, E_int = [0.4, 0.25, 1.35], 0.20 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [200, 100, 250], 500 #Integration range for delays
 
 #######################
 
@@ -356,15 +358,31 @@ fig = plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
 
 y, x = np.pi/4.76, np.pi/3.52
 
-for r in np.arange(-3,5,2):
+for r in np.arange(1,2,2):
     rect = (Rectangle((0-r*x, 0-y), 2*x, 2*y, linewidth=1.5,\
                          edgecolor='k', facecolor='None'))
-    rect2 = (Rectangle((0-r*x, 0+y), 2*x, 2*y, linewidth=1.5,\
-                             edgecolor='k', facecolor='None'))
+    #rect2 = (Rectangle((0-r*x, 0+y), 2*x, 2*y, linewidth=1.5,\
+                          #   edgecolor='k', facecolor='None'))
     fig.axes[0].add_patch(rect)
-    fig.axes[0].add_patch(rect2)
+    #fig.axes[0].add_patch(rect2)
 #    fig.axes[1].add_patch(rect)
-#fig.axes[0].set_xlim(-4,4)
+#fig.axes[0].axvline(2*x, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+#fig.axes[0].axvline(-2*x, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+#fig.axes[0].axhline(2*y, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+#fig.axes[0].axhline(-2*y, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+#fig.axes[0].axhline(0, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+#fig.axes[0].axvline(0, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
+fig.axes[0].plot(0,0, 'ok', markersize = 4)
+fig.axes[0].plot(0,2*y, 'ok', markersize = 4)
+fig.axes[0].plot(0,-2*y, 'ok', markersize = 4)
+fig.axes[0].plot(2*x, 0,  'ok', markersize = 4)
+fig.axes[0].plot(-2*x, 0, 'ok', markersize = 4)
+
+fig.axes[0].plot(x, 0, 'k', marker = '_', markersize = 6)
+fig.axes[0].plot(0, y, 'k', marker = '|', markersize = 8)
+
+
+#fig.axes[0].set_xlim(-3,3)
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
@@ -374,13 +392,13 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [1.35, 2.6], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [1.3, 2.05], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = (0, 0), (4, 2) # Central (kx, ky) point and k-integration
 
 colors = ['black', 'red'] #colors for plotting the traces
 
 subtract_neg = True #If you want to subtract negative time delay baseline
-norm_trace = True
+norm_trace = False
 
 #######################
 ### Do the Plotting ###
@@ -422,7 +440,7 @@ I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 #I_neg_mean = I_neg_mean.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
 
 I_diff = I_norm - I_neg_mean
-I_diff = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
+I_diff = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
 I_diff = I_diff/np.max(I_diff)
 
 I3 = enhance_features(I_diff, Ein, factor = 0, norm = True)
@@ -456,7 +474,12 @@ for i in np.arange(len(E_trace)):
     
     trace = get_time_trace(I, E_trace[i], E_int, k , k_int, subtract_neg, norm_trace)
     trace_norms.append(np.max(trace))
-    
+
+    if i == 0:
+        trace = trace/np.max(trace)
+    elif i == 1:
+        trace = trace/trace_norms[0]
+        
     trace.plot(ax = ax[2], color = colors[i], label = str(E_trace[i]) + ' eV')
     ax[1].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
 
@@ -471,7 +494,7 @@ ax[2].set_xlim(I.delay[1], I.delay[-1])
 if norm_trace is True:
     ax[2].set_ylim(-0.1, 1.1)
 else:
-    ax[2].set_ylim(-0.1*np.max(trace_norms), 1.1*np.max(trace_norms))
+    ax[2].set_ylim(-0.1*np.max(trace_norms), 1.1*np.max(1))
     
 ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
@@ -492,12 +515,12 @@ if save_figure is True:
     
 #%% Plot kx vs E
 
-save_figure = True
+save_figure = False
 figure_file_name = 'MM_ARPES_delay_frames_200'
 
-E_trace, E_int = [1.35, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [.4, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = (0, 0), .2 # Central (kx, ky) point and k-integration
-delay, delay_int = 200, 50
+delay, delay_int = 200, 300
 
 colors = ['black', 'red'] #colors for plotting the traces
 cmap_plot = cmap_LTL
@@ -525,7 +548,7 @@ Ein = 0.75
 f23 = enhance_features(frame2, Ein, factor = n, norm = True)
 f33 = enhance_features(frame3, Ein, factor = n2, norm = True)
 #f23 = frame2
-f#33 = frame3
+#f33 = frame3
 
 #######################
 ### Do the Plotting ###
@@ -553,6 +576,11 @@ ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 ax[0].set_title(f'$E$ = {E_trace[i]} $eV$', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 ax[0].text(-1.9, 1.55,  f"$\Delta$t = {delay} fs", size=16)
+ax[0].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
 
 ### SECOND PLOT: kx vs E
 im2 = f23.T.plot.imshow(ax=ax[1], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
@@ -570,11 +598,17 @@ ax[1].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
 ax[1].set_title(f'$k_y$ = {kx} $\AA^{{-1}}$', fontsize = 18)
 ax[1].tick_params(axis='both', labelsize=16)
 ax[1].set_xlim(-2,2)
-ax[1].set_ylim(-2,3)
+ax[1].set_ylim(-3,3)
 ax[1].text(-1.9, 2.5,  f"$\Delta$t = {delay} fs", size=16)
 ax[1].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
-### THIRD PLOT: ky vs E
+ax[1].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[1].axvline(x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[1].axvline(-x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[1].axvline(2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[1].axvline(-2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
 
+
+### THIRD PLOT: ky vs E
 im3 = f33.T.plot.imshow(ax=ax[2], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
 ax[2].set_aspect(1)
 
@@ -593,6 +627,12 @@ ax[2].set_xlim(-2,2)
 ax[2].set_ylim(-2,3)
 ax[2].text(-1.9, 2.5,  f"$\Delta$t = {delay} fs", size=16)
 ax[2].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[2].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[2].axvline(y, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[2].axvline(-y, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[2].axvline(2*y, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[2].axvline(-2*y, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+
 cbar_ax = fig.add_axes([1, 0.275, 0.025, 0.5])
 cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar

@@ -16,7 +16,8 @@ filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
-filename, offsets = 'Scan682_binned.h5', [0,0]
+#filename, offsets = 'Scan682_binned.h5', [0,0]
+filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.835, -120]
 
 #filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [-0.2, 90] # Axis Offsets: [Energy (eV), delay (fs)]
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
@@ -28,7 +29,17 @@ filename, offsets = 'Scan682_binned.h5', [0,0]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename)
-I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
+
+#I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
+#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
+
+I = data_loader.load()
+#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
+
+I = I.assign_coords(E=(I.E-offsets[0]))
+I = I.assign_coords(delay=(I.delay-offsets[1]))
+
+I, ax_kx, ax_ky, ax_E, ax_delay = I.values, I.kx.values, I.ky.values, I.E.values, I.delay.values
 
 #%% Run the Interactive GUI for Data Exploration and Plotting
 
@@ -37,7 +48,7 @@ I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
 #main(I, ax_kx, ax_ky, ax_E, ax_delay, *[E_offset, delay_offset])
 
 value_manager =  ValueHandler()
-data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
+data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay)
 
 # Initialize plot manager and check and click button managers
 figure_handler = FigureHandler()
