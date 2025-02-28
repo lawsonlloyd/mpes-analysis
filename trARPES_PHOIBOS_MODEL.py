@@ -426,3 +426,113 @@ for s in range(10+1):
     
 fig.tight_layout()
 plt.show()
+
+
+#%%
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+# Example data (replace with actual data)
+fluence = np.array([1, 2, 3, 5, 7, 10])  # Excitation densities
+decay_times = np.array([10, 5.5, 3.8, 2.4, 1.8, 1.2])  # Extracted tau values from fits
+
+# Convert to decay rates
+decay_rates = 1 / decay_times
+
+# Define power-law function
+def power_law(n, gamma0, beta, alpha):
+    return gamma0 + beta * n**alpha
+
+# Fit to the data
+popt, pcov = curve_fit(power_law, fluence, decay_rates)
+gamma0_fit, beta_fit, alpha_fit = popt
+
+# Plot results
+plt.figure(figsize=(6,4))
+plt.scatter(fluence, decay_rates, label="Data", color="red")
+plt.plot(fluence, power_law(fluence, *popt), label=f"Fit: α = {alpha_fit:.2f}", linestyle="--", color="blue")
+plt.xlabel("Excitation Density (n)")
+plt.ylabel("Decay Rate (Γ = 1/τ)")
+plt.legend()
+plt.grid()
+plt.show()
+
+print(f"Fitted parameters: Gamma0 = {gamma0_fit:.3f},
+
+#%%
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from scipy.signal import fftconvolve
+
+# Define the monoexponential decay function
+def monoexp(t, A, tau):
+    return A * np.exp(-t / tau)
+
+# Define the biexponential decay function
+def biexp(t, A1, tau1, A2, tau2):
+    return A1 * np.exp(-t / tau1) + A2 * np.exp(-t / tau2)
+
+# Define the exponential rise function for the conduction band
+def exp_rise(t, B, tau_rise):
+    return B * (1 - np.exp(-t / tau_rise))
+
+# Define the Instrumental Response Function (IRF) as a Gaussian
+def IRF(t, sigma_IRF):
+    return np.exp(-t**2 / (2 * sigma_IRF**2)) / (sigma_IRF * np.sqrt(2 * np.pi))
+
+# Convolution of the signal with the IRF
+def convolved_signal(t, signal_function, *params_IRF):
+    # Create the signal for the decay/rise model
+    signal = signal_function(t, *params_IRF)
+    # Convolve with the IRF
+    return fftconvolve(signal, IRF(t, params_IRF[-1]), mode='same')
+
+# Define the model for fitting: combine both decay/rise and IRF
+def model(t, A, tau, B, tau_rise, sigma_IRF, model_type='mono'):
+    if model_type == 'mono':
+        # Monoexponential decay + exponential rise for conduction band
+        decay_signal = convolved_signal(t, monoexp, A, tau, sigma_IRF)
+    elif model_type == 'bi':
+        # Biexponential decay + exponential rise for conduction band
+        decay_signal = convolved_signal(t, biexp, A, tau, sigma_IRF)
+    rise_signal = exp_rise(t, B, tau_rise)
+    return decay_signal + rise_signal
+
+# Generate synthetic data for testing
+t = np.linspace(0, 1, 1000)  # time axis (in fs or ps depending on your data)
+A = 1.0  # amplitude for decay
+tau = 0.1  # decay time (fs or ps)
+B = 0.5  # amplitude for rise
+tau_rise = 0.2  # rise time (fs or ps)
+sigma_IRF = 0.05  # IRF width (fs or ps)
+
+# Generate the model signal (monoexponential decay + exponential rise) + IRF
+data = model(t, A, tau, B, tau_rise, sigma_IRF, model_type='mono')
+
+# Add some noise to the data
+noise = 0.05 * np.random.normal(size=t.shape)
+data_noisy = data + noise
+
+# Fit the model to the noisy data
+initial_guess = [1.0, 0.1, 0.5, 0.2, 0.05]  # initial guesses for [A, tau, B, tau_rise, sigma_IRF]
+params_opt, params_cov = curve_fit(lambda t, A, tau, B, tau_rise, sigma_IRF: model(t, A, tau, B, tau_rise, sigma_IRF, model_type='mono'),
+                                   t, data_noisy, p0=initial_guess)
+
+# Plot the results
+plt.figure(figsize=(10, 6))
+plt.plot(t, data_noisy, label='Noisy Data', color='blue')
+plt.plot(t, model(t, *params_opt, model_type='mono'), label='Fitted Model', color='red')
+plt.legend()
+plt.xlabel('Time (fs or ps)')
+plt.ylabel('Signal Intensity')
+plt.show()
+
+# Print the fitted parameters
+print(f"Fitted Parameters: {params_opt}")
+
+      
+      
