@@ -272,8 +272,8 @@ t_values = np.arange(-500,3100,50)
 
 tau_ex_r = 15000
 tau_EEA = 4500
-tau_ex_f = 200 #40
-tau_hc = 50 #258
+tau_ex_f = 300 #40
+tau_hc = 0 #258
 fwhm = 80
 F = 1
 H = 1

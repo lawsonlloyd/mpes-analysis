@@ -493,63 +493,108 @@ if save_figure is True:
 save_figure = False
 figure_file_name = 'phoibosfluencetraces'
 
-fig, axx = plt.subplots(1, 2)
+fig, axx = plt.subplots(1, 3)
 fig.set_size_inches(12, 4, forward=False)
+plt.gcf().set_dpi(300)
 axx = axx.flatten()
 
+# Standard 915 nm Excitation
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
+offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
 
+# Expanded 915 nm Excitation
+scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
+offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6]
+fluence = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151]
+colors = ['grey', 'black', 'purple', 'green', 'blue', 'magenta', 'orange', 'red']
+
+# 400 nm Excitation
+# scans = [9525, 9526]
+# offsets_t0 = [-77, -200.6]
+# colors = ['grey', 'maroon']
+# fluence = [20, 45]
+
+# ALL
+trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
+power = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151, 20, 36.3, 45]
+
+#####
+#####
+
 k, k_int = (0), 24
-E1, E2, E3, E_int = 1.37, 2.1, 0.1, 0.1
+E1, E2, E3, E_int = 1.35, 2.1, 0.1,  0.1
 subtract_neg = True
 norm_trace = False
 
 cn = 100
-p_min = .1
-p_max = 3.5
+p_min = 0
+p_max = 155
 
-colors2 = plt.cm.Reds(np.linspace(p_min, 3.5, cn))
-cm = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Reds)
+colors1 = plt.cm.jet(np.linspace(0, 1, cn)) 
+cm2 = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.plasma)
 
-colors1 = plt.cm.bone_r(np.linspace(p_min, 3.5, cn)) 
-cm2 = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.bone_r)
+colors2 = plt.cm.plasma(np.linspace(0, 1, cn))
+cm = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.plasma)
+
+colors3 = plt.cm.plasma(np.linspace(0, 1, cn)) 
 
 fluence_cbar = np.linspace(p_min, p_max, cn)
 
+pop = []
 i = 0
 for scan_i in scans:
     
-    res = load_data(scan_i, energy_offset, delay_offset)
+    res = load_data(scan_i, energy_offset, offsets_t0[i])
     trace_1 = get_time_trace(res, E1, E_int, k , k_int, subtract_neg, norm_trace)
     trace_2 = get_time_trace(res, E2, E_int, k , k_int, subtract_neg, norm_trace)
-    trace_2 = trace_2/np.max(trace_1)
-    trace_1 = trace_1/np.max(trace_1)
+#    trace_2 = trace_2/np.max(trace_1)
+#    trace_1 = trace_1/np.max(trace_1)
+    trace_1 = trace_1
+    trace_2 = trace_2
+    
+    trace_3 = trace_1 + trace_2
+    
+    pop.append(trace_3.max())
+    
+    #trace_2 = trace_2/np.max(trace_1)
 
     j_fluence = (np.abs(fluence_cbar-fluence[i])).argmin()
 
     t1 = trace_1.plot(ax = axx[0], color = colors1[j_fluence])
-    t2 = trace_2.plot(ax = axx[1], color = colors2[j_fluence])
-    
+    t2 = trace_2.plot(ax = axx[1], color = colors2[j_fluence], label = f"{fluence[i]}")
+    #t1 = trace_1.plot(ax = axx[0], color = colors[i])
+    #t2 = trace_2.plot(ax = axx[1], color = colors[i], label = f"{fluence[i]}")
+    t3 = trace_3.plot(ax = axx[2], color = colors3[j_fluence], label = f"{fluence[i]}")
+
     i += 1
-    
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
 axx[0].set_xlim([-500,3000])
 axx[1].set_xlim([-500,3000])
-axx[0].set_ylabel('Int., a.u.')
-cbar = plt.colorbar(cm, ax=axx[1])
-cbar.set_label('Fluence', rotation=90, fontsize=22)
-cbar.ax.tick_params(labelsize=20)
+axx[2].set_xlim([-500,3000])
+axx[0].set_ylabel('Intensity, a.u.')
+axx[1].set_ylabel('Intensity, a.u.')
+axx[1].legend(frameon=False, loc = 'upper right', fontsize = 11)
 
-cbar = plt.colorbar(cm2, ax=axx[0])
-cbar.set_label('Fluence', rotation=90, fontsize=22)
-cbar.ax.tick_params(labelsize=20)
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# # cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
 
 fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
-    
+
+#%%
+
+plt.plot(fluence, pop, '-o')
     
 #%%
 
