@@ -140,7 +140,7 @@ phoibos = True
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9228
+scan = 9240
 energy_offset = + 19.72
 delay_offset = -80
 
@@ -293,7 +293,7 @@ fig.tight_layout()
 
 #%% # PLOT THREE PANEL DIFFERENCE SPECTRA
 
-save_figure = True
+save_figure = False
 figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [0,3000]

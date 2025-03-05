@@ -71,7 +71,8 @@ phoibos = True
 #data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-scan = 9228
+scan = 9241
+
 energy_offset = + 19.72
 delay_offset = -80
 
@@ -469,6 +470,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from scipy.signal import fftconvolve
+%matplotlib inline
 
 # Define the monoexponential decay function (Exciton)
 def monoexp(t, A, tau):
@@ -516,6 +518,7 @@ scans = [9219, 9217, 9218, 9216, 9220, 9228]
 offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = [8.3, 20.9, 41.7, 65.6, 83.2, 104.7]
 
+scans = [9241, 9237, 9240]
 popt_ex, popt_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),3))
 perr_ex, perr_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),3))
 
@@ -527,7 +530,7 @@ for s in range(len(scans)):
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
-    E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
+    E, E_int = [1.35, 2.1], 0.1 # center energies, half of full E integration range
     delay_limit = [-200, 3050]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
@@ -568,7 +571,8 @@ for s in range(len(scans)):
     perr_ex[s,:] = perr_exciton
     perr_cbm[s,:] = perr_conduction
 
-    # Generate fitted curves
+    # Generate fitted curves\
+    t = np.linspace(-500,5000,550)
     exciton_fitted = exciton_model(t, *popt_exciton)
     conduction_fitted = cbm_model(t, *popt_conduction)
     
@@ -710,7 +714,7 @@ def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
 ########
 
 # Initialize figure
-fig, ax = plt.subplots(8, 2, figsize=(12, 16))
+fig, ax = plt.subplots(3, 2, figsize=(12, 16))
 ax = ax.flatten()
 
 # Load Data
@@ -722,6 +726,9 @@ scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and 
 offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6]
 trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
 power = [500*0.01*t for t in trans_percent]
+
+scans = [9241, 9237, 9240]
+
 
 popt_ex, popt_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
 perr_ex, perr_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
