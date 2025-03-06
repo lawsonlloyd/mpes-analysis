@@ -20,7 +20,7 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -35,6 +35,7 @@ data_path = 'R:\Lawson\Data\metis'
 
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.835, -120]
+filename, offsets = 'Scan788_Ppol3_delay_binned.h5', [0.2, 0]
 
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
@@ -110,7 +111,7 @@ def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
     return frame
 
 # Fucntion for Extracting time Traces
-def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
+def get_time_trace(I_res, E, E_int, k , k_int, norm_trace, subtract_neg):
     
     (kx, ky) = k
     (kx_int, ky_int) = k_int
@@ -118,7 +119,7 @@ def get_time_trace(I_res, E, E_int, k , k_int, subtract_neg, norm_trace):
     trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky", "E"))
 
     if subtract_neg is True : 
-        trace = trace - np.mean(trace.loc[{"delay":slice(-100,-50)}])
+        trace = trace - np.mean(trace.loc[{"delay":slice(-200,-100)}])
     
     if norm_trace is True : 
         trace = trace/np.max(trace)
@@ -226,9 +227,12 @@ I_res = I/np.max(I)
 fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
+
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), k_int = (-2*x, 0), 0.2
+x, y = .07, -.2
+
+(kx, ky), k_int = (-2*x, y), 0.2
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -340,8 +344,8 @@ print(round(popt[0],3))
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [0.4, 0.25, 1.35], 0.20 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [200, 100, 250], 500 #Integration range for delays
+E, E_int = [0.8, 1.0, .2], 0.1 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [500, 500, 0], 2000 #Integration range for delays
 
 #######################
 
@@ -356,31 +360,26 @@ cmap_plot = cmap_LTL
 
 fig = plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
 
-y, x = np.pi/4.76, np.pi/3.52
+#add_bz(fig, x, y)
 
-for r in np.arange(1,2,2):
-    rect = (Rectangle((0-r*x, 0-y), 2*x, 2*y, linewidth=1.5,\
-                         edgecolor='k', facecolor='None'))
-    #rect2 = (Rectangle((0-r*x, 0+y), 2*x, 2*y, linewidth=1.5,\
-                          #   edgecolor='k', facecolor='None'))
-    fig.axes[0].add_patch(rect)
-    #fig.axes[0].add_patch(rect2)
-#    fig.axes[1].add_patch(rect)
-#fig.axes[0].axvline(2*x, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-#fig.axes[0].axvline(-2*x, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-#fig.axes[0].axhline(2*y, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-#fig.axes[0].axhline(-2*y, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-#fig.axes[0].axhline(0, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-#fig.axes[0].axvline(0, color = 'pink', linestyle = 'dashed', linewidth = 1.5)
-fig.axes[0].plot(0,0, 'ok', markersize = 4)
-fig.axes[0].plot(0,2*y, 'ok', markersize = 4)
-fig.axes[0].plot(0,-2*y, 'ok', markersize = 4)
-fig.axes[0].plot(2*x, 0,  'ok', markersize = 4)
-fig.axes[0].plot(-2*x, 0, 'ok', markersize = 4)
+# y, x = np.pi/4.76, np.pi/3.52
 
-fig.axes[0].plot(x, 0, 'k', marker = '_', markersize = 6)
-fig.axes[0].plot(0, y, 'k', marker = '|', markersize = 8)
+# for r in np.arange(1,2,2):
+    
+#     rect = (Rectangle((0-r*x, 0-y), 2*x, 2*y, linewidth=1.5,\
+#                          edgecolor='k', facecolor='None'))
+#     #rect2 = (Rectangle((0-r*x, 0+y), 2*x, 2*y, linewidth=1.5,\
+#                           #   edgecolor='k', facecolor='None'))
+#     fig.axes[0].add_patch(rect)
 
+# fig.axes[0].plot(0,0, 'ok', markersize = 4)
+# fig.axes[0].plot(0,2*y, 'ok', markersize = 4)
+# fig.axes[0].plot(0,-2*y, 'ok', markersize = 4)
+# fig.axes[0].plot(2*x, 0,  'ok', markersize = 4)
+# fig.axes[0].plot(-2*x, 0, 'ok', markersize = 4)
+
+# fig.axes[0].plot(x, 0, 'k', marker = '_', markersize = 6)
+# fig.axes[0].plot(0, y, 'k', marker = '|', markersize = 8)
 
 #fig.axes[0].set_xlim(-3,3)
 if save_figure is True:
@@ -392,13 +391,13 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [1.3, 2.05], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [0.8, 1.0, 1.9], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = (0, 0), (4, 2) # Central (kx, ky) point and k-integration
 
-colors = ['black', 'red'] #colors for plotting the traces
+colors = ['grey', 'black', 'red', 'purple'] #colors for plotting the traces
 
 subtract_neg = True #If you want to subtract negative time delay baseline
-norm_trace = False
+norm_trace = True
 
 #######################
 ### Do the Plotting ###
@@ -407,7 +406,8 @@ norm_trace = False
 (kx_int, ky_int) = k_int
 
 i = 0
-frame = get_momentum_map(I, E_trace[i], E_int, 500, 2000)
+E_MM = 1.8
+frame = get_momentum_map(I, E_MM, E_int, 500, 2000)
 
 fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1]})
 fig.set_size_inches(12 , 4, forward=False)
@@ -428,11 +428,11 @@ for label in ax[0].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
 ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
-ax[0].set_title('$E$ = ' + str((E_trace[i])) + ' eV', fontsize = 18)
+ax[0].set_title('$E$ = ' + str(E_MM) + ' eV', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 
 ### SECOND PLOT: WATERFALL
-Ein = 0.7
+Ein = 0.4
 I_norm = I/np.max(I)
 I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 
@@ -440,10 +440,13 @@ I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 #I_neg_mean = I_neg_mean.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
 
 I_diff = I_norm - I_neg_mean
-I_diff = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
+I_diff = I_diff.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
 I_diff = I_diff/np.max(I_diff)
 
-I3 = enhance_features(I_diff, Ein, factor = 0, norm = True)
+I_k_int = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
+I_k_int = I_k_int/np.max(I_k_int)
+
+I3 = enhance_features(I_k_int, Ein, factor = 0, norm = True)
 
 energy_limits = [-.5, 3]
 color_max = 1
@@ -472,7 +475,7 @@ ax[1].set_aspect("auto")
 trace_norms = []
 for i in np.arange(len(E_trace)):
     
-    trace = get_time_trace(I, E_trace[i], E_int, k , k_int, subtract_neg, norm_trace)
+    trace = get_time_trace(I, E_trace[i], E_int, k , k_int, norm_trace, subtract_neg)
     trace_norms.append(np.max(trace))
 
     if i == 0:
