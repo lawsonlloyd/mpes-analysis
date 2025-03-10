@@ -20,7 +20,7 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 #%% Specifiy filename of h5 file in your path.
@@ -30,12 +30,13 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
-#filename, offsets = 'Scan682_binned.h5', [0,0]
+data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
+#filename, offsets = 'Scan682_binned.h5', [0,0]
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.835, -120]
-filename, offsets = 'Scan788_Ppol3_delay_binned.h5', [0.2, 0]
+filename, offsets = 'Scan789_binned_2.h5', [0.2, 0]
+filename, offsets = 'Scan790_binned.h5', [0.2, 0]
 
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
@@ -344,8 +345,8 @@ print(round(popt[0],3))
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [0.8, 1.0, .2], 0.1 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [500, 500, 0], 2000 #Integration range for delays
+E, E_int = [0.2, 1, 1.8], 0.1 # Energies and Total Energy Integration Window to Plot MMs
+delays, delay_int = [500, 500, 500], 2000 #Integration range for delays
 
 #######################
 
@@ -391,7 +392,7 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [0.8, 1.0, 1.9], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [0.25, 0.95, 1.7], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = (0, 0), (4, 2) # Central (kx, ky) point and k-integration
 
 colors = ['grey', 'black', 'red', 'purple'] #colors for plotting the traces
@@ -407,7 +408,7 @@ norm_trace = True
 
 i = 0
 E_MM = 1.8
-frame = get_momentum_map(I, E_MM, E_int, 500, 2000)
+frame = get_momentum_map(I, 1.8, 0.4, 500, 2000)
 
 fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1]})
 fig.set_size_inches(12 , 4, forward=False)
@@ -432,7 +433,7 @@ ax[0].set_title('$E$ = ' + str(E_MM) + ' eV', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 
 ### SECOND PLOT: WATERFALL
-Ein = 0.4
+Ein = 0.55
 I_norm = I/np.max(I)
 I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 
@@ -495,7 +496,7 @@ for i in np.arange(len(E_trace)):
 ax[2].set_xlim(I.delay[1], I.delay[-1])
 
 if norm_trace is True:
-    ax[2].set_ylim(-0.1, 1.1)
+    ax[2].set_ylim(-0.5, 1.1)
 else:
     ax[2].set_ylim(-0.1*np.max(trace_norms), 1.1*np.max(1))
     
