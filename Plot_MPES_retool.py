@@ -20,8 +20,10 @@ from obspy.imaging.cm import viridis_white
 import xarray as xr
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
+
+import mpes
 
 #%% Specifiy filename of h5 file in your path.
 # Include manual energy and time delay offsets for the axes, if required.
@@ -30,13 +32,11 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
-filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.835, -120]
-filename, offsets = 'Scan789_binned_2.h5', [0.2, 0]
-filename, offsets = 'Scan790_binned.h5', [0.2, 0]
+filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
@@ -64,180 +64,29 @@ I = I.assign_coords(delay=(I.delay-offsets[1]))
 
 %matplotlib inline
 
-#%% Useful Functions and Definitions for Manipulating Data
-
-# Partition Data into + and - Delays
-def get_data_chunks(neg_times, t0, ax_delay_offset):
-    if I.ndim > 3:
-        tnf1 = (np.abs(ax_delay_offset - neg_times[0])).argmin()
-        tnf2 = (np.abs(ax_delay_offset - neg_times[1])).argmin()
-
-        I_neg = I[:,:,:,tnf1:tnf2+1] #Sum over delay/polarization/theta...
-        neg_length = I_neg.shape[3]
-        I_neg = I_neg
-        I_neg_sum = I_neg.sum(axis=(3))/neg_length
-    
-        I_pos = I[:,:,:,t0+1:]
-        pos_length = I_pos.shape[3]
-        I_pos = I_pos #Sum over delay/polarization/theta...
-        I_pos_sum = I_pos.sum(axis=(3))/pos_length
-    
-        I_sum = I[:,:,:,:].sum(axis=(3))
-        
-        return I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum
-
-    else:
-        I_neg = I[:,:,:] #Sum over delay/polarization/theta...
-        I_pos = I[:,:,:]
-        I_sum = I
-
-# Function for Creating MM Constant Energy kx, ky slice 
-def get_momentum_map(I_res, E, E_int, delays, delay_int):
-    # Momentum Maps at specified Energies and Delays
-        
-    frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
-                             
-    return frame
-
-def get_kx_E_frame(I_res, ky, ky_int, delay, delay_int):
-    
-    frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="ky").mean(dim="delay")
-    
-    return frame
-
-def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
-
-    frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="kx").mean(dim="delay")
-    
-    return frame
-
-# Fucntion for Extracting time Traces
-def get_time_trace(I_res, E, E_int, k , k_int, norm_trace, subtract_neg):
-    
-    (kx, ky) = k
-    (kx_int, ky_int) = k_int
-    
-    trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky", "E"))
-
-    if subtract_neg is True : 
-        trace = trace - np.mean(trace.loc[{"delay":slice(-200,-100)}])
-    
-    if norm_trace is True : 
-        trace = trace/np.max(trace)
-    
-    return trace
-
-def enhance_features(I_res, Ein, factor, norm):
-    
-    I1 = I_res.loc[{"E":slice(-3.5,Ein)}]
-    I2 = I_res.loc[{"E":slice(Ein,3.5)}]
-
-    if norm is True:
-        I1 = I1/np.max(I1)
-        I2 = I2/np.max(I2)
-    else:
-        I1 = I1/factor[0]
-        I2 = I2/factor[1]
-        
-    I3 = xr.concat([I1, I2], dim = "E")
-    
-    return I3
-
-#%% Useful Functions and Definitions for Plotting Data
-
-def plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot):
-            
-    fig, ax = plt.subplots(1, len(E), squeeze = False)
-    ax = ax.flatten()
-    fig.set_size_inches(8, 5, forward=False)
-    plt.gcf().set_dpi(300)
-    
-    for i in np.arange(len(E)):
-            
-        frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
-        frame_neg = get_momentum_map(I, E[i], E_int, -140, 50)
-        #frame = frame - frame_neg
-        
-        f_norm = np.max(frame)
-        frame = frame/f_norm
-        
-        im = frame.plot.imshow(ax = ax[i], clim = None, vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
-        ax[i].set_aspect(1)        
-        ax[i].set_xlim(-2,2)
-        ax[i].set_ylim(-2,2)
-        
-        ax[i].set_xticks(np.arange(-2,2.2,1))
-        for label in ax[i].xaxis.get_ticklabels()[1::2]:
-            label.set_visible(False)
-            
-        ax[i].set_yticks(np.arange(-2,2.1,1))
-        for label in ax[i].yaxis.get_ticklabels()[1::2]:
-            label.set_visible(False)
-        
-        #ax[0].set_box_aspect(1)
-        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_title('$E$ = ' + str((E[i])) + ' eV', fontsize = 18)
-        ax[i].tick_params(axis='both', labelsize=16)
-        #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
-        ax[i].text(-1.9, 1.5,  f"$\Delta$t = {delays[i]} fs", size=14)
-
-    cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
-    cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
-    cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
-
-    plt.rcParams['svg.fonttype'] = 'none'
-    fig.tight_layout()
-    
-    return fig
-                
-#I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
-def custom_colormap(CMAP, lower_portion_percentage):
-    # create a colormap that consists of
-    # - 1/5 : custom colormap, ranging from white to the first color of the colormap
-    # - 4/5 : existing colormap
-    
-    # set upper part: 4 * 256/4 entries
-    
-    upper =  CMAP(np.arange(256))
-    upper = upper[56:,:]
-    
-    # - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
-    lower_portion = int(1/lower_portion_percentage) - 1
-    
-    lower = np.ones((int(200/lower_portion),4))
-    # - modify the first three columns (RGB):
-    #   range linearly between white (1,1,1) and the first color of the upper colormap
-    for i in range(3):
-      lower[:,i] = np.linspace(1, upper[0,i], lower.shape[0])
-    
-    # combine parts of colormap
-    cmap = np.vstack(( lower, upper ))
-    
-    # convert to matplotlib colormap
-    custom_cmap = mpl.colors.ListedColormap(cmap, name='custom', N=cmap.shape[0])
-    
-    return custom_cmap
-
-cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
-
 #%% Define E = 0 wrt VBM
 
-I_res = I/np.max(I)
-
-fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
+figure_file_name = 'vbm'
+save_figure = True
+
 ### Plot EDCs at GAMMA vs time
 
-x, y = .07, -.2
+I_res = I/np.max(I)
 
-(kx, ky), k_int = (-2*x, y), 0.2
+a, b = 3.508, 4.763 # CrSBr values
+X, Y = np.pi/a, np.pi/b
+x, y = -2*X, 0*Y
+
+(kx, ky), k_int = (x, y), 0.1
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
-im = I_res.loc[{"E":slice(0,1), "delay":slice(-300,-100)}].mean(dim=("E","delay")).T.plot.imshow(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
+E_MM = 0
+im = I_res.loc[{"E":slice(E_MM-0.05,E_MM+0.05), "delay":slice(-300,-100)}].mean(dim=("E","delay")).T.plot.imshow(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
 # cbar_ax = fig.add_axes([.51, 0.275, 0.025, 0.5])
 cbar = fig.colorbar(im, ax = ax[0], ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
@@ -246,13 +95,17 @@ rect = (Rectangle((kx-k_int/2, ky-k_int/2), k_int, k_int, linewidth=1.5,\
 fig.axes[0].add_patch(rect)
 ax[0].set_ylim([-2,2])
 ax[0].set_xlim([-2,2])
+ax[0].set_title(f"E = {E_MM} eV")
+ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+ax[0].set_aspect(1)
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
 #plt.axvline(0, linestyle = 'dashed', color = 'black')
 #ax[0].set_xlabel('Delay, fs')
 #ax[0].set_ylabel('E - E$_{VBM}$, eV')
 
 pts = [-120]
-colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
+colors = ['black']
 n = len(pts)
 colors = mpl.cm.inferno(np.linspace(0,.8,n))
                     
@@ -262,12 +115,11 @@ edc = edc/np.max(edc)
 e = edc.plot(ax = ax[1], color = 'k', label = f"{pts[0]} fs")
 
 #plt.legend(frameon = False)
-ax[1].set_xlim([-1.5, 1]) 
+ax[1].set_xlim([-1, 1]) 
 #ax[1].set_ylim([0, 1.1])
 ax[1].set_xlabel('E - E$_{VBM}$, eV')
 ax[1].set_ylabel('Norm. Int.')
 #ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
-ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
 #ax[1].set_yscale('log')
 #plt.ax[1].gca().set_aspect(2)
 
@@ -286,66 +138,91 @@ try:
 except ValueError:
     popt = p0
     print('oops!')
+    
+perr = np.sqrt(np.diag(pcov))
         
 vb_fit = gaussian(edc.E, *popt)
-ax[1].plot(edc.E, vb_fit, linestyle = 'dashed', color = 'pink')
+ax[1].plot(edc.E, vb_fit, linestyle = 'dashed', color = 'pink', label = 'Fit')
+ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
 
 print(round(popt[1],4))
+print(round(perr[1],4))
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%% Define t0 from Exciton Rise
+
 from scipy.special import erf
 
-fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
+fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
+
+figure_file_name = 'define_t0'
+save_figure = True
+
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), k_int = (0 ,0), 3.8
-trace_ex = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "E":slice(1,1.6)}].mean(dim=("kx","ky","E"))
+(kx, ky), (kx_int, ky_int) = (0, 0), (3.8, 2)
+#(kx, ky), (kx_int, ky_int) = (0, .7), (1.5, 0.5)
+E, E_int = 1.55, 0.1
+
+trace_ex = I_res.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2), "ky":slice(ky-ky_int/2,ky+ky_int/2), "E":slice(E-E_int,E+E_int)}].mean(dim=("kx","ky","E"))
 trace_ex = trace_ex - trace_ex[2:5].mean()
 trace_ex = trace_ex/np.max(trace_ex)
 
-im = I_res.loc[{"E":slice(1,1.5), "delay":slice(-200,500)}].mean(dim=("E","delay")).T.plot.imshow(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
+im = I_res.loc[{"E":slice(E-E_int,E+E_int), "delay":slice(-200,500)}].mean(dim=("E","delay")).T.plot.imshow(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
 # cbar_ax = fig.add_axes([.51, 0.275, 0.025, 0.5])
 cbar = fig.colorbar(im, ax = ax[0], ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
-rect = (Rectangle((kx-k_int/2, ky-k_int/2), k_int, k_int, linewidth=1.5,\
+rect = (Rectangle((kx-kx_int/2, ky-ky_int/2), kx_int, ky_int, linewidth=1.5,\
                          edgecolor='k', facecolor='None'))
 fig.axes[0].add_patch(rect)
 ax[0].set_ylim([-2,2])
 ax[0].set_xlim([-2,2])
+ax[0].set_aspect(1)
+ax[0].set_title(f"E = {E} eV")
+
 #plt.axhline(0, linestyle = 'dashed', color = 'black')
 #plt.axvline(0, linestyle = 'dashed', color = 'black')
 
 t0 = 0
 tau = 25
 def rise_erf(t, t0, tau):
-    r = 0.5 * (1 + erf((t - t0) / tau))
+    r = 0.5 * (1 + erf((t - t0) / (tau)))
     return r
 
 rise = rise_erf(I_res.delay, -30, 45)
 
 p0 = [-30, 45]
-popt, pcov = curve_fit(rise_erf, trace_ex.loc[{"delay":slice(-200,50)}].delay.values ,
-                                trace_ex.loc[{"delay":slice(-200,50)}].values,
+popt, pcov = curve_fit(rise_erf, trace_ex.loc[{"delay":slice(-200,40)}].delay.values ,
+                                trace_ex.loc[{"delay":slice(-200,40)}].values,
                                 p0, method="lm")
+
+perr = np.sqrt(np.diag(pcov))
 
 rise_fit = rise_erf(np.linspace(-200,200,50), *popt)
 
 ax[1].plot(I_res.delay, trace_ex, 'ko')
 ax[1].plot(np.linspace(-200,200,50), rise_fit, 'pink')
 #ax[1].plot(I_res.delay, rise, 'red')
-
+ax[1].set_xlabel('Delay, fs')
+ax[1].set_ylabel('Norm. Int.')
 ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
 
-ax[1].set_xlim([-250, 250]) 
+ax[1].set_xlim([-150, 150]) 
 ax[1].set_ylim(-.1,1.05)
 
-print(round(popt[0],3))
+print(round(popt[0],3), round(popt[1],1))
+print(round(perr[0],3), round(perr[1],1))
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [0.2, 1, 1.8], 0.1 # Energies and Total Energy Integration Window to Plot MMs
+E, E_int = [0.0, 1.3, 1.8], 0.1 # Energies and Total Energy Integration Window to Plot MMs
 delays, delay_int = [500, 500, 500], 2000 #Integration range for delays
 
 #######################
@@ -359,7 +236,7 @@ save_figure = False
 cmap_plot = cmap_LTL
 #cmap_plot = 'turbo'
 
-fig = plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
+fig = mpes_helper.plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
 
 #add_bz(fig, x, y)
 
@@ -392,13 +269,13 @@ if save_figure is True:
 save_figure = False
 figure_file_name = ''
 
-E_trace, E_int = [0.25, 0.95, 1.7], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
-k, k_int = (0, 0), (4, 2) # Central (kx, ky) point and k-integration
+E_trace, E_int = [1.3, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+k, k_int = (0, 0), (4, 2.5) # Central (kx, ky) point and k-integration
 
-colors = ['grey', 'black', 'red', 'purple'] #colors for plotting the traces
+colors = ['black', 'red', 'purple'] #colors for plotting the traces
 
-subtract_neg = True #If you want to subtract negative time delay baseline
-norm_trace = True
+subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
+norm_trace = False
 
 #######################
 ### Do the Plotting ###
@@ -407,8 +284,8 @@ norm_trace = True
 (kx_int, ky_int) = k_int
 
 i = 0
-E_MM = 1.8
-frame = get_momentum_map(I, 1.8, 0.4, 500, 2000)
+E_MM = 1.35
+frame = get_momentum_map(I, E_MM, 0.1, 500, 2000)
 
 fig, ax = plt.subplots(1, 3, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1]})
 fig.set_size_inches(12 , 4, forward=False)
@@ -433,7 +310,7 @@ ax[0].set_title('$E$ = ' + str(E_MM) + ' eV', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 
 ### SECOND PLOT: WATERFALL
-Ein = 0.55
+Ein = .75
 I_norm = I/np.max(I)
 I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 
@@ -476,7 +353,7 @@ ax[1].set_aspect("auto")
 trace_norms = []
 for i in np.arange(len(E_trace)):
     
-    trace = get_time_trace(I, E_trace[i], E_int, k , k_int, norm_trace, subtract_neg)
+    trace = get_time_trace(I, E_trace[i], E_int, k , k_int, norm_trace, subtract_neg, neg_delays)
     trace_norms.append(np.max(trace))
 
     if i == 0:
@@ -498,7 +375,7 @@ ax[2].set_xlim(I.delay[1], I.delay[-1])
 if norm_trace is True:
     ax[2].set_ylim(-0.5, 1.1)
 else:
-    ax[2].set_ylim(-0.1*np.max(trace_norms), 1.1*np.max(1))
+    ax[2].set_ylim(-0.1, 1.1*np.max(1))
     
 ax[2].set_ylabel('Norm. Int.', fontsize = 18)
 ax[2].set_xlabel('Delay, fs', fontsize = 18)
@@ -517,14 +394,14 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg', dpi =300)
     
-#%% Plot kx vs E
+#%% Plot MM + k vs E
 
 save_figure = False
 figure_file_name = 'MM_ARPES_delay_frames_200'
 
-E_trace, E_int = [.4, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_MM, E_int = 0.4, .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 k, k_int = (0, 0), .2 # Central (kx, ky) point and k-integration
-delay, delay_int = 200, 300
+delay, delay_int = 50, 50
 
 colors = ['black', 'red'] #colors for plotting the traces
 cmap_plot = cmap_LTL
@@ -535,7 +412,7 @@ i = 0
 I_res = I/I.max()
 I_res_enh = enhance_features(I_res, Ein, factor = 0, norm = True)
 
-frame = get_momentum_map(I, E_trace[i], E_int, delay, delay_int)
+frame = get_momentum_map(I, E_MM, E_int, delay, delay_int)
 
 #Norm to t0 Frame
 frame_t0 = get_kx_E_frame(I_res_enh, ky, k_int, 25, delay_int)
@@ -577,7 +454,7 @@ for label in ax[0].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
 ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
-ax[0].set_title(f'$E$ = {E_trace[i]} $eV$', fontsize = 18)
+ax[0].set_title(f'$E$ = {E_MM} $eV$', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 ax[0].text(-1.9, 1.55,  f"$\Delta$t = {delay} fs", size=16)
 ax[0].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
@@ -695,15 +572,19 @@ def objective(params, x, data):
     return resid
 
 
-#%% TEST: CBM EDC Fitting: Extract Binding Energy
+#%% TEST: CBM EDC Fitting to Extract EXCITON Binding Energy and Peak Positions
 
-E_trace, E_int = [1.35, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
-k, k_int = (0, 0), .2 # Central (kx, ky) point and k-integration
-delay, delay_int = 200, 20
+save_figure = False
+figure_name = 'kx_excited'
+
+E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+k, k_int = (0, 0), 0.2 # Central (kx, ky) point and k-integration
+delay, delay_int = 100, 40
 
 kx_frame = get_kx_E_frame(I, ky, k_int, delay, delay_int)
+kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
-kx_edc = kx_frame.loc[{"kx":slice(-2,2)}].sum(dim="kx")
+kx_edc = kx_frame.loc[{"kx":slice(-2,2)}].mean(dim="kx")
 kx_edc = kx_edc/np.max(kx_edc.loc[{"E":slice(0.8,3)}])
 
 ##### X and CBM ####
@@ -712,26 +593,63 @@ e2 = 3
 p0 = [1, 0.3,  1.35, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
 bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
 
-popt_2, _ = curve_fit(two_gaussians, kx_edc.loc[{"E":slice(e1,e2)}].E.values, kx_edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
-g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, *popt_2)
-Eb = round(popt_2[3] - popt_2[2],2)
+popt, pcov = curve_fit(two_gaussians, kx_edc.loc[{"E":slice(e1,e2)}].E.values, kx_edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+perr = np.sqrt(np.diag(pcov))
+g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, *popt)
+Eb = round(popt[3] - popt[2],3)
 
 fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
-kx_edc.plot(ax=ax[0], color = 'black')
-ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
-ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
-ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
-ax[0].set_title(f"$\Delta t = {delay}$ fs : $E_B = {1000*Eb}$ meV")
-ax[0].set_xlim(0.5,3)
-ax[0].set_ylim(0, 1.1)
+im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+ax[0].set_aspect(1)
 
+ax[0].set_xticks(np.arange(-2,2.2,1))
+for label in ax[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[0].set_yticks(np.arange(-2,4.1,.25))
+for label in ax[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+ax[0].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
+ax[0].set_title(f'$k_y$ = {kx} $\AA^{{-1}}$', fontsize = 18)
+ax[0].tick_params(axis='both', labelsize=16)
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(0.8,3)
+ax[0].text(-1.9, 2.7,  f"$\Delta$t = {delay} fs", size=16)
+ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[0].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-2*x, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axhline(popt[2], linestyle = 'dashed', color = 'k', linewidth = 1.5)
+ax[0].axhline(popt[3], linestyle = 'dashed', color = 'r', linewidth = 1.5)
+
+kx_edc.plot(ax=ax[1], color = 'black')
+ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
+ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
+ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
+ax[1].set_title(f"$E_b = {1000*Eb}$ meV")
+ax[1].text(1.9, .95,  f"$\Delta$t = {delay} fs", size=16)
+ax[1].set_xlim(0.5,3)
+ax[1].set_ylim(0, 1.1)
+ax[1].set_xlabel('$E - E_{VBM}, eV$', fontsize = 18)
+ax[1].set_ylabel('Norm. Int.', fontsize = 18)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')
+    
+print(f"{popt[2]:.3f} +- {perr[2]:.3f}")
+print(f"{popt[3]:.3f} +- {perr[3]:.3f}")
+print(f"{1000*Eb:.3f} +- {1000*np.sqrt(perr[3]**2+perr[2]**2):.3f}")
 #%% # Do the Excited State Fits for all Delay Times
 
 ##### CBM AND EXCITON #####
-delay_int = 20
+delay_int = 40
 e1 = 1.1
 e2 = 3
 p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
@@ -771,7 +689,7 @@ for t in range(n):
 #%% Plot Excited State EDC Fits and Binding Energy
 
 figure_file_name = 'EDC_fits_metis_excted2'
-save_figure = True
+save_figure = False
 
 fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1, 1.25, 1.25], 'height_ratios':[1]})
 fig.set_size_inches(13, 4, forward=False)
@@ -789,8 +707,8 @@ ax[0].set_xlabel('$E - E_{VBM}$, eV', color = 'black')
 
 # PLOT CBM and EX SHIFT DYNAMICS
 #fig = plt.figure()
-t = 32 # Show only after 50 (?) fs
-tt = 32
+t = 7 # Show only after 50 (?) fs
+tt = 12
 y_ex, y_ex_err = 1*(centers_EX[t:] - 0*centers_EX[-12].mean()), 1*p_err_excited[t:,2]
 y_cb, y_cb_err = 1*(centers_CBM[tt:]- 0*centers_CBM[-12].mean()),  1*p_err_excited[tt:,3]
 
@@ -815,8 +733,8 @@ ax[1].set_title(f"From {round(I.delay.values[t])} fs")
 ax[1].legend(frameon=False, loc = 'upper right')
 ax2.legend(frameon=False, loc = 'upper left' )
 
-ax[2].plot(I.delay.values[t:], 1000*Ebs[t:], color = 'purple', label = '$E_{B}$')
-ax[2].fill_between(I.delay.values[t:], 1000*Ebs[t:] - 1000*p_err_eb[t:], 1000*Ebs[t:] + 1000*p_err_eb[t:], color = 'violet', alpha = 0.5)
+ax[2].plot(I.delay.values[tt:], 1000*Ebs[tt:], color = 'purple', label = '$E_{B}$')
+ax[2].fill_between(I.delay.values[tt:], 1000*Ebs[tt:] - 1000*p_err_eb[tt:], 1000*Ebs[tt:] + 1000*p_err_eb[tt:], color = 'violet', alpha = 0.5)
 ax[2].set_xlim([0, I.delay.values[-1]])
 ax[2].set_ylim([700,950])
 ax[2].set_xlabel('Delay, fs')
