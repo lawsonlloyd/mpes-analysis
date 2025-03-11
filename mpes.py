@@ -14,7 +14,7 @@ from matplotlib.ticker import FormatStrFormatter
 #%% Useful Functions and Definitions for Manipulating Data
 
 # Partition Data into + and - Delays
-def get_data_chunks(neg_times, t0, ax_delay_offset):
+def get_data_chunks(I, neg_times, t0, ax_delay_offset):
     if I.ndim > 3:
         tnf1 = (np.abs(ax_delay_offset - neg_times[0])).argmin()
         tnf2 = (np.abs(ax_delay_offset - neg_times[1])).argmin()
