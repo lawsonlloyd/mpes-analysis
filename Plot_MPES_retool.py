@@ -1054,13 +1054,12 @@ fig.tight_layout()
 #plt.gca().set_aspect(200)
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
-
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
 #%% Extract k-Dispersion and Eb momentum-depenence
 
 save_figure = True
-figure_name = 'eb-dispersion'
+figure_file_name = 'eb-dispersion'
 image_format = 'pdf'
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
@@ -1195,7 +1194,7 @@ plt.rcParams.update(params)
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +image_format), format=image_format)
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
     
 print(f"{popt[2]:.3f} +- {perr[2]:.3f}")
 print(f"{popt[3]:.3f} +- {perr[3]:.3f}")
