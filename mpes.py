@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as col
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
+import xarray as xr
 
 #%% Useful Functions and Definitions for Manipulating Data
 
