@@ -40,7 +40,8 @@ data_path = 'R:\Lawson\Data\metis'
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan803_binned.h5', [0.2, -102]
+
+filename, offsets = 'Scan801_binned.h5', [0.2, -102]
 
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
@@ -115,7 +116,7 @@ fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 figure_file_name = 'vbm'
-save_figure = True
+save_figure = False
 
 ### Plot EDCs at GAMMA vs time
 
@@ -123,7 +124,9 @@ a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
 x, y = -2*X, 0*Y
 
-(kx, ky), k_int = (x, y), 0.1
+x, y = -0.7, 0.55
+
+(kx, ky), k_int = (x, y), 0.2
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -231,9 +234,9 @@ save_figure = False
 
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), (kx_int, ky_int) = (0, 0), (3.8, 1.8)
+(kx, ky), (kx_int, ky_int) = (0, 0), (3.8, 4)
 #(kx, ky), (kx_int, ky_int) = (0, .7), (1.5, 0.5)
-E, E_int = 1.55, 0.1
+E, E_int = 1.7, 0.4
 
 trace_ex = I_res.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2), "ky":slice(ky-ky_int/2,ky+ky_int/2), "E":slice(E-E_int,E+E_int)}].mean(dim=("kx","ky","E"))
 trace_ex = trace_ex - trace_ex[2:5].mean()
@@ -290,7 +293,7 @@ if save_figure is True:
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
+E, E_int = [1.5, 1.5, 1.5, 1.8, 1.8, 1.8], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 delays, delay_int = [0, 100, 500, 0, 100, 500], 50 #Integration range for delays
 
 #######################
@@ -298,8 +301,7 @@ delays, delay_int = [0, 100, 500, 0, 100, 500], 50 #Integration range for delays
 %matplotlib inline
 
 figure_file_name = f'MMs_Delays' 
-save_figure = True
-image_format = 'pdf'
+save_figure = False
 
 #cmap_plot = viridis_white
 cmap_plot = cmap_LTL
@@ -310,20 +312,12 @@ fig.set_size_inches(8, 5, forward=False)
 plt.gcf().set_dpi(400)
 ax = ax.flatten()
 
-norm_frame_ex = I_res.loc[{"E":slice(1.25-E_int/2,1.25+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
-norm_frame_cbm = I_res.loc[{"E":slice(2.05-E_int/2,2.05+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
-norm_all = I_res.loc[{"E":slice(1,3)}].max()
     
 frame_norms = []
 for i in np.arange(len(E)):
 
     frame = mpes.get_momentum_map(I_res, E[i], E_int, delays[i], delay_int)
 #    frame = I_res.loc[{"E":slice(E[i]-E_int/2,E[i]+E_int/2), "delay":slice(100,140)}].mean(dim=("E","delay")).T
-
-    if i in [0, 1, 2]:
-        frame_norm = norm_frame_ex
-    elif i in [3, 4, 5]:
-        frame_norm = norm_frame_cbm
 
     frame = frame/frame.max()
     frame_norms.append(np.max(frame.values))
@@ -351,7 +345,7 @@ for i in np.arange(len(E)):
 #ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 #ax[3].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 
-cbar_ax = fig.add_axes([1, 0.36, 0.025, 0.35])
+cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
 cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
 
@@ -391,23 +385,22 @@ fig.tight_layout()
 #fig.axes[0].set_xlim(-3,3)
 
 if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
-
+    fig.savefig((figure_file_name +'.tiff'), format='tiff')
 
 #%% Plot Dynamics: Extract Traces At Different Energies and Momenta
 
 save_figure = False
 figure_file_name = 'k-integrated 4Panel'
 
-E_trace, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
+E_trace, E_int = [0.8, 1.45, 1.9], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (4,4) # Central (kx, ky) point and k-integration
 
 colors = ['black', 'red', 'purple'] #colors for plotting the traces
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
 norm_trace = True
 
-E_MM ,E_MM_int = 1.4, 0.2
+E_MM ,E_MM_int = 1.45, 0.2
 
 delay, delay_int = 500, 200 #kx frame
 
@@ -491,7 +484,7 @@ I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
 
 I_diff = I_norm - I_neg_mean
 I_diff = I_diff.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_diff = I_diff/np.max(I_diff)
+I_diff = I_diff/np.max(I_diff.loc[{"delay":slice(I_diff.delay[10],1000)}])
 
 I_k_int = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
 I_k_int = I_k_int/np.max(I_k_int)
@@ -500,7 +493,7 @@ I3 = mpes.enhance_features(I_diff, Ein, factor = 0, norm = True)
 
 color_max = 1
 #waterfall = I3.plot(ax = ax[1], vmin = -1, vmax = 1, cmap = cmap_LTL)
-waterfall = I3.plot(ax = ax[3], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
+waterfall = I3.plot(ax = ax[3], vmin = -1, vmax = 1, cmap = 'seismic', add_colorbar=False)
 #waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 ax[3].set_xlabel('Delay, fs', fontsize = 18)
 ax[3].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
@@ -541,13 +534,13 @@ for i in np.arange(len(E_trace)):
 #   ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     
     rect2 = (Rectangle((kx-kx_int/2, E_trace[i]-E_int/2), kx_int, E_int , linewidth=.5,\
-                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.5))
+                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.25))
 #    if kx_int < 4:
     ax[2].add_patch(rect2) #Add rectangle to plot
     
     rect3 = (Rectangle((-500, E_trace[i]-E_int/2), 2000, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.35))
-    ax[3].add_patch(rect3) #Add rectangle to plot
+    #ax[3].add_patch(rect3) #Add rectangle to plot
 
 #    ax[2].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
 
@@ -579,99 +572,13 @@ fig.tight_layout()
 #plt.gca().set_aspect(200)
 
 if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    fig.savefig((figure_file_name +'.svg'), format='svg', dpi = 300)
 
-#%% Plot Waterfall Only
 
-save_figure = True
-figure_file_name = 'k-integrated'
-image_format = 'pdf'
-
-E_trace, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
-
-colors = ['black', 'red', 'purple'] #colors for plotting the traces
-
-subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
-norm_trace = True
-
-E_MM ,E_MM_int = 1.4, 0.2
-
-delay, delay_int = 500, 200 #kx frame
-
-Ein = .85 #Enhance excited states above this Energy, eV
-energy_limits = [0.9, 3] # Energy Y Limits for Plotting Panels 3 and 4
-
-fig, ax = plt.subplots(1, 1, gridspec_kw={'width_ratios': [1], 'height_ratios':[1]})
-fig.set_size_inches(6, 4, forward=False)
-ax = [ax]
-#ax = ax.flatten()
-
-plot_symmetry_points = False
-
-### SECOND PLOT: WATERFALL
-I_norm = I/np.max(I)
-I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
-
-#I_norm = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
-#I_neg_mean = I_neg_mean.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
-
-I_diff = I_norm - I_neg_mean
-I_diff = I_diff.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_diff = I_diff/np.max(I_diff)
-
-I_k_int = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_k_int = I_k_int/np.max(I_k_int)
-
-I3 = mpes.enhance_features(I_k_int, Ein, factor = 0, norm = True)
-
-color_max = 1
-#waterfall = I3.plot(ax = ax[1], vmin = -1, vmax = 1, cmap = cmap_LTL)
-waterfall = I3.plot(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
-#waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
-ax[0].set_xlabel('Delay, fs', fontsize = 18)
-ax[0].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
-ax[0].set_yticks(np.arange(-1,3.5,0.25))
-ax[0].set_xlim(I.delay[1],I.delay[-1])
-ax[0].set_ylim(energy_limits)
-#ax[0].set_title('$k_{x}$-Integrated', fontsize = 20)
-ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[0].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-
-for label in ax[0].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-hor = I.delay[-1] - I.delay[1]
-ver =  energy_limits[1] - energy_limits[0]
-aspra = hor/ver 
-#ax[1].set_aspect(aspra)
-ax[0].set_aspect("auto")
-
-cbar_ax = fig.add_axes([1, 0.3, 0.025, 0.5])
-cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
-cbar.ax.set_yticklabels(['min', 'max'], fontsize=16)  # vertically oriented colorbar
-
-#ax[3].set_title(f'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
-#ax[3].text(500, 2.4, f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 14)
-#fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
-#fig.text(.44, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
-
-params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
-              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
-plt.rcParams['svg.fonttype'] = 'none'
-plt.rcParams.update(params)
-
-fig.tight_layout()
-#ax[1].set_tick_params(axis='both', labelsize=16)
-#plt.gca().set_aspect(200)
-
-if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
-
-#%% Plot Dynamics: Extract Traces At Different Energies and Momenta: Distinct k Points
+#%% Plot Dynamics: Extract Traces At Different Energies and Momenta
 
 save_figure = True
 figure_file_name = 'distinct_K_Points'
-image_format = 'pdf'
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
 norm_trace = False
@@ -680,6 +587,7 @@ norm_trace = False
 ### Do the Plotting ###
 #######################
 
+i = 0
 E_MM = 1.25
 frame = mpes.get_momentum_map(I, E_MM, 0.1, 500, 2000)
 
@@ -688,7 +596,7 @@ fig.set_size_inches(8, 6, forward=False)
 ax = ax.flatten()
 
 ### FIRST PLOT: MM of the First Energy
-im = frame.plot.imshow(ax = ax[0], clim = None, cmap = cmap_plot, add_colorbar=False)
+im = frame.plot.imshow(ax = ax[i], clim = None, cmap = cmap_plot, add_colorbar=False)
 ax[0].set_aspect(1)
 ax[0].set_xlim(-2,2)
 ax[0].set_ylim(-2,2)
@@ -722,34 +630,32 @@ for label in ax[2].yaxis.get_ticklabels()[1::2]:
 ax[2].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 ax[2].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
 ax[2].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-ax[2].set_title(f'$k_y$ = {ky} $\AA^{{-1}}$', fontsize = 18)
+ax[2].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
 ax[2].tick_params(axis='both', labelsize=16)
 ax[2].set_xlim(-2,2)
 ax[2].set_ylim(energy_limits[0],energy_limits[1])
+ax[2].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+#ax[2].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
+#ax[2].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+#ax[2].axvline(X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+#ax[2].axvline(-X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+#ax[2].axvline(2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+#ax[2].axvline(-2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+#ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
+
 ax[2].set_aspect("auto")
 
-ax[2].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axvline(0, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axvline(X, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axvline(-X, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axvline(2*X, linestyle = 'dashed', color = 'black', linewidth = 1)
-ax[2].axvline(-2*X, linestyle = 'dashed', color = 'black', linewidth = 1)
+### SECOND PLOT: WATERFALL
 
-ax[2].text(0+0.04, 2.75, f"$\Gamma$", size=12)
-ax[2].text(-X+0.04, 2.75, f"$X$", size=12)
-ax[2].text(X+0.04, 2.75, f"$X$", size=12)
-ax[2].text(-2*X+0.04, 2.75, f"$\Gamma$", size=14)
-ax[2].text(2*X-0.35, 2.75, f"$\Gamma$", size=14)
-ax[2].text(-1.82, 2.475,  f"$\Delta$t = {delay} fs", size=13)
+#ax[3].text(500, 2.4, f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 14)
 
-### for the Exciton
+#fig.colorbar(waterfall, ax=ax[1], shrink = 0.8, ticks = [0, color_max/2, color_max])
+
+### THIRD PLOT: DELAY TRACES (Angle-Integrated)
 E, E_int = 1.25, 0.2
-(kx, ky), (kx_int, ky_int) = ((-2*X, -1.5*X, -X, -X/2, 0.0, X/2, X, 1.5*X, 2*X), 0), (.25, .25) # Central (kx, ky) point and k-integration
-colors = ['crimson', 'purple', 'blue', 'darkblue', 'dodgerblue', 'yellow', 'darkorange', 'lightcoral', 'black'] #colors for plotting the traces
-
+(kx, ky), (kx_int, ky_int) = ((-2*X, -X, 0.0, X, 2*X), 0), (.25, .25) # Central (kx, ky) point and k-integration
+colors = ['crimson', 'purple', 'darkblue', 'dodgerblue', 'lightcoral'] #colors for plotting the traces
 k_point_label = ['$\Gamma_{-1,0}$', '$-X$', '$\Gamma_{0}$', '$+X$', '$\Gamma_{1,0}$']
-
-k_point_label = ['$\Gamma_{-1,0}$', '$-3X/2$', '$-X$','$-X/2$', '$\Gamma_{0}$', '$+X/2$', '$+X$', '$+3X/2$', '$\Gamma_{1,0}$']
 
 trace_norms = []
 for i in np.arange(len(kx)):
@@ -770,7 +676,7 @@ for i in np.arange(len(kx)):
     ax[2].add_patch(rect2) #Add rectangle to plot
 #    ax[2].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     rect = (Rectangle((kx[i]-kx_int/2, ky-ky_int/2), kx_int, ky_int, linewidth=.5,\
-                             edgecolor='grey', facecolor='grey', alpha = 0.7))
+                             edgecolor='grey', facecolor='yellow', alpha = 0.5))
     if kx_int < 4:
         ax[0].add_patch(rect) #Add rectangle to plot
 
@@ -783,11 +689,13 @@ else:
     
 ax[1].set_ylabel('Norm. Int.', fontsize = 18)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
-#ax[1].legend(frameon = False, bbox_to_anchor=(1, 1), fontsize = 12)
-ax[1].set_title(f"Exciton")
+ax[1].legend(frameon = False, bbox_to_anchor=(1, 1), fontsize = 12)
+ax[1].set_title(f"Exciton, $E$ = {E} eV")
 
 ### for the CBM
-E = 2.05
+
+E, E_int = 2.05, 0.2
+
 trace_norms = []
 for i in np.arange(len(kx)):
     
@@ -817,25 +725,24 @@ else:
 ax[3].set_ylabel('Norm. Int.', fontsize = 18)
 ax[3].set_xlabel('Delay, fs', fontsize = 18)
 #ax[3].legend(frameon = False, fontsize = 12)
-ax[3].set_title(f"CBM")
-
-fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
-fig.text(.03, 0.5, "(c)", fontsize = 18, fontweight = 'regular')
-fig.text(.425, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
-fig.text(.425, 0.5, "(d)", fontsize = 18, fontweight = 'regular')
+ax[3].set_title(f"CBM, $E$ = {E} eV")
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-fig.tight_layout()
+fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
+fig.text(.03, 0.5, "(c)", fontsize = 18, fontweight = 'regular')
+fig.text(.44, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
+fig.text(.44, 0.5, "(d)", fontsize = 18, fontweight = 'regular')
 
+fig.tight_layout()
 #ax[1].set_tick_params(axis='both', labelsize=16)
 #plt.gca().set_aspect(200)
 
 if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    fig.savefig((figure_file_name +'.tiff'), format='tiff', dpi =300)
 
 #%% Plot Excited State kx Panels
 
@@ -925,10 +832,10 @@ if save_figure is True:
 #%% Excited State ky Panels
 
 save_figure = True
-figure_file_name = 'ky_PANELS_kx=negX'
+figure_file_name = 'ky_PANELS'
 image_format = 'pdf'
 
-(kx, ky), (kx_int, ky_int) = (-X, 0), (0.4, 0) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (0.4, 0) # Central (kx, ky) point and k-integration
 
 delays, delay_int = [-120, 0, 50, 100, 200, 500], 50 #kx frame
 
@@ -1194,7 +1101,7 @@ for k in kx_frame.loc[{"kx":slice(k1,k2)}].kx:
 ## Plot ##
 
 fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1]})
-fig.set_size_inches(9, 3.5, forward=False)
+fig.set_size_inches(12, 4, forward=False)
 ax = ax.flatten()
 
 kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
@@ -1215,7 +1122,7 @@ g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, 
 Eb = round(popt[3] - popt[2],3)
     
 im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
-#ax[0].set_aspect(1)
+ax[0].set_aspect(1)
 
 ax[0].set_xticks(np.arange(-2,2.2,1))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
@@ -1237,7 +1144,7 @@ ax[0].text(X+0.05, 2.75, f"$X$", size=18)
 ax[0].text(-2*X+0.05, 2.75, f"$\Gamma$", size=18)
 ax[0].text(2*X+0.05, 2.75, f"$\Gamma$", size=18)
 
-ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1.5)
+ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
 ax[0].axvline(0, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(-X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
@@ -1256,6 +1163,21 @@ rect = (Rectangle((kx-kx_int/2, .5), kx_int, 3, linewidth=2.5,\
 #if kx_int < 4:
     #ax[0].add_patch(rect) #Add rectangle to plot
 
+# #kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.8)
+# ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
+# ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
+# ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
+# kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.8)
+
+# ax[1].set_title(f"$E_b = {1000*Eb}$ meV")
+# ax[1].text(1.9, .8,  f"$\Delta$t = {delay} fs", size=16)
+# ax[1].text(1.4, .95,  f'$k_x$ = {kx:.1f} $\pm$ {kx_int/2} $\AA^{{-1}}$', size=14)
+
+# ax[1].set_xlim(0.5,3)
+# ax[1].set_ylim(0, 1.1)
+# ax[1].set_xlabel('$E - E_{VBM}, eV$', fontsize = 18)
+# ax[1].set_ylabel('Norm. Int.', fontsize = 18)
+eb_kx_error
 ax[1].fill_between(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, 1000*eb_kx - 1000*eb_kx_error, 1000*eb_kx + 1000*eb_kx_error, color = 'violet', alpha = 0.5)
 ax[1].plot(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, 1000*eb_kx, color = 'darkviolet')
 ax[1].set_xlim(-2,2)
@@ -1263,15 +1185,10 @@ ax[1].set_ylim(700,900)
 ax[1].set_ylabel('$E_{b}, meV$', fontsize = 18)
 ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
 ax[1].set_title(f"$E_b = {1000*np.nanmean(eb_kx):.0f} \pm {np.nanmean(1000*eb_kx_error):.0f}$ meV")
-ax[1].set_title(f"Extracted $E_b$")
-
-ax[1].set_aspect('auto')
 
 fig.text(.02, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.51, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
 
-params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
-              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
@@ -1290,7 +1207,7 @@ save_figure = False
 figure_name = 'kx_excited'
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (3.9, 0.25) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.2) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 500
 
 kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
@@ -1325,17 +1242,17 @@ for label in ax[0].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
 ax[0].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-ax[0].set_title(f'$k_y$ = {ky} $\AA^{{-1}}$', fontsize = 18)
+ax[0].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
 ax[0].tick_params(axis='both', labelsize=16)
 ax[0].set_xlim(-2,2)
 ax[0].set_ylim(0.8,3)
 ax[0].text(-1.9, 2.7,  f"$\Delta$t = {delay} fs", size=16)
-ax[0].axhline(Ein, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
-ax[0].axvline(0, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
-ax[0].axvline(X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
-ax[0].axvline(-X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
-ax[0].axvline(2*X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
-ax[0].axvline(-2*X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
+ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
+ax[0].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
+ax[0].axvline(-2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
 ax[0].axhline(popt[2], linestyle = 'dashed', color = 'k', linewidth = 1.5)
 ax[0].axhline(popt[3], linestyle = 'dashed', color = 'r', linewidth = 1.5)
 #ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
@@ -1345,14 +1262,14 @@ if kx_int < 4:
     ax[0].add_patch(rect) #Add rectangle to plot
 
 #kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.8)
-ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid',linewidth = 3)
 ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
 ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
-kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.6)
+ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
+kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.8)
 
 ax[1].set_title(f"$E_b = {1000*Eb}$ meV")
 ax[1].text(1.9, .8,  f"$\Delta$t = {delay} fs", size=16)
-ax[1].text(1.8, .95,  f'$k_x$ = {kx:.1f} $\AA^{{-1}}$', size=16)
+ax[1].text(1.4, .95,  f'$k_x$ = {kx:.1f} $\pm$ {kx_int/2} $\AA^{{-1}}$', size=14)
 
 ax[1].set_xlim(0.5,3)
 ax[1].set_ylim(0, 1.1)
@@ -1361,13 +1278,10 @@ ax[1].set_ylabel('Norm. Int.', fontsize = 18)
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-fig.text(.02, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
-fig.text(.59, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
-
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    fig.savefig((figure_file_name +'.svg'), format='svg')
     
 print(f"{popt[2]:.3f} +- {perr[2]:.3f}")
 print(f"{popt[3]:.3f} +- {perr[3]:.3f}")
@@ -1375,11 +1289,8 @@ print(f"{1000*Eb:.3f} +- {1000*np.sqrt(perr[3]**2+perr[2]**2):.3f}")
 
 #%% # Do the Excited State Fits for all Delay Times
 
-# Momenta and Time Integration
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
+##### CBM AND EXCITON #####
 delay_int = 40
-
-# Fitting Paramaters
 e1 = 1.1
 e2 = 3
 p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
@@ -1396,9 +1307,9 @@ p_err_eb = np.zeros((len(I.delay)))
 n = len(I.delay.values)
 for t in range(n):
 
-    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, I.delay.values[t], delay_int)
+    kx_frame = get_kx_E_frame(I, ky, k_int, I.delay.values[t], delay_int)
 
-    kx_edc_i = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].sum(dim="kx")
+    kx_edc_i = kx_frame.loc[{"kx":slice(-2,2)}].sum(dim="kx")
     kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"E":slice(0.8,3)}])
     
     try:
@@ -1418,34 +1329,22 @@ for t in range(n):
 
 #%% Plot Excited State EDC Fits and Binding Energy
 
-figure_file_name = 'Eb_delays_allkx'
-save_figure = True
-image_format = 'pdf'
+figure_file_name = 'EDC_fits_metis_excted2'
+save_figure = False
 
-fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'height_ratios':[1]})
-fig.set_size_inches(14, 4, forward=False)
+fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1, 1.25, 1.25], 'height_ratios':[1]})
+fig.set_size_inches(13, 4, forward=False)
 ax = ax.flatten()
-
-kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, 500, delay_int)
-kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
-
-kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
-kx_edc = kx_edc/np.max(kx_edc.loc[{"E":slice(0.8,3)}])
 
 kx_edc.plot(ax=ax[0], color = 'black')
 ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g1, color='black',linestyle = 'dashed')
 ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g2, color='red',linestyle = 'dashed')
 ax[0].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid')
-#ax[0].set_title(f"$E_b = {1000*Eb}$ meV")
-ax[0].set_title(f"$\Delta$t = {delay} fs")
+ax[0].set_title(f"$\Delta t = {delay}$ fs : $E_B = {1000*Eb}$ meV")
 ax[0].set_xlim(0.5,3)
 ax[0].set_ylim(0, 1.1)
 ax[0].set_ylabel('Norm. Int.')
 ax[0].set_xlabel('$E - E_{VBM}$, eV', color = 'black')
-#ax[0].text(1.7, .8,  f"$\Delta$t = {delay} fs", size=16)
-#ax[0].text(1.6, .95,  f'$k_x$ = {kx:.1f} $\AA^{{-1}}$', size=16)
-#ax[0].text(1.6, .825,  f'$k_y$ = {kx:.1f} $\AA^{{-1}}$', size=16)
-ax[0].set_aspect('auto')
 
 # PLOT CBM and EX SHIFT DYNAMICS
 #fig = plt.figure()
@@ -1454,40 +1353,34 @@ tt = 12
 y_ex, y_ex_err = 1*(centers_EX[t:] - 0*centers_EX[-12].mean()), 1*p_err_excited[t:,2]
 y_cb, y_cb_err = 1*(centers_CBM[tt:]- 0*centers_CBM[-12].mean()),  1*p_err_excited[tt:,3]
 
-ax[1].plot(I.delay.values[t:], y_ex, color = 'black', label = 'Exciton')
+ax[1].plot(I.delay.values[t:], y_ex, color = 'black', label = 'EX')
 ax[1].fill_between(I.delay.values[t:], y_ex - y_ex_err, y_ex + y_ex_err, color = 'grey', alpha = 0.5)
 ax[1].set_xlim([0, I.delay.values[-1]])
 #ax[1].set_ylim([1.1,2.3])
 ax[1].set_xlim([0, I.delay.values[-1]])
-ax[1].set_ylim([1.0,1.4])
+ax[1].set_ylim([1,1.4])
 ax[1].set_xlabel('Delay, fs')
 
 ax2 = ax[1].twinx()
 ax2.plot(I.delay.values[tt:], y_cb, color = 'red', label = 'CBM')
 ax2.fill_between(I.delay.values[tt:], y_cb - y_cb_err, y_cb + y_cb_err, color = 'pink', alpha = 0.5)
-ax2.set_ylim([2.0,2.25])
+ax2.set_ylim([2,2.4])
 #ax[1].errorbar(I.delay.values[t:], 1*(centers_EX[t:]), yerr = p_err_excited[t:,2], marker = 'o', color = 'black', label = 'EX')
 #ax[1].errorbar(I.delay.values[t:], 1*(centers_CBM[t:]), yerr = p_err_excited[t:,3], marker = 'o', color = 'red', label = 'CBM')
 #ax[1].set_ylim([1.1,2.3])
-ax[1].set_ylabel('$E_{Exciton}$, eV', color = 'black')
+ax[1].set_ylabel('$E_{EX}$, eV', color = 'black')
 ax2.set_ylabel('$E_{CBM}$, eV', color = 'red')
-#ax[1].set_title(f"From {round(I.delay.values[t])} fs")
-ax[1].legend(frameon=False)
-ax2.legend(frameon=False, bbox_to_anchor=(.9, 0.875))
-ax[1].arrow(250, 1.3, -75, 0, head_width = .025, width = 0.005, head_length = 40, fc='black', ec='black')
-ax[1].arrow(650, 1.12, 75, 0, head_width = .025, width = 0.005, head_length = 40, fc='red', ec='red')
+ax[1].set_title(f"From {round(I.delay.values[t])} fs")
+ax[1].legend(frameon=False, loc = 'upper right')
+ax2.legend(frameon=False, loc = 'upper left' )
 
-ax[2].plot(I.delay.values[tt:], 1000*Ebs[tt:], color = 'purple', label = '$E_{b}$')
+ax[2].plot(I.delay.values[tt:], 1000*Ebs[tt:], color = 'purple', label = '$E_{B}$')
 ax[2].fill_between(I.delay.values[tt:], 1000*Ebs[tt:] - 1000*p_err_eb[tt:], 1000*Ebs[tt:] + 1000*p_err_eb[tt:], color = 'violet', alpha = 0.5)
 ax[2].set_xlim([0, I.delay.values[-1]])
-ax[2].set_ylim([700,900])
+ax[2].set_ylim([700,950])
 ax[2].set_xlabel('Delay, fs')
-ax[2].set_ylabel('$E_{b}$, meV', color = 'black')
+ax[2].set_ylabel('$E_{B}$, meV', color = 'black')
 ax[2].legend(frameon=False)
-
-fig.text(.02, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
-fig.text(.32, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
-fig.text(0.69, 0.975, "(c)", fontsize = 20, fontweight = 'regular')
 
 # # PLOT VBM PEAK WIDTH DYNAMICS
 # ax2 = ax[1].twinx()
@@ -1498,7 +1391,7 @@ fig.text(0.69, 0.975, "(c)", fontsize = 20, fontweight = 'regular')
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    fig.savefig((figure_file_name +'.svg'), format='svg')
 
 #%% Plot and Fit EDCs of the VBM
 

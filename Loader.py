@@ -61,9 +61,12 @@ class DataLoader:
             print('The data shape is: ' + str(self.data.shape))
             print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
             
-            res_4D = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+            if i_data.ndim > 3:
+                res = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+            elif i_data.ndim < 4:
+                res = xr.DataArray(i_data, dims = ("kx", "ky", "E"), coords = [self.ax_kx, self.ax_ky, self.ax_E])
             
-            return res_4D
+            return res
             #return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC
         
     def load_phoibos(self):

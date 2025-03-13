@@ -228,6 +228,7 @@ plt.xlim(-1,2)
 
 
 #%% Define t0 from Exciton Rise
+
 from scipy.special import erf
 
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
@@ -235,8 +236,12 @@ offsets_t0 = [-162.1, -152.7, -183.2, -118.4, -113.2, -125.0]
 
 offsets_t0 = [-162.1, -152.7, -183.2, -118.4, -113.2, -125.0]
 
-scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231,    9525, 9517, 9526]
+scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231, 9525, 9517, 9526] # Scans to analyze and fit below: 910 nm + 400 nm
 offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
+
+
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231,    9525, 9517, 9526]
+#offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
 
 t0_offsets = []
 
@@ -251,13 +256,13 @@ for scan_i in scans:
 
     ### Plot EDCs at GAMMA vs time
     
-    (kx, ky), k_int = (0  , 0), 24
+    (kx, ky), k_int = (0 , 0), 24
     trace = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E1-E_int/2, E1+E_int/2)}].sum(axis=(0,1))
     trace = trace - trace[3:8].mean()
     trace = trace/np.max(trace)
 #    trace.plot(ax = ax[i], color = 'red')
     
-    trace_ex = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Energy":slice(1.95,2.1)}].sum(dim=("Angle","Energy"))
+    trace_ex = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), 'Energy':slice(E1-E_int/2, E1+E_int/2)}].sum(dim=("Angle","Energy"))
     trace_ex = trace_ex - trace_ex[2:6].mean()
     trace_ex = trace_ex/np.max(trace_ex.loc[{"Delay":slice(-200,250)}])
     
@@ -427,18 +432,25 @@ fig.tight_layout()
 plt.show()
 
 #%% # PLOT Fluence Delay TRACES All Together
+import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 save_figure = True
 figure_file_name = 'Combined'
+image_format = 'pdf'
 
-fig, axx = plt.subplots(1, 2)
-fig.set_size_inches(12, 4, forward=False)
-axx = axx.flatten()
-
+# Standard 915 nm Excitation
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
+offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
 
+# Expanded 915 nm Excitation
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
+#offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6]
+#fluence = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151]
+
+####
 k, k_int = (0), 24
 E1, E2, E3, E_int = 1.75, 2.1, 0.1, 1
 subtract_neg = True
@@ -448,45 +460,96 @@ cn = 100
 p_min = .1
 p_max = 3.5
 
-colors1 = plt.cm.Purples(np.linspace(p_min, 3.5, cn)) 
-cm2 = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Purples)
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
 
-colors2 = plt.cm.Reds(np.linspace(p_min, 3.5, cn))
-cm = plt.cm.ScalarMappable(norm = plt.Normalize(vmin=p_min,vmax=p_max), cmap=plt.cm.Reds)
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
 
-fluence_cbar = np.linspace(p_min, p_max, cn)
+
+cmap = cm.get_cmap('inferno_r', len(scans))    # 11 discrete colors
+norm = matplotlib.colors.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'indianred', 'firebrick'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 
 i = 0
 for scan_i in scans:
     
-    res = load_data(scan_i, energy_offset, delay_offset)
+    res = load_data(scan_i, energy_offset, offsets_t0[i])
     trace_1 = get_time_trace(res, E1, E_int, k , k_int, subtract_neg, norm_trace)
     trace_2 = get_time_trace(res, E2, E_int, k , k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_1)
     trace_1 = trace_1/np.max(trace_1)
 
-    j_fluence = (np.abs(fluence_cbar-fluence[i])).argmin()
 
-    t1 = trace_1.plot(ax = axx[0], color = colors1[j_fluence])
-    t2 = trace_2.plot(ax = axx[1], color = colors2[j_fluence])
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
     
     i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.4,1.25,0.2))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
     
 axx[0].set_xlim([-500,3000])
 axx[1].set_xlim([-500,3000])
-axx[0].set_ylabel('Int., a.u.')
-cbar = plt.colorbar(cm, ax=axx[1])
-cbar.set_label('Fluence', rotation=90, fontsize=22)
-cbar.ax.tick_params(labelsize=20)
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,.65])
 
-cbar = plt.colorbar(cm2, ax=axx[0])
-cbar.set_label('Fluence', rotation=90, fontsize=22)
-cbar.ax.tick_params(labelsize=20)
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
 
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
     
 #%% # PLOT Fluence Delay TRACES All Together
 
