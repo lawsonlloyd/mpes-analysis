@@ -22,7 +22,7 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 import mpes
@@ -34,8 +34,8 @@ from mpes import cmap_LTL
 data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
-data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
+#data_path = 'R:\Lawson\Data\metis'
+data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
@@ -65,9 +65,6 @@ I = I.assign_coords(delay=(I.delay-offsets[1]))
 I_res = I/np.max(I)
 
 #%% This sets the plots to plot in the IDE window
-
-%matplotlib inline
-
 
 %matplotlib inline
 
@@ -115,7 +112,7 @@ fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 figure_file_name = 'vbm'
-save_figure = True
+save_figure = False
 
 ### Plot EDCs at GAMMA vs time
 
@@ -291,15 +288,15 @@ if save_figure is True:
 #%% Plot Momentum Maps at Constant Energy
 
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [0, 100, 500, 0, 100, 500], 50 #Integration range for delays
+delays, delay_int = [0, 100, 250, 0, 100, 250], 500 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
-figure_file_name = f'MMs_Delays' 
+figure_file_name = f'MMs_delayIntegrated_delta500fs_200mev' 
 save_figure = True
-image_format = 'pdf'
+image_format = 'svg'
 
 #cmap_plot = viridis_white
 cmap_plot = cmap_LTL
@@ -398,6 +395,7 @@ if save_figure is True:
 
 save_figure = False
 figure_file_name = 'k-integrated 4Panel'
+image_format = 'svg'
 
 E_trace, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
@@ -408,8 +406,7 @@ subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative ti
 norm_trace = True
 
 E_MM ,E_MM_int = 1.4, 0.2
-
-delay, delay_int = 500, 200 #kx frame
+delay, delay_int = 500, 1000 #kx frame
 
 Ein = .5 #Enhance excited states above this Energy, eV
 energy_limits = [-0.1, 3] # Energy Y Limits for Plotting Panels 3 and 4
@@ -627,7 +624,7 @@ I3 = mpes.enhance_features(I_k_int, Ein, factor = 0, norm = True)
 
 color_max = 1
 #waterfall = I3.plot(ax = ax[1], vmin = -1, vmax = 1, cmap = cmap_LTL)
-waterfall = I3.plot(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
+waterfall = I3.plot.imshow(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
 #waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 ax[0].set_xlabel('Delay, fs', fontsize = 18)
 ax[0].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
@@ -840,16 +837,16 @@ if save_figure is True:
 #%% Plot Excited State kx Panels
 
 save_figure = True
-figure_file_name = 'kx_PANELS'
-image_format = 'pdf'
+figure_file_name = 'kx_PANELS_alldelays_0.25dky'
+image_format = 'svg'
 
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.4) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
 
-delays, delay_int = [-120, 0, 50, 100, 200, 500], 50 #kx frame
+delays, delay_int = [-120, 0, 50, 100, 200, 500], 1000 #kx frame
 
-Ein = .75 #Enhance excited states above this Energy, eV
-energy_limits = [0.75, 3] # Energy Y Limits for Plotting Panels 3 and 4
-plot_symmetry_points = False
+Ein = .8 #Enhance excited states above this Energy, eV
+energy_limits = [0.8, 3] # Energy Y Limits for Plotting Panels 3 and 4
+plot_symmetry_points = True
 
 #######################
 ### Do the Plotting ###
@@ -868,7 +865,7 @@ for i in np.arange(len(delays)):
     
     kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delays[i], delay_int)
 #    kx_frame = kx_frame/np.max(kx_frame)
-    kx_frame = kx_frame/np.max(kx_norm_frame.loc[{"E":slice(Ein,3)}])
+    kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(Ein,3)}])
     print(kx_frame.loc[{"E":slice(1,3)}].values.max())
     
     im2 = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
@@ -1419,7 +1416,7 @@ for t in range(n):
 #%% Plot Excited State EDC Fits and Binding Energy
 
 figure_file_name = 'Eb_delays_allkx'
-save_figure = True
+save_figure = False
 image_format = 'pdf'
 
 fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'height_ratios':[1]})
@@ -1716,520 +1713,3 @@ plt.show()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
-
-
-#%% Do Fourier Transform Analysis
-
-def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):    
-    
-    ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
-    fwhm = 0.063
-    fwhm_pixel = fwhm/dkx
-    sigma = fwhm_pixel/2.355
-    gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
-    gaussian_kx = gaussian_kx/np.max(gaussian_kx)
-    gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
-    gaussian_ky = gaussian_ky/np.max(gaussian_ky)
-    
-    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
-    gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
-    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
-    #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
-    
-    ### Symmetrize Data
-    #kspace_frame_sym = xr.DataArray(np.zeros(kspace_frame.shape), coords = {"ky": ax_kx, "kx": ax_ky})
-    kspace_frame_ = kspace_frame.values
-    kspace_frame_rev = kspace_frame_[:,::-1]
-    
-    kspace_frame_sym = kspace_frame_ + kspace_frame_rev
-    kspace_frame_sym =  kspace_frame_sym/2
-    kspace_frame_sym = xr.DataArray(kspace_frame_sym, coords = {"ky": ax_ky, "kx": ax_kx})
-
-    ### Generate the Windows to Apodize the signal
-    k_x_i = np.abs(ax_kx.values-(kx-kx_int/2)).argmin()
-    k_x_f = np.abs(ax_kx.values-(kx+kx_int/2)).argmin()
-    k_y_i = np.abs(ax_kx.values-(ky-ky_int/2)).argmin()
-    k_y_f = np.abs(ax_kx.values-(ky+ky_int/2)).argmin()
-    #I_res.indexes["kx"].get_indexer([kx-kx_int/2], method = 'nearest')[0]
-    
-    # kx Axis
-    win_1_tuk = np.zeros(kspace_frame.shape[0])
-    win_1_box = np.zeros(kspace_frame.shape[0])
-
-    tuk_1 = signal.windows.tukey(k_x_f-k_x_i, alpha = alpha)
-    box_1 = signal.windows.boxcar(k_x_f-k_x_i)
-    win_1_tuk[k_x_i:k_x_f] = tuk_1
-    win_1_box[k_x_i:k_x_f] = box_1
-
-    # ky Axis
-    win_2_tuk = np.zeros(kspace_frame.shape[1])
-    win_2_box = np.zeros(kspace_frame.shape[1])
-
-    tuk_2 = signal.windows.tukey(k_y_f-k_y_i, alpha = alpha)
-    box_2 = signal.windows.boxcar(k_y_f-k_y_i)
-    win_2_tuk[k_y_i:k_y_f] = tuk_2
-    win_2_box[k_y_i:k_y_f] = box_2
-
-    # Combine to (kx, ky) Window
-    window_2D_tukey = np.outer(win_2_tuk, win_1_tuk) # 2D tukey
-    window_2D_box = np.outer(win_2_box, win_1_box) # 2D Square Window
-    window_tukey_box = np.outer(win_2_tuk, win_1_box) # Tukey + Box
-
-    if win_type == 'gaussian':
-        win_1_gauss = np.zeros(kspace_frame.shape[0])
-        gaus_1 = signal.windows.gaussian(k_x_f-k_x_i, alpha)
-        win_1_gauss[k_x_i:k_x_f] = gaus_1
-        window_2D_gaussian = np.outer(win_1_gauss, win_2_box)
-        kspace_window = window_2D_gaussian
-        
-    if win_type == 1:
-        kspace_window = xr.DataArray(window_2D_tukey, coords = {"ky": ax_ky, "kx": ax_kx})
-
-    if win_type == 'square':
-        kspace_window = window_2D_box
-
-    if win_type == 'tukey, square':
-        kspace_window = xr.DataArray(window_tukey_box, coords = {"ky": ax_ky, "kx": ax_kx})
-
-    kspace_frame_sym_win = kspace_frame_sym*kspace_window
-    kspace_frame_win = kspace_frame*(kspace_window)
-        
-    return kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window
-
-def FFT_MM(MM_frame, zeropad):
-    
-    I_MM = MM_frame
-
-    ##############################
-    
-    # Define real-space axis
-    k_step = dkx
-    #k_step_y = k-step
-    #k_length_y = len(ax_ky)
-    zplength = zeropad #5*k_length+1
-    max_r = 1/(2*k_step)
-
-    #r_axis = np.linspace(-max_r, max_r, num = k_length)
-    r_axis = np.linspace(-max_r, max_r, num = zplength)
-    freq = np.fft.fftshift(np.fft.fftfreq(len(ax_kx), d=dkx))  # Frequency array
-
-    #r_axis = r_axis/(10)
-
-    # Shuo Method ?
-    N = 1 #(zplength)Fs
-    Fs = 1/((2*np.max(ax_kx.values))/len(ax_kx.values))
-    r_axis = np.arange(0,zplength)*Fs/1
-    r_axis = r_axis - (np.max(r_axis)/2)
-    r_axis = r_axis/(1*zplength)
-
-    ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
-    I_MM = np.abs(I_MM)/np.max(I_MM)
-    root_I_MM = np.sqrt(I_MM)
-    fft_frame = np.fft.fft2(root_I_MM, [zplength, zplength])
-    fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
-
-    fft_frame = np.abs(fft_frame) 
-    I_xy = np.square(np.abs(fft_frame)) #frame squared
-    I_xy = I_xy/np.max(I_xy)
-    
-    ### Take x and y cuts and extract bohr radius
-    ky_cut = I_MM[:,int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4].sum(axis=1)
-    ky_cut = ky_cut/np.max(ky_cut)
-    kx_cut = I_MM[int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4,:].sum(axis=0)
-    kx_cut = kx_cut/np.max(kx_cut)
-
-    y_cut = I_xy[:,int(zplength/2)-1] # real space Psi*^2 cut
-    x_cut = I_xy[int(zplength/2)-1,:]
-    x_cut = x_cut/np.max(x_cut)
-    y_cut = y_cut/np.max(y_cut)
-
-    r2_cut_y = fft_frame[:,int(zplength/2)-1] #real space Psi cut
-    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) #|r*Psi(r)|^2
-    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
-
-    x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
-    y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
-    x_brad = int(zplength/2)-10 + x_brad
-    y_brad = int(zplength/2)-10 + y_brad
-    x_brad = r_axis[x_brad]
-    y_brad = r_axis[y_brad]
-    
-    ###
-    r2_cut_x = fft_frame[int(zplength/2)-1,:]
-    r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
-    r2_cut_x = r2_cut_x/np.max(r2_cut_x)
-
-    rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
-    rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
-
-    rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
-    rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
-
-    return r_axis, I_xy, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad
-    
-#%% Do the 2D FFT of MM to Extract Real-Space Information
-
-E, E_int  = 1.35, 0.200 #Energy and total width in eV
-kx, kx_int = (1.1--0.1)/2, 1.5
-ky, ky_int = 0, 1.2
-delays, delay_int = 550, 650 
-
-win_type = 1 #0, 1 = 2D Tukey, 2, 3
-alpha = 0.25
-zeropad = 2048
-
-frame_pos = get_momentum_map(I_res, E, E_int, delays, delay_int)  # Get Positive Delay MM frame (takes mean over ranges)
-frame_neg = get_momentum_map(I_res, E, E_int, -130, 50) # Get Negative Delay MM frame (takes mean over ranges)
-frame_diff = frame_pos - frame_neg
-
-testing = 0
-if testing == 1:
-    ax_kx, ax_ky = np.linspace(-2,2,1000), np.linspace(-2,2,1000)
-    dkx = (ax_kx[1] - ax_kx[0])
-    g_test = gaussian(ax_kx, *[1, 0, 0.15, 0])
-    kspace_frame_test = np.zeros((g_test.shape[0], g_test.shape[0]))
-    i, f = round(0.45*len(g_test)), round(0.8*len(g_test))
-    kspace_frame_test[:,i:f] = np.tile(g_test, (f-i,1)).T
-    kspace_frame = xr.DataArray(kspace_frame_test, coords = {"ky": ax_kx, "kx": ax_ky})
-
-elif testing == 0:
-    kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
-    ax_kx, ax_ky = I.kx, I.ky
-    dkx = (ax_kx.values[1] - ax_kx.values[0])
-
-background = frame_pos.loc[{"kx":slice(-1.8,1.8), "ky":slice(0.5,.8)}].mean(dim="ky")
- 
-#kspace_frame = kspace_frame - background
-kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
-
-MM_frame = kspace_frame_win # Choose which kspace frame to FFT
-MM_frame = kspace_frame_sym_win
-#MM_frame = window_tukey_box
-r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
-
-r_axis = r_axis/10
-
-#%% # Plot MM, Windowed Map, I_xy, and r-space cuts
-
-### PLOT ###
-
-save_figure = False
-figure_file_name = 'MM_FFT' 
-
-fig, ax = plt.subplots(2, 2)
-fig.set_size_inches(6,8)
-plt.gcf().set_dpi(300)
-ax = ax.flatten()
-
-im0 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
-im1 = ax[1].imshow(MM_frame/np.max(MM_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
-im2 = ax[2].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
-#single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
-#ax[1].add_patch(single_k_circle)
-ax[0].set_aspect(1)
-ax[1].set_aspect(1)
-ax[2].set_aspect(1)
-
-#ax[0].axhline(y,color='black')
-#ax[0].axvline(x,color='bl ack')
-
-ax[0].set_xticks(np.arange(-2,2.2,1))
-for label in ax[0].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-   # label.set_xticklabels(tick_labels.astype(int))
-    
-ax[0].set_yticks(np.arange(-2,2.2,1))
-for label in ax[0].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-
-ax[1].set_xticks(np.arange(-2,2.2,1))
-for label in ax[1].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-   # label.set_xticklabels(tick_labels.astype(int))
-    
-ax[1].set_yticks(np.arange(-2,2.1,1))
-for label in ax[1].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-
-ax[2].set_xticks(np.arange(-8,8,1))
-for label in ax[2].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-    
-ax[2].set_yticks(np.arange(-8,8.1,1))
-for label in ax[2].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-    
-ax[3].set_xticks(np.arange(0,5.2,.5))
-#for label in ax[3].xaxis.get_ticklabels()[1::2]:
-    #label.set_visible(False)    
-
-ax[0].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[0].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[0].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-ax[0].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    
-ax[0].set_xlim(-2,2)
-ax[0].set_ylim(-2,2)
-#ax[0].set_box_aspect(1)
-ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
-ax[0].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
-ax[0].tick_params(axis='both', labelsize=10)
-ax[0].set_title('$E$ = ' + str(E) + ' eV, ' + '$\Delta$E = ' + str(E_int) + ' eV', fontsize = 14)
-ax[0].set_title('$E$ = ' + str(E) + ' eV ', fontsize = 14)
-#fig.suptitle('E = ' + str(E) + ' eV, $\Delta$E = ' + str(1000*E_int) + ' meV,  $\Delta$$k_{rad}$ = ' + str(window_k_width) + ' $\AA^{-1}$', fontsize = 18)
-ax[0].text(-1.9, 1.5,  f"$\Delta$t = {round(delays-delay_int/2)} to {round(delay_int+delay_int/2)} fs", size=12)
-
-ax[1].set_xlim(-2,2)
-ax[1].set_ylim(-2,2)
-#ax[0].set_box_aspect(1)
-ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
-ax[1].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
-ax[1].tick_params(axis='both', labelsize=10)
-ax[1].set_title(f'$\Delta$k = ({kx_int}, {ky_int})', fontsize = 15)
-ax[1].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[1].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[1].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-ax[1].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
- 
-ax[2].set_xlim(-2,2)
-ax[2].set_ylim(-2,2)
-#ax[0].set_box_aspect(1)
-ax[2].set_xlabel('$r_x$, nm', fontsize = 16)
-ax[2].set_ylabel('$r_y$, nm', fontsize = 16)
-ax[2].tick_params(axis='both', labelsize=10)
-ax[2].set_title('2D FFT', fontsize = 15)
-
-#ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
-ax[3].plot(r_axis, x_cut/np.max(x_cut), color = 'black', label = '$r_x$')
-#ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
-ax[3].plot(r_axis, y_cut/np.max(y_cut), color = 'red', label = '$r_y$')
-#ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
-
-ax[3].axvline(x_brad, linestyle = 'dashed', color = 'black', linewidth = 1.5)
-ax[3].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
-ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
-ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
-
-ax[3].set_xlim([0, 2])
-ax[3].set_ylim([-0.025, 1.025])
-ax[3].set_xlabel('$r$, nm', fontsize = 16)
-ax[3].set_ylabel('Norm. Int.', fontsize = 16)
-ax[3].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 14)
-ax[3].tick_params(axis='both', labelsize=10)
-ax[3].set_yticks(np.arange(-0,1.5,0.5))
-ax[3].set_aspect(2)
-ax[3].set_xlabel('$r$, nm')
-ax[3].legend(frameon=False, fontsize = 12)
-ax[3].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=10)
-
-fig.subplots_adjust(right=0.58, top = 1.1)
-fig.tight_layout()
-new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
-plt.rcParams.update(new_rc_params)
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
-    
-#print("x: " + str(round(rdist_brad_x,3)))
-#print("y: " + str(round(rdist_brad_y,3)))
-
-#%% #Do line fits analysis to cross check values
-
-test_frame = kspace_frame_sym
-test_frame_win = kspace_frame_sym_win
-
-kx_cut = test_frame.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-ky_cut = test_frame.loc[{"kx":slice(0.2,.6)}].mean(dim="kx")
-kx_win_cut = test_frame_win.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-ky_win_cut = test_frame_win.loc[{"kx":slice(.2,.6)}].mean(dim="kx")
-window_kx_cut = kspace_window.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-window_ky_cut = kspace_window.loc[{"kx":slice(0.2,.6)}].mean(dim="kx")
-
-#kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
-#ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
-
-#ky_cut = MM_frame[:,int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4].sum(axis=1)
-#kx_cut = MM_frame[int(len(MM_frame[0])/2)-1-4:int(len(MM_frame[0])/2)-1+4,:].sum(axis=0)
-
-ky_cut = ky_cut/np.max(ky_cut)
-kx_cut = kx_cut/np.max(kx_cut)
-
-kx_win_cut = kx_win_cut/np.max(kx_win_cut)
-ky_win_cut = ky_win_cut/np.max(ky_win_cut)
-
-# Fit kx Cut
-xlim = [-0.5, 1]
-p0 = [0.5, 0.5, 0.325, 0.4]
-bnds = ((0.1, -0.5, .2, 0), (1.5, 1.2, .5, 0.8))
-popt_kx, pcov = curve_fit(gaussian, ax_kx.loc[{"kx":slice(xlim[0],xlim[1])}], kx_cut.loc[{"kx":slice(xlim[0],xlim[1])}], p0, method=None, bounds = bnds)
-g_fit_kx = gaussian(ax_kx, *popt_kx)
-k_sig_fit_x = popt_kx[2]
-#plt.plot(ax_kx, kx_cut) ; plt.plot(ax_kx, g_fit_kx)
-
-# Fit ky Cut
-ylim = 0.3
-p0 = [.8, 0, .08, 0.2]
-bnds = ((0.1, -0.2, 0, 0), (1, 0.2, .8, .5))
-popt_ky, pcov = curve_fit(gaussian, ax_ky.loc[{"ky":slice(-ylim,ylim)}], ky_cut.loc[{"ky":slice(-ylim,ylim)}], p0, method=None, bounds = bnds)
-g_fit_ky = gaussian(ax_ky, *popt_ky)
-
-#popt_ky, pcov = curve_fit(lorentzian, ax_ky.loc[{"ky":slice(-ylim,ylim)}], ky_cut.loc[{"ky":slice(-ylim,ylim)}], p0, method=None, bounds = bnds)
-#g_fit_ky = lorentzian(ax_ky, *popt_ky)
-
-k_sig_fit_y = popt_ky[2]
-#plt.plot(ax_ky, ky_cut) ; plt.plot(ax_ky, g_fit_ky)
-
-#Fit r-y Cut
-p0 = [1, 0, 0.2, 0]
-bnds = ((0.5, -1, .1, 0), (1.2, 2, 5, 0.4))
-popt_ry, pcov_r = curve_fit(gaussian, r_axis, y_cut/np.max(y_cut), p0, method=None, bounds = bnds)
-g_fit_ry = gaussian(r_axis, *popt_ry)
-r_sig_fit_y = popt_ry[2]
-
-#Fit r-x Cut
-p0 = [1, 0, 0.2, 0]
-bnds = ((0.5, -1, .1, 0), (1.2, 2, 5, 0.4))
-popt_rx, pcov_r = curve_fit(gaussian, r_axis, x_cut/np.max(x_cut), p0, method=None, bounds = bnds)
-g_fit_rx = gaussian(r_axis, *popt_rx)
-r_sig_fit_x = popt_rx[2]
-
-# Do the FFT of the fit in the k-space to get verify r-space
-g_fit_fft = np.abs(np.fft.fftshift(np.fft.fft((g_fit_kx-popt_kx[3])**0.5, zeropad)))  # Compute FFT
-g_fit_fft = g_fit_fft / np.max(g_fit_fft)
-g_fit_fft_x = g_fit_fft**2
-
-g_fit_fft = np.abs(np.fft.fftshift(np.fft.fft((g_fit_ky-popt_ky[3])**0.5, zeropad)))  # Compute FFT
-g_fit_fft = g_fit_fft / np.max(np.abs(g_fit_fft))
-g_fit_fft_y = g_fit_fft**2
-
-### Fourier Transform Relation: k-space to r-space
-r_sig_x = 0.1*1/(2*k_sig_fit_x) #Ang to nm
-r_sig_rad_x = np.sqrt(2)*r_sig_x # Rad from Gaussian Relation Considering fit to k-data before fft
-
-r_sig_y = 0.1*1/(2*k_sig_fit_y) #Ang to nm
-r_sig_rad_y = np.sqrt(2)*r_sig_y # Rad from Gaussian Relation Considering fit to k-data before fft
-
-r_sig_rad_fit_x = np.sqrt(2)*r_sig_fit_x #Rad from fit to r-data from fft
-r_sig_rad_fit_y = np.sqrt(2)*r_sig_fit_y #Rad from fit to r-data from fft
-
-#print("predicted x: " + str(round(x_pr,3)))
-
-#####################################################
-save_figure = False
-figure_file_name = '2DFFT_Windowing' 
-
-fig, ax = plt.subplots(2, 3, sharey=False, gridspec_kw={'width_ratios': [.75, 1, 1], 'height_ratios':[1, 1]})
-fig.set_size_inches(8, 4, forward=False)
-plt.gcf().set_dpi(300)
-ax = ax.flatten()
-
-test_frame.plot.imshow(ax = ax[0], cmap = cmap_LTL, origin = 'lower')
-
-ax[1].plot(ax_ky, g_fit_kx, linewidth = 4, color = 'pink', label = 'Fit to k-Data')
-ax[1].plot(ax_kx, kx_cut, color =  'purple', linewidth = 2, label = 'Data')
-ax[1].plot(ax_kx, kx_win_cut, color =  'black', linestyle = 'solid', linewidth = 1.5, label = 'Win. Data.')
-ax[1].plot(ax_kx, window_kx_cut, color = 'grey', linestyle = 'solid', linewidth = 1.5, label =  'WINDOW')
-
-ax[2].plot(ax_ky, g_fit_ky, linewidth = 3, color = 'pink', label = 'Fit to k-Data')
-#ax[2].plot(ax_kx, ky_win, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[2].plot(ax_ky, ky_cut, color =  'purple', linewidth = 2, label = 'Data')
-ax[2].plot(ax_ky, ky_win_cut, color =  'black', linestyle = 'solid', linewidth = 2, label = 'Win. Data.')
-ax[2].plot(ax_ky, window_ky_cut, color = 'grey', linestyle = 'solid', linewidth = 1.5, label =  'WINDOW')
-
-#ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
-#ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
-ax[1].set_xlim(-2,2)
-ax[1].set_ylim(0,1.1)
-ax[2].set_xlim(-1.5,1.5)
-ax[2].set_ylim(0,1.1)
-#ax[1].set_aspect(60)
-#ax[2].set_aspect(30)
-
-ax[3].imshow(rspace_frame/np.max(rspace_frame), cmap = cmap_LTL, origin = 'lower', aspect = 1, extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]])
-ax[3].set_xlim(-2,2)
-ax[3].set_ylim(-2,2)
-
-ax[4].plot(r_axis, g_fit_fft_x, linewidth = 3, color = 'pink', label = 'FFT of k-fit (w/o offset)')
-#ax[4].plot(r_axis, g_fit_rx/np.max(g_fit_rx), linewidth = 3, color = 'green', label = 'fit to FFT of Win. k-data')
-#ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[4].plot(r_axis, g_fit_rx/np.max(g_fit_rx), linewidth = 3, color = 'green', label = 'fit to FFT of Win. k-data')
-ax[4].plot(r_axis, x_cut, color =  'black', linewidth = 2, label = 'FFT of Win k-data')
-#ax[5].plot(r_axis, kx_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
-ax[4].set_xlim(-2,2)
-
-ax[5].plot(r_axis, g_fit_fft_y, linewidth = 4, color = 'pink', label = 'FFT of k-fit (w/o offset)')
-ax[5].plot(r_axis, g_fit_ry/np.max(g_fit_ry), linewidth = 3, color = 'green', label = 'fit to FFT of Win. k-data')
-#ax[5].plot(r_axis, y_cut, color =  'grey', linestyle = 'solid', linewidth = 1.5)
-ax[5].plot(r_axis, y_cut, color =  'black', linewidth = 2, label = 'FFT of Win k-data')
-#ax[5].plot(r_axis, kx_win_cut, color =  'black', linestyle = 'dashed', linewidth = 1.5, label = 'FFT Data')
-ax[5].set_xlim(-2,2)
-
-print(f"Pred. Rx (radius) from Fit of k Peak ({round(k_sig_fit_x,4)} A^-1): {round(r_sig_rad_x,3)} nm")
-#print(f"Rx (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit_x,3)} nm")
-print(f"Pred. Ry (radius) from Fit of k Peak ({round(k_sig_fit_y,4)} A^-1): {round(r_sig_rad_y,3)} nm")
-
-print(f"Rx (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit_x,3)} nm")
-print(f"Ry (radius) from Fit of Real-space After FFT: {round(r_sig_rad_fit_y,3)} nm")
-
-ax[2].legend(frameon=False, fontsize = 12)
-ax[5].legend(frameon=False, fontsize = 12)
-#fig.subplots_adjust(right=0.8)
-
-fig.tight_layout()
-plt.show()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
-    
-#%% #Plot Momentum MAPS
-
-save_figure = False
-figure_file_name = '2DFFT_Windowing' 
-
-fig, ax = plt.subplots(1, 3, sharey=True)
-plt.gcf().set_dpi(300)
-ax = ax.flatten()
-
-im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-im = ax[1].imshow(kspace_frame_sym, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-im = ax[2].imshow(kspace_frame_sym_win, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-
-for i in np.arange(3):
-    ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    
-    ax[i].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    
-    ax[i].set_aspect(1)
-    #ax[0].axhline(y,color='black')
-    #ax[0].axvline(x,color='black')
-    
-    ax[i].set_xticks(np.arange(-2,2.2,1))
-    for label in ax[i].xaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-        
-    ax[i].set_yticks(np.arange(-2,2.1,1))
-    for label in ax[i].yaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    
-    ax[i].set_xlim(-2,2)
-    ax[i].set_ylim(-2,2)
-    #ax[0].set_box_aspect(1)
-    ax[i].set_xlabel('$k_x$', fontsize = 14)
-    ax[i].set_ylabel('$k_y$', fontsize = 14)
-    ax[i].tick_params(axis='both', labelsize=12)
-    ax[i].set_title('$E$ = ' + str(E) + ' eV', fontsize = 16)
-
-fig.subplots_adjust(right=0.8)
-cbar_ax = fig.add_axes([1, 0.35, 0.025, 0.3])
-fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
-
-#fig.colorbar(im, fraction=0.046, pad=0.04)
-fig.tight_layout()
-plt.show()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')    

@@ -146,8 +146,8 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 915
-average_power = 116.6 #mW
+lam = 700
+average_power = 80 #116.6 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
