@@ -22,7 +22,7 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 import mpes
@@ -34,8 +34,8 @@ from mpes import cmap_LTL
 data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
-#data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/'
+data_path = 'R:\Lawson\Data\metis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
@@ -67,6 +67,7 @@ I_res = I/np.max(I)
 #%% This sets the plots to plot in the IDE window
 
 %matplotlib inline
+cmap_plot = cmap_LTL
 
 def lorentzian(x, amp_1, mean_1, stddev_1, offset):
     
@@ -397,8 +398,8 @@ save_figure = False
 figure_file_name = 'k-integrated 4Panel_'
 image_format = 'svg'
 
-E_trace, E_int = [1.25, 2.1, 2.5, 2.9], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
+E_trace, E_int = [1.25, 2.05, 2.5, 3], .15 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
 
 colors = ['black', 'red', 'purple', 'orange'] #colors for plotting the traces
 

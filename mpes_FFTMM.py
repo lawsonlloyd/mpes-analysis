@@ -181,14 +181,11 @@ def FFT_MM(MM_frame, zeropad):
     kx_cut = I_MM[int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4,:].sum(axis=0)
     kx_cut = kx_cut/np.max(kx_cut)
 
-    y_cut = I_xy[:,int(zplength/2)-1] # real space Psi*^2 cut
+    ### real space Psi*^2 cut
+    y_cut = I_xy[:,int(zplength/2)-1]
     x_cut = I_xy[int(zplength/2)-1,:]
     x_cut = x_cut/np.max(x_cut)
     y_cut = y_cut/np.max(y_cut)
-
-    r2_cut_y = fft_frame[:,int(zplength/2)-1] #real space Psi cut
-    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) #|r*Psi(r)|^2
-    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
 
     x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
     y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
@@ -197,7 +194,11 @@ def FFT_MM(MM_frame, zeropad):
     x_brad = r_axis[x_brad]
     y_brad = r_axis[y_brad]
     
-    ###
+    ### real space Psi cut : |r*Psi(r)|^2
+    r2_cut_y = fft_frame[:,int(zplength/2)-1] 
+    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) 
+    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
+    
     r2_cut_x = fft_frame[int(zplength/2)-1,:]
     r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
     r2_cut_x = r2_cut_x/np.max(r2_cut_x)
@@ -226,8 +227,8 @@ def gaussian(x, amp_1, mean_1, stddev_1, offset):
 #%% Do the 2D FFT of MM to Extract Real-Space Information
 
 E, E_int  = 1.25, 0.200 #Energy and total width in eV
-kx, kx_int = (1.1--0.1)/2, 1.5
-ky, ky_int = 0, 1.2
+kx, kx_int = (1*X), 2.3*X # 1.25*X
+ky, ky_int = 0, 1
 delays, delay_int = 550, 650 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
@@ -254,17 +255,75 @@ elif testing == 0:
     dkx = (ax_kx.values[1] - ax_kx.values[0])
 
 background = frame_pos.loc[{"kx":slice(-1.8,1.8), "ky":slice(0.5,.8)}].mean(dim="ky")
- 
-#kspace_frame = kspace_frame - background
+#background = 0.08
+
+kspace_frame = kspace_frame  # - background
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 MM_frame = kspace_frame_sym_win
+
 #MM_frame = window_tukey_box
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
-r_axis = r_axis/10
+#%% Plot Raw, Symm., and Windowed MMs
 
+save_figure = False
+figure_file_name = '2DFFT_Windowing' 
+
+fig, ax = plt.subplots(1, 3, sharey=True)
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+im0 = ax[0].imshow(kspace_frame/kspace_frame.max(), origin='lower', vmax = 1, cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
+im1 = ax[1].imshow(kspace_frame_sym/kspace_frame_sym.max(), origin='lower', vmax = 1, cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
+im2 = ax[2].imshow(kspace_frame_sym_win/kspace_frame_sym.max(), origin='lower', vmax = 1, cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
+
+for i in np.arange(3):
+    #ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(-X, color='black', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(X, color='black', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(2*X, color='black', linewidth = 1, linestyle = 'dashed')
+    ax[i].axvline(-2*X, color='black', linewidth = 1, linestyle = 'dashed')
+    
+    ax[i].set_aspect(1)
+    #ax[0].axhline(y,color='black')
+    #ax[0].axvline(x,color='black')
+    
+    ax[i].set_xticks(np.arange(-2,2.2,1))
+    for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[i].set_yticks(np.arange(-2,2.1,1))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    
+    ax[i].set_xlim(-2,2)
+    ax[i].set_ylim(-2,2)
+    #ax[0].set_box_aspect(1)
+
+    ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 14)
+    ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
+    ax[i].tick_params(axis='both', labelsize=12)
+    ax[i].set_title('$E$ = ' + str(E) + ' eV', fontsize = 16)
+
+fig.text(.03, 0.75, "(a)", fontsize = 16, fontweight = 'regular')
+fig.text(.36, 0.75, "(b)", fontsize = 16, fontweight = 'regular')
+fig.text(.69, 0.75, "(c)", fontsize = 16, fontweight = 'regular')
+
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([1, 0.35, 0.025, 0.3])
+fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
+cbar.ax.set_yticklabels(['min', 'max'], fontsize=16)  # vertically oriented colorbar
+
+#fig.colorbar(im, fraction=0.046, pad=0.04)
+fig.tight_layout()
+plt.show()
+
+if save_figure is True:
+    fig.savefig((figure_file_name +'.svg'), format='svg')  
+    
 #%% # Plot MM, Windowed Map, I_xy, and r-space cuts
 
 %matplotlib inline
@@ -281,7 +340,7 @@ ax = ax.flatten()
 
 im0 = ax[0].imshow(kspace_frame/np.max(kspace_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
 im1 = ax[1].imshow(MM_frame/np.max(MM_frame), clim = None, origin = 'lower', vmax = 1, cmap=cmap_LTL, interpolation = 'none', extent = [ax_kx[0], ax_kx[-1], ax_ky[0], ax_ky[-1]])
-im2 = ax[2].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
+im2 = ax[2].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', vmax = 1, cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
 #single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
 #ax[1].add_patch(single_k_circle)
 ax[0].set_aspect(1)
@@ -309,11 +368,11 @@ ax[1].set_yticks(np.arange(-2,2.1,1))
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[2].set_xticks(np.arange(-8,8,1))
+ax[2].set_xticks(np.arange(-8,8,.5))
 for label in ax[2].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
     
-ax[2].set_yticks(np.arange(-8,8.1,1))
+ax[2].set_yticks(np.arange(-8,8.1,.5))
 for label in ax[2].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
     
@@ -322,10 +381,15 @@ ax[3].set_xticks(np.arange(0,5.2,.5))
     #label.set_visible(False)    
 
 ax[0].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[0].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[0].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-ax[0].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    
+#ax[0].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(-X, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(X, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(2*X, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(-2*X, color='black', linewidth = 1, linestyle = 'dashed')
+
+ax[1].axvline(X, color='black', linewidth = 1, linestyle = 'dashed')
+ax[1].axvline(2*X, color='black', linewidth = 1, linestyle = 'dashed')
+
 ax[0].set_xlim(-2,2)
 ax[0].set_ylim(-2,2)
 #ax[0].set_box_aspect(1)
@@ -343,14 +407,14 @@ ax[1].set_ylim(-2,2)
 ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
 ax[1].set_ylabel('$k_y$,  $\AA^{-1}$', fontsize = 16)
 ax[1].tick_params(axis='both', labelsize=10)
-ax[1].set_title(f'$\Delta$k = ({kx_int}, {ky_int})', fontsize = 15)
-ax[1].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[1].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-ax[1].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-ax[1].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
- 
-ax[2].set_xlim(-2,2)
-ax[2].set_ylim(-2,2)
+ax[1].set_title(f'$\Delta$k = ({kx_int:.2f}, {ky_int})', fontsize = 15)
+# ax[1].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
+# ax[1].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
+# ax[1].axvline(-X, color='black', linewidth = 1, linestyle = 'dashed')
+# ax[1].axvline(X, color='black', linewidth = 1, linestyle = 'dashed')
+
+ax[2].set_xlim(-1,1)
+ax[2].set_ylim(-1,1)
 #ax[0].set_box_aspect(1)
 ax[2].set_xlabel('$r_x$, nm', fontsize = 16)
 ax[2].set_ylabel('$r_y$, nm', fontsize = 16)
@@ -368,14 +432,14 @@ ax[3].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
 ax[3].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
 ax[3].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
 
-ax[3].set_xlim([0, 2])
 ax[3].set_ylim([-0.025, 1.025])
 ax[3].set_xlabel('$r$, nm', fontsize = 16)
 ax[3].set_ylabel('Norm. Int.', fontsize = 16)
 ax[3].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 14)
 ax[3].tick_params(axis='both', labelsize=10)
 ax[3].set_yticks(np.arange(-0,1.5,0.5))
-ax[3].set_aspect(2)
+ax[3].set_xlim([0, 1])
+ax[3].set_aspect(1)
 ax[3].set_xlabel('$r$, nm')
 ax[3].legend(frameon=False, fontsize = 12)
 ax[3].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=10)
@@ -384,6 +448,9 @@ fig.subplots_adjust(right=0.58, top = 1.1)
 fig.tight_layout()
 new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
 plt.rcParams.update(new_rc_params)
+
+fig.text(.03, 0.45, "(a)", fontsize = 16, fontweight = 'regular')
+fig.text(.42, 0.45, "(b)", fontsize = 16, fontweight = 'regular')
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
@@ -396,13 +463,13 @@ if save_figure is True:
 test_frame = kspace_frame_sym
 test_frame_win = kspace_frame_sym_win
 
-kx_cut = test_frame.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-ky_cut = test_frame.loc[{"kx":slice(0.2,.6)}].mean(dim="kx")
-kx_win_cut = test_frame_win.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-ky_win_cut = test_frame_win.loc[{"kx":slice(.2,.6)}].mean(dim="kx")
-window_kx_cut = kspace_window.loc[{"ky":slice(-.4,.4)}].mean(dim="ky")
-window_ky_cut = kspace_window.loc[{"kx":slice(0.2,.6)}].mean(dim="kx")
-
+kx_cut = test_frame.loc[{"ky":slice(-0.05,0.05)}].mean(dim="ky")
+ky_cut = test_frame.loc[{"kx":slice(kx-.05,kx+.05)}].mean(dim="kx")
+kx_win_cut = test_frame_win.loc[{"ky":slice(-0.05,0.05)}].mean(dim="ky")
+ky_win_cut = test_frame_win.loc[{"kx":slice(kx-.05,kx+.05)}].mean(dim="kx")
+window_kx_cut = kspace_window.loc[{"ky":slice(-0.05,0.05)}].mean(dim="ky")
+window_ky_cut = kspace_window.loc[{"kx":slice(kx-.05,kx+.05)}].mean(dim="kx")
+    
 #kx_win_cut = MM_frame.loc[{"ky":slice(-.25,.25)}].sum(dim="ky")
 #ky_win_cut = MM_frame.loc[{"kx":slice(-.05,1.1)}].sum(dim="kx")
 
@@ -481,7 +548,39 @@ fig.set_size_inches(8, 4, forward=False)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
-test_frame.plot.imshow(ax = ax[0], cmap = cmap_LTL, origin = 'lower')
+im = ax[0].imshow(test_frame/test_frame.max(), origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
+#ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(-X, color='black', linewidth = 1, linestyle = 'dashed')
+ax[0].axvline(X, color='black', linewidth = 1, linestyle = 'dashed')
+
+ax[0].set_aspect(1)
+#ax[0].axhline(y,color='black')
+#ax[0].axvline(x,color='black')
+
+ax[0].set_xticks(np.arange(-2,2.2,1))
+for label in ax[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+ax[0].set_yticks(np.arange(-2,2.1,1))
+for label in ax[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(-2,2)
+#ax[0].set_box_aspect(1)
+
+ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 14)
+ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
+ax[0].tick_params(axis='both', labelsize=12)
+ax[0].set_title('$E$ = ' + str(E) + ' eV', fontsize = 16)
+
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([1, 0.35, 0.025, 0.3])
+fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
+cbar.ax.set_yticklabels(['min', 'max'], fontsize=16)  # vertically oriented colorbar
+
+#test_frame.plot.imshow(ax = ax[0], cmap = cmap_LTL, origin = 'lower')
 
 ax[1].plot(ax_ky, g_fit_kx, linewidth = 4, color = 'pink', label = 'Fit to k-Data')
 ax[1].plot(ax_kx, kx_cut, color =  'purple', linewidth = 2, label = 'Data')
@@ -494,12 +593,28 @@ ax[2].plot(ax_ky, ky_cut, color =  'purple', linewidth = 2, label = 'Data')
 ax[2].plot(ax_ky, ky_win_cut, color =  'black', linestyle = 'solid', linewidth = 2, label = 'Win. Data.')
 ax[2].plot(ax_ky, window_ky_cut, color = 'grey', linestyle = 'solid', linewidth = 1.5, label =  'WINDOW')
 
+for i in [1,2]:
+    ax[i].set_xticks(np.arange(-2,2.2,1))
+    for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[i].set_yticks(np.arange(0,1.1,.5))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[i].set_ylabel('Norm. Int.', fontsize = 14)
 #ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
 #ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
 ax[1].set_xlim(-2,2)
 ax[1].set_ylim(0,1.1)
 ax[2].set_xlim(-1.5,1.5)
 ax[2].set_ylim(0,1.1)
+ax[1].set_title(f'$k_y$ = {ky:.2f} $\AA^{{-1}}$', fontsize = 14)
+ax[2].set_title(f'$k_x$ = {kx:.2f} $\AA^{{-1}}$', fontsize = 14)
+
+ax[1].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 14)
+ax[2].set_xlabel('$k_y$, $\AA^{-1}$', fontsize = 14)
+
 #ax[1].set_aspect(60)
 #ax[2].set_aspect(30)
 
@@ -533,61 +648,13 @@ ax[2].legend(frameon=False, fontsize = 12)
 ax[5].legend(frameon=False, fontsize = 12)
 #fig.subplots_adjust(right=0.8)
 
+
+fig.text(.03, 0.975, "(a)", fontsize = 16, fontweight = 'regular')
+fig.text(.36, 0.975, "(b)", fontsize = 16, fontweight = 'regular')
+fig.text(.69, 0.975, "(c)", fontsize = 16, fontweight = 'regular')
+
 fig.tight_layout()
 plt.show()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
-    
-#%% #Plot Momentum MAPS
-
-save_figure = False
-figure_file_name = '2DFFT_Windowing' 
-
-fig, ax = plt.subplots(1, 3, sharey=True)
-plt.gcf().set_dpi(300)
-ax = ax.flatten()
-
-im = ax[0].imshow(kspace_frame, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-im = ax[1].imshow(kspace_frame_sym, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-im = ax[2].imshow(kspace_frame_sym_win, origin='lower', cmap=cmap_LTL, extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]])
-
-for i in np.arange(3):
-    ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axhline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(0, color='black', linewidth = 1, linestyle = 'dashed')
-    
-    ax[i].axvline(-1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    ax[i].axvline(1.1, color='blue', linewidth = 1, linestyle = 'dashed')
-    
-    ax[i].set_aspect(1)
-    #ax[0].axhline(y,color='black')
-    #ax[0].axvline(x,color='black')
-    
-    ax[i].set_xticks(np.arange(-2,2.2,1))
-    for label in ax[i].xaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-        
-    ax[i].set_yticks(np.arange(-2,2.1,1))
-    for label in ax[i].yaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    
-    ax[i].set_xlim(-2,2)
-    ax[i].set_ylim(-2,2)
-    #ax[0].set_box_aspect(1)
-    ax[i].set_xlabel('$k_x$', fontsize = 14)
-    ax[i].set_ylabel('$k_y$', fontsize = 14)
-    ax[i].tick_params(axis='both', labelsize=12)
-    ax[i].set_title('$E$ = ' + str(E) + ' eV', fontsize = 16)
-
-fig.subplots_adjust(right=0.8)
-cbar_ax = fig.add_axes([1, 0.35, 0.025, 0.3])
-fig.colorbar(im, cax=cbar_ax, ticks = [10,100])
-
-#fig.colorbar(im, fraction=0.046, pad=0.04)
-fig.tight_layout()
-plt.show()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')    
