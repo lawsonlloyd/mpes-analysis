@@ -394,13 +394,13 @@ if save_figure is True:
 #%% Plot Dynamics: Extract Traces At Different Energies and Momenta
 
 save_figure = False
-figure_file_name = 'k-integrated 4Panel'
+figure_file_name = 'k-integrated 4Panel_'
 image_format = 'svg'
 
-E_trace, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
+E_trace, E_int = [1.25, 2.1, 2.5, 2.9], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
 
-colors = ['black', 'red', 'purple'] #colors for plotting the traces
+colors = ['black', 'red', 'purple', 'orange'] #colors for plotting the traces
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
 norm_trace = True
