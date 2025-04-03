@@ -25,8 +25,8 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path = 'R:\Lawson\Data'
-data_path = '/Users/lawsonlloyd/Desktop/phoibos'
+data_path = 'R:\Lawson\Data\phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
 scan = 9218
 energy_offset, delay_offset, force_offset = 0, 0, False
@@ -166,6 +166,8 @@ figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [0,3000]
 E[0], E[1], E_int = 1.325, 2.075, 0.1
+E[0], E[1], E_int = 2.4, 2.075, 0.1
+
 A, A_int = 0, 20
 
 colormap = 'terrain_r'
@@ -209,7 +211,7 @@ axx = axx.flatten()
 
 im1 = res_diff_sum_Angle_Normed.T.plot.imshow(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
 
-im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
+im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'seismic', vmin = -.5, vmax = .5)
 
 im3 = trace_1.plot(ax = axx[2], color = 'black')
 im3 = trace_2.plot(ax = axx[2], color = 'red')
@@ -223,7 +225,7 @@ axx[0].set_ylim(-1,3)
 
 axx[1].axhline(E[0],  color = 'black')
 axx[1].axhline(E[1],  color = 'red')
-axx[1].set_ylim(-0,2.5)
+axx[1].set_ylim(-0,3.1)
 axx[1].set_xlim(-200, 3000)
 #axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
