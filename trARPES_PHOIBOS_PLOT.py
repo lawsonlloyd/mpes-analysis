@@ -14,6 +14,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from skimage.draw import disk
 from scipy.optimize import curve_fit
+from scipy.special import erf
 import csv
 from Loader import DataLoader
 import xarray as xr
@@ -28,8 +29,8 @@ scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
-scan = 9218
-energy_offset, delay_offset, force_offset = 0, 0, False
+scan = 9370
+energy_offset, delay_offset, force_offset = 19.72, -268, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
@@ -71,8 +72,8 @@ def objective(params, x, data):
 
 %matplotlib inline
 
-E, E_int = [1.35, 2.1], 0.1
-k, k_int = -4, 30
+E, E_int = [1.3, 2.05], 0.1
+k, k_int = 2, 22
 d1, d2 = -1000, -300
 d3, d4 = 500, 3000
 
@@ -143,7 +144,7 @@ plt.show()
 
 #fig.savefig('Scan' + str(scan_to_plot) + '.svg')
 
-#%%
+#%% Check E0 offset
 
 energy = edc_1.Energy.values
 edc = edc_1.values
@@ -159,6 +160,44 @@ plt.plot(energy, fit, color = 'green', linestyle = 'dashed')
 plt.title(f"E0 = {round(popt[1],3)}")
 plt.xlim(-1,2)
 
+#%% Define t0 from Exciton Rise
+
+E, E_int = 2.5, 0.1
+A, A_int = 0, 24
+subtract_neg = True
+norm_trace = True
+
+fig, ax = plt.subplots()
+fig.set_size_inches(6, 4, forward=False)
+
+t0 = 0
+tau = 55
+def rise_erf(t, t0, tau):
+    r = 0.5 * (1 + erf((t - t0) / tau))
+    return r
+
+trace = phoibos.get_time_trace(res, E, E_int, A, A_int, subtract_neg, norm_trace)
+
+rise = rise_erf(res.Delay, 30, 45)
+
+p0 = [-30, 45]
+popt, pcov = curve_fit(rise_erf, trace.loc[{"Delay":slice(-180,200)}].Delay.values ,
+                                trace.loc[{"Delay":slice(-180,200)}].values,
+                                p0, method="lm")
+
+rise_fit = rise_erf(np.linspace(-200,200,50), *popt)
+
+ax.plot(res.Delay, trace, 'ko')
+ax.plot(np.linspace(-200,200,50), rise_fit, 'pink')
+#ax[1].plot(I_res.delay, rise, 'red')
+ax.axvline(0, color = 'grey', linestyle = 'dashed')
+ax.set_xlim([-250, 500]) 
+ax.set_ylim(-.1,1.25)
+ax.set_title(f"t0 offset = {round(popt[0],3)}")
+fig.tight_layout()
+
+print(round(popt[0],3))
+
 #%% # PLOT THREE PANEL DIFFERENCE SPECTRA
 
 save_figure = False
@@ -166,11 +205,15 @@ figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [0,3000]
 E[0], E[1], E_int = 1.325, 2.075, 0.1
-E[0], E[1], E_int = 2.4, 2.075, 0.1
+E[0], E[1], E_int = 1.3, 2.0, 0.1
 
 A, A_int = 0, 20
 
 colormap = 'terrain_r'
+subtract_neg = True
+norm_trace = False
+
+###
 res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
 
@@ -194,8 +237,8 @@ res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
 res_diff_sum_Angle_Normed = phoibos.enhance_features(res_diff_E_Ang, E_inset, _ , True)
 res_diff_sum_Angle = phoibos.enhance_features(res_diff_sum_Angle, E_inset, _ , True)
 
-trace_1 = phoibos.get_time_trace(res, E[0], E_int, A, A_int, True, True)
-trace_2 = phoibos.get_time_trace(res, E[1], E_int, A, A_int, True, True)
+trace_1 = phoibos.get_time_trace(res, E[0], E_int, A, A_int, subtract_neg, norm_trace)
+trace_2 = phoibos.get_time_trace(res, E[1], E_int, A, A_int, subtract_neg, norm_trace)
 
 trace_2 = trace_2/trace_1.max()
 trace_1 = trace_1/trace_1.max()
@@ -295,7 +338,6 @@ axx[2].set_title(f"Scan{scan}")
 fig.tight_layout()
 plt.show()
 
-
 #%% Determine E = 0 from VBM Fit
 
 energy = edc_1.Energy.values
@@ -393,6 +435,7 @@ offsets_t0 = [-162.1, -152.7, -183.2, -118.4, -113.2, -125.0]
 scans =      [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231, 9525, 9517, 9526] # Scans to analyze and fit below: 910 nm + 400 nm
 offsets_t0 = [-191.7, -157.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
 
+scans = 9370
 #scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231,    9525, 9517, 9526]
 #offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
 

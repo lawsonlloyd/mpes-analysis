@@ -32,9 +32,9 @@ def load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_off
     filename = f"Scan{scan}.h5"
     data_loader = DataLoader(data_path + '//' + filename)
 
-    if force_offset is True:
-        energy_offset = enegy_offset
-        delay_offset = delay_offset
+    if force_offset is True or scan_info[str(scan)]['t0_offset'] == '' or scan_info[str(scan)]['E_offset'] == '':
+        energy_offset = energy_offset
+        delay_offset = delay_offset        
     else:
         energy_offset = float(scan_info[str(scan)]['E_offset'])
         delay_offset = float(scan_info[str(scan)]['t0_offset'])
@@ -62,13 +62,9 @@ def get_time_trace(res, E, E_int, k , k_int, subtract_neg, norm_trace):
 def make_diff_ARPES(res, delays, E_inset):
 
     res_neg = res.loc[{'Delay':slice(-1000,-300)}]
-    res_pos = res.loc[{'Delay':slice(0,5000)}]
-    
-    res_neg_mean = res_neg.mean(axis=2)
-    res_pos_mean = res_pos.mean(axis=2)
-    
-    #res_diff_E_Ang = res_pos_mean - res_neg_mean
-    res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+    #res_pos = res.loc[{'Delay':slice(0,5000)}]
+        
+    res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg.mean(axis=2)
     res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
     
     d1 = (res_diff_E_Ang.loc[{'Energy':slice(-1,E_inset)}])

@@ -186,7 +186,7 @@ custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'indianr
 cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
 norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 
-
+intensity = np.zeros(len(scans))
 i = 0
 for scan_i in scans:
     
@@ -198,6 +198,8 @@ for scan_i in scans:
 
     combined = trace_1 + trace_2
     combined = phoibos.get_time_trace(res, 1.7, 1, k, k_int, subtract_neg, norm_trace)
+    
+    intensity[i] = np.max(combined)
     combined = combined/np.max(combined)
 
     t3 = combined.plot(ax = axx, color = cmap(i), linewidth = 3)
@@ -241,6 +243,12 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
+#%%
+
+plt.plot(fluence, intensity, '-o', color = 'black')
+plt.plot(fluence, .01+(1.025e8)*fluence, color = 'pink', linestyle = 'dashed')
+plt.ylim(0,2.75e8)
+plt.xlim(0,3)
 #%% # PLOT Fluence Delay TRACES All Together
 
 save_figure = False
