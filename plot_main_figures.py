@@ -29,7 +29,7 @@ figure_file_name = 'Figure 2'
 image_format = 'svg'
 
 E, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (.1, 0), (0.5, .5) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (X, 0), (0.5, .5) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000 #kx frame
 
 Ein = .8 #Enhance excited states above this Energy, eV
@@ -89,7 +89,7 @@ ax[0].set_aspect("auto")
     
 ### Delay Traces
 trace_norms = []
-for i in np.arange(len(E_trace)):
+for i in np.arange(len(E)):
     
     trace = mpes.get_time_trace(I, E[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
     trace_norms.append(np.max(trace))
@@ -149,16 +149,22 @@ plt.ylim(0,1.2)
 
 %matplotlib inline
 
+save_figure = True
+figure_file_name = 'Figure 3_v2'
+image_format = 'svg'
+data_path = 'R:\Lawson\Data\phoibos'
+
 # Scans to plot
 # Standard 915 nm Excitation
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 
 # Combined
-scans = [9219, 9218 , 9228, 9370, 9412, 9526] #915 nm (top 3) ; 700 nm, 640 nm, 400 nm
+scans = [9219, 9218, 9228, 9370, 9412, 9526] #915 nm (top 3) ; 700 nm, 640 nm, 400 nm
 
 #power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
-           
+ fluence = [.2, .8, 2.9, 4.5, 3.6, x]
+          
 # Specify energy and Angle ranges
 E, E_int = [1.325, 2.075], 0.1
 E, E_int = [1.32, 2.05], 0.1
@@ -166,10 +172,6 @@ E, E_int = [1.32, 2.05], 0.1
 k, k_int = 0, 20
 subtract_neg = True
 norm_trace = False
-
-save_figure = False
-figure_file_name = 'Combined'
-image_format = 'pdf'
 
 # Plot
 fig, ax = plt.subplots(2, 3)
@@ -238,7 +240,6 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
-
 
 #%%
 

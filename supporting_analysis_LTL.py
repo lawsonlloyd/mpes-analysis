@@ -4,7 +4,6 @@ Created on Fri Jan 10 10:43:43 2025
 
 @author: lloyd
 """
-
 import scipy.constants as scpc
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,6 +23,8 @@ save_figure = True
 figure_file_name = 'pump_spectra'
 
 #data = np.loadtxt("920nm_51fsFROG_.txt", skiprows = 1)
+
+data_path = 'R:\Lawson\Data\spectra'
 
 #ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
 ds915 = "OPA_pump_spectrum_910nm_DATA_2.txt"
@@ -83,6 +84,23 @@ power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 
 fig = plt.figure()
 plt.plot(percentage, power, 'o')
+plt.title('915nm')
+
+percentage = np.asarray([12.58, 10, 6.31, 2.88, 1])
+power = 1.05*np.asarray([98, 71, 38, 20, 7])
+
+fig = plt.figure()
+plt.plot(percentage, power, 'o')
+plt.plot(percentage, 0+percentage*7.5)
+plt.title('700nm')
+
+factor = 71/100 
+power = 1.05*percentage*0.01*factor*85/.1
+
+fig = plt.figure()
+plt.plot(8, 1.05*8*0.01*factor*85/.1, 'o')
+plt.plot(percentage, power, '--')
+plt.title('640nm')
 
 #%%
 
@@ -146,8 +164,8 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 700
-average_power = 80 #116.6 #mW
+lam = 640
+average_power = 50 #116.6 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
@@ -231,7 +249,8 @@ print('Est. Carrier Density for ' + str(round(average_power,1)) +  ' mW, ' + str
 plt.show()
 
 aB = 1 #bohr radius, nm
-rx = 1e7*(1/np.sqrt(np.pi*aB**2*0.3*exc_density*1e6*1e6)) ; print(rx)
+rx = 1e7*(1/np.sqrt(np.pi*aB**2*0.3*exc_density*1e6*1e6))
+print(rx)
 
 #%%
 

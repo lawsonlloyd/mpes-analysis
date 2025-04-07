@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons, Button
+import mpes
 
 class DataHandler:
     def __init__(self, value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
@@ -46,55 +47,10 @@ class DataHandler:
             return t0
         else:
             return 1
-        
-    def get_closest_indices(self, kx, ky, E, delay):
-        kx_idx = (np.abs(self.ax_kx - kx)).argmin()
-        ky_idx = (np.abs(self.ax_ky - ky)).argmin()
-        E_idx = (np.abs(self.ax_E - E)).argmin()
-        delay_idx = (np.abs(self.ax_delay - delay)).argmin()
-        return kx_idx, ky_idx, E_idx, delay_idx
-
-    def get_momentum_map(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
-        
-        if self.I.ndim > 3:
-            mm = np.transpose(self.I[:, :, idx_E-2:idx_E+3, delay_idx1:delay_idx2+1].sum(axis=(2,3)))
-        else:
-            mm = np.transpose(self.I[:, :, idx_E-2:idx_E+3].sum(axis=(2)))
-        return mm
-    
-    def get_kx_map(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
-        if self.I.ndim > 3:
-            kx_map = np.transpose(self.I[:, idx_ky-2:idx_ky+3, :, :].sum(axis=(1,3)))
-        else:
-            kx_map = np.transpose(self.I[:, idx_ky-2:idx_ky+3, :].sum(axis=(1)))
-        return kx_map
-    
-    def get_ky_map(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
-        if self.I.ndim > 3:
-            ky_map = np.transpose(self.I[idx_kx-2:idx_kx+3, :, :, :].sum(axis=(0,3)))
-        else:
-            ky_map = np.transpose(self.I[idx_kx-2:idx_kx+3, :, :].sum(axis=(0)))
-        return ky_map
-    
-    def get_edc(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.get_closest_indices(kx, ky, E, delay)
-        dk = self.get_dk()
-        idx_k_int = np.round(dk/k_int)
-        
-        edc = self.I[idx_kx-idx_k_int:idx_kx+idx_k_int, idx_ky-idx_k_int:idx_ky+idx_k_int, :, delay-3:delay+3].sum(axis=(0,1,3))
-        
-        return edc
     
 class ValueHandler:
     def __init__(self):
-        self.k_int, self.kx, self.ky, self.E, self.delay, self.delay_int = 0.4, 0, 0, 0, 100, 500
+        self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 100, 500
 
     def update_k_int_value(self, k_int):
         self.k_int = k_int
@@ -107,7 +63,10 @@ class ValueHandler:
         
     def update_E_value(self, E):
         self.E = E
-   
+
+    def update_E_int_value(self, E_int):
+        self.E_int = E_int
+    
     def update_delay_value(self, delay):
         self.delay = delay 
         
@@ -115,7 +74,7 @@ class ValueHandler:
         self.delay_int = delay_int 
         
     def get_values(self):
-        return self.k_int, self.kx, self.ky, self.E, self.delay, self.delay_int
+        return self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int
 
 class FigureHandler:
     def __init__(self):
@@ -132,6 +91,7 @@ class PlotHandler:
     def __init__(self, figure_handler, data_handler, value_manager, check_button_manager):
         self.figure_handler = figure_handler
         self.data_handler = data_handler
+        self.I = data_handler.I
         self.value_manager = value_manager
         self.check_button_manager = check_button_manager
         self.fig, self.ax = self.figure_handler.fig, self.figure_handler.ax
@@ -146,16 +106,15 @@ class PlotHandler:
     def initialize_plots(self):
         
         # Define intial kx, ky, Energy, and Delay Points for Images
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
-    
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        
         # Initial Momentum Map kx, ky Image (top left)
-        frame_temp = self.data_handler.get_momentum_map()
-        self.im_1 = self.ax[0].imshow(frame_temp/np.max(frame_temp),\
-                                      extent = [self.data_handler.ax_kx[0], self.data_handler.ax_kx[-1],  self.data_handler.ax_ky[0], self.data_handler.ax_ky[-1]],\
-                                      cmap=self.cmap, aspect='auto', origin='lower')
+        frame_temp = mpes.get_momentum_map(self.I, E, E_int, delay, delay_int)
+        frame_temp = frame_temp/np.max(frame_temp)
+        
+        self.im_1 = frame_temp.plot.imshow(ax = self.ax[0], clim = None, vmin = 0, vmax = 1, cmap = self.cmap, add_colorbar=False)
             
-        self.ax[0].set_title("E = " + str(self.data_handler.ax_E[idx_E]) + ' eV')
+        self.ax[0].set_title("E = " + str(E) + ' eV')
         self.ax[0].set_aspect(1)
         
         self.ax[0].set_xticks(np.arange(-3,3.1,0.5))
@@ -171,10 +130,11 @@ class PlotHandler:
         self.ax[0].set_ylabel('$k_y$', fontsize = 14)
         
         # Initial kx vs E Image (bottom left)
-        frame_temp = self.data_handler.get_kx_map()
-        self.im_2 = self.ax[2].imshow(frame_temp/np.max(frame_temp),\
-                                      extent = [self.data_handler.ax_kx[0], self.data_handler.ax_kx[-1],  self.data_handler.ax_E[0], self.data_handler.ax_E[-1]],\
-                                      cmap=self.cmap, aspect='auto', origin='lower')
+        frame_temp = mpes.get_kx_E_frame(self.I, ky, k_int, delay, delay_int)
+        frame_temp = (frame_temp)/np.max(frame_temp)
+        
+        self.im_2 = frame_temp.T.plot.imshow(ax = self.ax[2], clim = None, vmin = 0, vmax = 1, cmap = self.cmap, add_colorbar=False)
+
         self.ax[2].set_title("Energy Cut")
         self.ax[2].set_xlabel('$k_x$', fontsize = 14)
         self.ax[2].set_ylabel("E, eV")
@@ -189,10 +149,11 @@ class PlotHandler:
         self.ax[2].set_ylim(-4,3)
 
         # Initial ky vs E Image (bottom left)
-        frame_temp = self.data_handler.get_ky_map()
-        self.im_3 = self.ax[3].imshow(frame_temp/np.max(frame_temp),\
-                                     extent = [self.data_handler.ax_ky[0], self.data_handler.ax_ky[-1],  self.data_handler.ax_E[0], self.data_handler.ax_E[-1]],\
-                                     cmap=self.cmap, aspect='auto', origin='lower')
+        frame_temp = mpes.get_ky_E_frame(self.I, kx, k_int, delay, delay_int)
+        frame_temp = (frame_temp)/np.max(frame_temp)
+        
+        self.im_3 = frame_temp.T.plot.imshow(ax = self.ax[3], clim = None, vmin = 0, vmax = 1, cmap = self.cmap, add_colorbar=False)
+
         self.ax[3].set_title("Energy Cut")
         self.ax[3].set_xlabel('$k_y$', fontsize = 14)
         self.ax[3].set_ylabel("E, eV")
@@ -207,20 +168,20 @@ class PlotHandler:
         self.ax[3].set_ylim(-4,3)
         
         # Initial Dynamics Time Trace (top right)
-        if self.data_handler.I.ndim > 3:
+        if self.I.ndim > 3:
             self.plot_time_trace()  
         else:
             self.plot_edc()      
 
         # Add interactive horizontal and vertical lines (for cuts)
-        self.horizontal_line_0 = self.ax[0].axhline(y=self.data_handler.ax_kx[idx_kx], color='black', linestyle='--', linewidth = 1.5)
-        self.vertical_line_0 = self.ax[0].axvline(x=self.data_handler.ax_ky[idx_ky], color='black', linestyle='--', linewidth = 1.5)
+        self.horizontal_line_0 = self.ax[0].axhline(y=kx, color='black', linestyle='--', linewidth = 1.5)
+        self.vertical_line_0 = self.ax[0].axvline(x=ky, color='black', linestyle='--', linewidth = 1.5)
     
-        self.horizontal_line_1 = self.ax[2].axhline(y=self.data_handler.ax_E[idx_E], color='black', linestyle='--', linewidth = 1.5)
-        self.vertical_line_1 = self.ax[2].axvline(x=self.data_handler.ax_kx[idx_kx], color='black', linestyle='--', linewidth = 1.5)
+        self.horizontal_line_1 = self.ax[2].axhline(y=E, color='black', linestyle='--', linewidth = 1.5)
+        self.vertical_line_1 = self.ax[2].axvline(x=kx, color='black', linestyle='--', linewidth = 1.5)
                 
-        self.horizontal_line_2 = self.ax[3].axhline(y=self.data_handler.ax_E[idx_E], color='black', linestyle='--', linewidth = 1.5)
-        self.vertical_line_2 = self.ax[3].axvline(x=self.data_handler.ax_ky[idx_ky], color='black', linestyle='--', linewidth = 1.5)
+        self.horizontal_line_2 = self.ax[3].axhline(y=E, color='black', linestyle='--', linewidth = 1.5)
+        self.vertical_line_2 = self.ax[3].axvline(x=ky, color='black', linestyle='--', linewidth = 1.5)
 
         # Add Squares
         square_x, square_y = self.make_square(kx, ky, k_int)
@@ -250,10 +211,7 @@ class PlotHandler:
         return square_x, square_y
         
     def plot_edc(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky = [0, 0], [0, 0]
-        idx_kx[0], idx_ky[0], _, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
-        idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
 
         if self.data_handler.I.ndim > 3:
             edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, :].sum(axis=(0,1,3))
@@ -273,20 +231,20 @@ class PlotHandler:
         self.ax[1].set_ylabel("Intensity")
                 
     def plot_time_trace(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky = [0, 0], [0, 0]
-        idx_kx[0], idx_ky[0], idx_E, _ = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay)
-        idx_kx[1], idx_ky[1], _, _ = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay)
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        k = (kx, ky)
+        norm_trace = True
+        subtract_neg = True
 
-        if self.data_handler.I.ndim > 3:
-            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-            time_trace = time_trace #- np.mean(time_trace[5:self.t0-6])
+        if self.I.ndim > 3:
+            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), norm_trace, subtract_neg, [-200,-50])
+#            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
             
-            self.im_4, = self.ax[1].plot(self.data_handler.ax_delay, time_trace/np.max(time_trace), color = 'black')
+            self.im_4, = self.ax[1].plot(self.I.delay.values, time_trace/np.max(time_trace), color = 'black')
             self.ax[1].set_xticks(np.arange(-300,1250,100))
             for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
                 label.set_visible(False)
-            self.ax[1].set_xlim([self.data_handler.ax_delay[1], self.data_handler.ax_delay[-1]])
+            self.ax[1].set_xlim([self.I.delay.values[1], self.I.delay.values[-1]])
 
         else:
             time_trace = np.zeros(1)
@@ -297,48 +255,46 @@ class PlotHandler:
         self.ax[1].set_ylabel("Intensity")
                    
     def update_kxky_image(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
-        
-        frame_temp = self.data_handler.get_momentum_map()
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        frame_temp = mpes.get_momentum_map(self.I, E, E_int, delay, delay_int)
+
         self.im_1.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
-        self.ax[0].set_title("E = " + str(round(self.data_handler.ax_E[idx_E],1)) + ' eV')
+        self.ax[0].set_title("E = " + str(round(E,2)) + ' eV')
         
     def update_kx_image(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
-        frame_temp = self.data_handler.get_kx_map()
-        frame_temp = frame_temp/np.max(frame_temp)
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+
+        frame_temp = mpes.get_kx_E_frame(self.I, ky, 0.1, delay, delay_int)
+        frame_temp = frame_temp.T/np.max(frame_temp)
+        
         if self.check_button_manager.enhance_button_status == True:    
-            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            mask_start = (np.abs(self.I.E.values - 0.95)).argmin()
             frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
-        self.im_2.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
+        self.im_2.set_data(frame_temp)  # Update image for new E
 
     def update_ky_image(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky, idx_E, idx_delay = self.data_handler.get_closest_indices(kx, ky, E, delay)
-        frame_temp = self.data_handler.get_ky_map()
-        frame_temp = frame_temp/np.max(frame_temp)
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+
+        frame_temp = mpes.get_ky_E_frame(self.I, kx, 0.1, delay, delay_int)
+        frame_temp = frame_temp.T/np.max(frame_temp)
+        
         if self.check_button_manager.enhance_button_status == True:    
-            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            mask_start = (np.abs(self.I.E.values - 0.95)).argmin()
             frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
-        self.im_3.set_data(frame_temp/np.max(frame_temp))  # Update image for new E
+            
+        self.im_3.set_data(frame_temp)  # Update image for new E
 
     def update_time_trace(self):
         """Update the time traces when the square is moved or resized."""
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky = [0, 0], [0, 0]
-        idx_kx[0], idx_ky[0], idx_E, idx_delay1 = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay-delay_int/2)
-        idx_kx[1], idx_ky[1], _, idx_delay2 = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay+delay_int/2)
-        
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        k = (kx, ky)
         # Update the time trace plots
         self.ax[1].set_title("Dynamics")
         self.ax[1].set_xlabel("Delay, fs")
         self.ax[1].set_ylabel("Intensity")
         
         if self.data_handler.I.ndim > 3:
-            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
-            time_trace = time_trace #- np.mean(time_trace[5:self.t0-5])
+            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), True, True, [-200,-80])
             #self.ax[1].set_xticks(np.arange(-200,1250,200))
             #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
              #   label.set_visible(False)
@@ -348,13 +304,9 @@ class PlotHandler:
         else:
             time_trace = np.zeros(1)
 
-
     def update_edc(self):
         """Update the time traces when the square is moved or resized."""
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
-        idx_kx, idx_ky = [0, 0], [0, 0]
-        idx_kx[0], idx_ky[0], _, idx_delay1 = self.data_handler.get_closest_indices(kx-k_int/2, ky-k_int/2, E, delay-delay_int/2)
-        idx_kx[1], idx_ky[1], _, idx_delay2 = self.data_handler.get_closest_indices(kx+k_int/2, ky+k_int/2, E, delay+delay_int/2)
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
 
         if self.data_handler.I.ndim > 3:
             edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, idx_delay1:idx_delay2+1].sum(axis=(0,1,3))
@@ -381,13 +333,13 @@ class PlotHandler:
         #self.ax[1].axvline(E, color = 'black', linestyle = 'dashed')
         
     def update_lines(self):
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         self.horizontal_line_1.set_ydata(y = E)
         self.horizontal_line_2.set_ydata(y = E)
         
     def update_square(self):
         """Update square position on plot."""
-        k_int, kx, ky, E, delay = self.value_manager.get_values()
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         
         square_x, square_y = self.make_square(kx, ky, k_int)
         self.square_0.set_data(square_x, square_y)
@@ -574,25 +526,29 @@ class SliderManager:
         self.plot_manager = plot_manager
         self.value_manager = value_manager
         self.check_button_manager = check_button_manager
-        self.E_slider, self.k_int_slider, self.delay_slider, self.delay_int_slider = self.create_sliders()
+        self.E_slider, self.E_int_slider, self.k_int_slider, self.delay_slider, self.delay_int_slider = self.create_sliders()
             
     def create_sliders(self):
         """Create the sliders for energy and delay."""
         E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -4, 3.5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
+        E_int_slider = Slider(plt.axes([0.000, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.055, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
-        delay_slider = Slider(plt.axes([0.055, 0.055, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
-        delay_int_slider = Slider(plt.axes([0.055, 0.055, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
+        delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
+        delay_int_slider = Slider(plt.axes([0.055, 0.001, 0.25, 0.03]), 'Delay, fs', 0, 1000, valinit=50, valstep = 20, color = 'violet', orientation = 'horizontal')
 
-        return E_slider, k_int_slider, delay_slider, delay_int_slider
+        return E_slider, E_int_slider, k_int_slider, delay_slider, delay_int_slider
     
     def on_slider_update(self, val):
         """Update plots based on slider values."""
         E = self.E_slider.val
+        E_int = self.E_int_slider.val/1000
         k_int = self.k_int_slider.val
         delay = self.delay_slider.val
-        delay_int = self.delay_int.val
+        delay_int = self.delay_int_slider.val
 
         self.value_manager.update_E_value(E)
+        self.value_manager.update_E_int_value(E_int)
+
         self.value_manager.update_k_int_value(k_int)
         self.value_manager.update_delay_value(delay)
         self.value_manager.update_delay_int_value(delay_int)
@@ -600,11 +556,14 @@ class SliderManager:
         self.plot_manager.update_lines()
         self.plot_manager.update_square()
         self.plot_manager.update_kxky_image()
-        
-        if self.check_button_manager.trace_button_status:
-            self.plot_manager.update_edc()
-        else:
-            self.plot_manager.update_time_trace()
+        self.plot_manager.update_kx_image()
+        self.plot_manager.update_ky_image()
+        self.plot_manager.update_time_trace()
+
+        # if self.check_button_manager.trace_button_status:
+        #     self.plot_manager.update_edc()
+        # else:
+        #     self.plot_manager.update_time_trace()
 
         self.plot_manager.fig.canvas.draw()
     
