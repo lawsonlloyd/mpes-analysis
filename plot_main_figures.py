@@ -149,7 +149,7 @@ plt.ylim(0,1.2)
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'Figure 3_v2'
 image_format = 'svg'
 data_path = 'R:\Lawson\Data\phoibos'
@@ -163,7 +163,7 @@ scans = [9219, 9218, 9228, 9370, 9412, 9526] #915 nm (top 3) ; 700 nm, 640 nm, 4
 
 #power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
- fluence = [.2, .8, 2.9, 4.5, 3.6, x]
+fluence = [.2, .8, 2.9, 4.5, 3.6, 0]
           
 # Specify energy and Angle ranges
 E, E_int = [1.325, 2.075], 0.1

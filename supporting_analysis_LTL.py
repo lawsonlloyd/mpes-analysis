@@ -164,8 +164,8 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 640
-average_power = 50 #116.6 #mW
+lam = 915
+average_power = 15 #116.6 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
@@ -188,9 +188,9 @@ Ts = 1 - Rs
 Tp = 1 - Rp
 
 if pump_pol == 's':
-    average_power = average_power*Ts
+    average_power_scaled = average_power*Ts
 elif pump_pol == 'p':
-    average_power = average_power*Tp    
+    average_power_scaled = average_power*Tp    
     
 ### Provdie the (Calculated) Absorption Spectrum    
 absorbance_to_use = ABS
@@ -214,7 +214,7 @@ abs_spec = np.interp(wl , lam_from_energy, absorbance_test)
 beam_rad = 0.1*fwhm*1.699*0.5 #Get 1/e^2 beam radius, cm (from FWHM)
 beam_rad_2 = 0.1*fwhm*1.699*0.5*(1/np.cos(theta)) #Get 1/e^2 beam radius, cm (from FWHM)
 spot_size = np.pi*beam_rad*beam_rad_2/2 #cm^2
-pulse_energy = (average_power/1000)/rep_rate #Joules
+pulse_energy = (average_power_scaled/1000)/rep_rate #Joules
 energy_density = 1000*pulse_energy/(spot_size) #mJ/cm^2
 
 h, c = 6.6261E-34, 299792458 # constants
@@ -245,7 +245,7 @@ plt.ylim([0,1.05])
 plt.title('Estimated Carrier Density')
 plt.axvline(lam, linestyle = 'dashed', color = 'pink')
 plt.legend(frameon=False)
-print('Est. Carrier Density for ' + str(round(average_power,1)) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
+print('Est. Ex. Density for ' + str(round(average_power_scaled,1)) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
 plt.show()
 
 aB = 1 #bohr radius, nm
