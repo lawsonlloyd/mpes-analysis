@@ -22,7 +22,7 @@ import mpes
 #%% Useful Script Portions for Main Text Figures
 
 
-#%% Figure 2: kx Panel + Dynaics
+#%% Figure 2: kx Panel + Dynamics
 
 save_figure = False
 figure_file_name = 'Figure 2'
@@ -153,14 +153,16 @@ plt.ylim(0,1.2)
 # Standard 915 nm Excitation
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 
-# Other WLs
-
+# Combined
+scans = [9219, 9218 , 9228, 9370, 9412, 9526] #915 nm (top 3) ; 700 nm, 640 nm, 400 nm
 
 #power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
            
 # Specify energy and Angle ranges
 E, E_int = [1.325, 2.075], 0.1
+E, E_int = [1.32, 2.05], 0.1
+
 k, k_int = 0, 20
 subtract_neg = True
 norm_trace = False
@@ -178,15 +180,20 @@ ax = ax.flatten()
 for i in np.arange(len(scans)):
     scan_i = scans[i]
     res = phoibos.load_data(data_path, scan_i, scan_info, _ , _ , False)
+    WL = scan_info[str(scan_i)].get("Wavelength")
+
 #    res = phoibos.load_data(scan_i, energy_offset, offsets_t0[i])
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
-    trace_2 = trace_2/np.max(trace_1)
-    trace_1 = trace_1/np.max(trace_1)
-
+    norm = np.max([trace_1,trace_2])
+    #trace_2 = trace_2/np.max(trace_1)
+    #trace_1 = trace_1/np.max(trace_1)
+    trace_2 = trace_2/norm
+    trace_1 = trace_1/norm
+    
     t1 = trace_1.plot(ax = ax[i], color = 'black', linewidth = 3)
-    t2 = trace_2.plot(ax = ax[i], color = 'red', linewidth = 3)
-    ax[i].text(1000, .9, f"$n_{{eh}} = {fluence[i]:.2f} x 10^{{13}} cm^{{-2}}$", fontsize = 14, fontweight = 'regular')
+    t2 = trace_2.plot(ax = ax[i], color = 'crimson', linewidth = 3)
+    #ax[i].text(1000, .9, f"$n_{{eh}} = {fluence[i]:.2f} x 10^{{13}} cm^{{-2}}$", fontsize = 14, fontweight = 'regular')
 
     # Set major ticks at every 500
     xticks = np.arange(-1000, 3500, 500)
@@ -203,7 +210,7 @@ for i in np.arange(len(scans)):
     ax[i].set_ylim([-0.1,1.1])
     ax[i].set_xlabel('Delay, ps')
     ax[i].set_ylabel('Nom. Int.')
-    ax[i].set_title('$\lambda_{ex} $ = 915 nm', fontsize = 22)
+    ax[i].set_title(f'$\lambda_{{ex}} $ = {WL} nm', fontsize = 22)
     #ax[0].set_title('Exciton')
     #ax[1].set_title('CBM')
 
