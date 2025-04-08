@@ -29,8 +29,8 @@ scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
-scan = 9370
-energy_offset, delay_offset, force_offset = 19.72, -268, False
+scan = 9103
+energy_offset, delay_offset, force_offset = 19.5,  -52, True
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
@@ -72,8 +72,8 @@ def objective(params, x, data):
 
 %matplotlib inline
 
-E, E_int = [1.3, 2.05], 0.1
-k, k_int = 2, 22
+E, E_int = [1.3, 2], 0.1
+k, k_int = 0, 22
 d1, d2 = -1000, -300
 d3, d4 = 500, 3000
 
@@ -122,18 +122,20 @@ axx[2].set_ylabel('Int.')
 axx[2].set_title('EDCs: Norm. to Neg.')
 
 rect = (Rectangle((k-k_int/2, -2), k_int, 5 , linewidth=.5,\
-                     edgecolor='violet', facecolor='purple', alpha = 0.3))
+                     edgecolor='violet', facecolor='purple', alpha = 0.25))
 axx[0].add_patch(rect) #Add rectangle to plot
 
 for i in np.arange(len(E)):
     trace = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[i]-E_int/2, E[i]+E_int/2)}].sum(axis=(0,1))
     trace.plot(ax = axx[3], color = colors[i])
-    rect = (Rectangle((-1000, E[i]-E_int/2), 5000, E_int , linewidth=.5,\
+    rect = (Rectangle((-1000, E[i]-E_int/2), res.Delay.values[-1]*1.5, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.3))
     axx[1].add_patch(rect) #Add rectangle to plot
     axx[2].axvline(E[i], color = colors[i], linestyle = 'dashed')
 
 axx[3].axvline(0, color = 'grey', linestyle = 'dashed')
+axx[3].set_xlim(trace.Delay.values[0]-50, trace.Delay.values[-1])
+axx[1].set_xlim(trace.Delay.values[0]-50, trace.Delay.values[-1])
 
 params = {'lines.linewidth' : 2, 'axes.linewidth' : 1.5, 'axes.labelsize' : 16, 
           'xtick.labelsize' : 14, 'ytick.labelsize' : 14, 'axes.titlesize' : 16, 'legend.fontsize' : 12}
@@ -162,7 +164,7 @@ plt.xlim(-1,2)
 
 #%% Define t0 from Exciton Rise
 
-E, E_int = 2.5, 0.1
+E, E_int = 2.2, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True
@@ -203,9 +205,9 @@ print(round(popt[0],3))
 save_figure = False
 figure_file_name = 'DIFFERENCE_PANELS3'
 
-delays = [0,3000]
-E[0], E[1], E_int = 1.325, 2.075, 0.1
-E[0], E[1], E_int = 1.3, 2.0, 0.1
+delays = [10, 100000]
+E, E_int = [1.3, 2], 0.1
+#E, E_int = [1.3, 2.0], 0.1
 
 A, A_int = 0, 20
 
@@ -260,8 +262,10 @@ im3 = trace_1.plot(ax = axx[2], color = 'black')
 im3 = trace_2.plot(ax = axx[2], color = 'red')
 #im_dyn = axx[2].plot(trace_1.Delay.loc[{"Delay":slice(0,50000)}].values, \
  #                  0.6*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/18000) +
-  #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
 
+  #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
+axx[0].axhline(E[0],  color = 'black')
+axx[0].axhline(E[1],  color = 'red')
 axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 axx[0].set_title(f"I({delays[0]}:{delays[1]} fs) - I(<-300 fs)")
 axx[0].set_ylim(-1,3)
@@ -269,7 +273,7 @@ axx[0].set_ylim(-1,3)
 axx[1].axhline(E[0],  color = 'black')
 axx[1].axhline(E[1],  color = 'red')
 axx[1].set_ylim(-0,3.1)
-axx[1].set_xlim(-200, 3000)
+#axx[1].set_xlim(-200, 3000)
 #axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 
@@ -294,10 +298,11 @@ plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
 ts = [0, 250, 1250]
+E_inset = 0.8
 
 for i in np.arange(len(ts)):
     
-    panel = phoibos.make_diff_ARPES(res, [ts[i]-50, ts[i]+50], 0.75)
+    panel = phoibos.make_diff_ARPES(res, [ts[i]-50, ts[i]+50], E_inset)
     im1 = panel.T.plot.imshow(ax = axx[i], cmap = 'seismic', vmin = -1, vmax = 1)
     
     axx[i].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
@@ -313,7 +318,7 @@ plt.show()
 
 %matplotlib inline
 
-E[0], E[1], E_int = 1.375, 2.125, 0.1
+E, E_int = [1.375, 2.125], 0.1
 
 colormap = 'Purples' #'bone_r'
 
