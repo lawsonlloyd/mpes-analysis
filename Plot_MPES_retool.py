@@ -391,25 +391,27 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
-
 #%% Plot Dynamics: Extract Traces At Different Energies and Momenta
 
 save_figure = False
 figure_file_name = 'k-integrated 4Panel_'
 image_format = 'svg'
 
-E_trace, E_int = [1.25, 2.05, 2.5, 3], .15 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
+E_trace, E_int = [2.05, 2.3, 2.5, 2.7, 2.9, 3.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
 
-colors = ['black', 'red', 'purple', 'orange'] #colors for plotting the traces
+colors = ['crimson', 'violet', 'purple', 'midnightblue', 'orange', 'grey'] #colors for plotting the traces
+
+colors = colors[::-1]
+E_trace = E_trace[::-1]
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
-norm_trace = True
+norm_trace = False
 
 E_MM ,E_MM_int = 1.4, 0.2
 delay, delay_int = 500, 1000 #kx frame
 
-Ein = .5 #Enhance excited states above this Energy, eV
+Ein = .95 #Enhance excited states above this Energy, eV
 energy_limits = [-0.1, 3] # Energy Y Limits for Plotting Panels 3 and 4
 
 #######################
@@ -522,15 +524,16 @@ ax[3].set_aspect("auto")
 
 ### THIRD PLOT: DELAY TRACES (Angle-Integrated)
 trace_norms = []
+trace_norm_i = len(E_trace)
 for i in np.arange(len(E_trace)):
     
     trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
     trace_norms.append(np.max(trace))
 
-    if i == 0:
-        trace = trace/np.max(trace)
-    elif i == 1:
-        trace = trace/trace_norms[0]
+for i in np.arange(len(E_trace)):
+    trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
+
+    trace = trace/np.max(trace_norms)
         
     trace.plot(ax = ax[1], color = colors[i], label = str(E_trace[i]) + ' eV')
 #    ax[3].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
@@ -582,27 +585,31 @@ if save_figure is True:
 #%% Plot Waterfall Only
 
 save_figure = True
-figure_file_name = 'k-integrated'
+figure_file_name = 'k-integrated_withtraces'
 image_format = 'pdf'
 
-E_trace, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, .25) # Central (kx, ky) point and k-integration
+E_trace, E_int = [2.05, 2.3, 2.5, 2.7, 2.9, 3.1], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
 
-colors = ['black', 'red', 'purple'] #colors for plotting the traces
+colors = ['crimson', 'violet', 'purple', 'midnightblue', 'orange', 'grey'] #colors for plotting the traces
+
+colors = colors[::-1]
+E_trace = E_trace[::-1]
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
-norm_trace = True
+norm_trace = False
 
 E_MM ,E_MM_int = 1.4, 0.2
 
 delay, delay_int = 500, 200 #kx frame
 
-Ein = .85 #Enhance excited states above this Energy, eV
-energy_limits = [0.9, 3] # Energy Y Limits for Plotting Panels 3 and 4
+Ein = .9 #Enhance excited states above this Energy, eV
+energy_limits = [.9, 3.15] # Energy Y Limits for Plotting Panels 3 and 4
 
-fig, ax = plt.subplots(1, 1, gridspec_kw={'width_ratios': [1], 'height_ratios':[1]})
-fig.set_size_inches(6, 4, forward=False)
-ax = [ax]
+#fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1], 'height_ratios':[1]})
+fig, ax = plt.subplots(2, 1)
+fig.set_size_inches(8, 8, forward=False)
+#ax = [ax]
 #ax = ax.flatten()
 
 plot_symmetry_points = False
@@ -632,7 +639,7 @@ ax[0].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
 ax[0].set_yticks(np.arange(-1,3.5,0.25))
 ax[0].set_xlim(I.delay[1],I.delay[-1])
 ax[0].set_ylim(energy_limits)
-#ax[0].set_title('$k_{x}$-Integrated', fontsize = 20)
+ax[0].set_title('$k$-Integrated', fontsize = 20)
 ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
 ax[0].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
@@ -644,9 +651,53 @@ aspra = hor/ver
 #ax[1].set_aspect(aspra)
 ax[0].set_aspect("auto")
 
-cbar_ax = fig.add_axes([1, 0.3, 0.025, 0.5])
+cbar_ax = fig.add_axes([.825, 0.612, 0.025, 0.3])
 cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
 cbar.ax.set_yticklabels(['min', 'max'], fontsize=16)  # vertically oriented colorbar
+
+### THIRD PLOT: DELAY TRACES (Angle-Integrated)
+trace_norms = []
+trace_norm_i = len(E_trace)
+for i in np.arange(len(E_trace)):
+    
+    trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
+    trace_norms.append(np.max(trace))
+
+for i in np.arange(len(E_trace)):
+    trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
+
+    trace = trace/np.max(trace_norms)
+        
+    trace.plot(ax = ax[1], color = colors[i], label = str(E_trace[i]) + ' eV')
+#    ax[3].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
+
+#   ax[1].axhline(E_trace[i]-E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
+#   ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
+    
+    rect2 = (Rectangle((kx-kx_int/2, E_trace[i]-E_int/2), kx_int, E_int , linewidth=.5,\
+                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.5))
+#    if kx_int < 4:
+#    ax[0].add_patch(rect2) #Add rectangle to plot
+    
+    rect3 = (Rectangle((-500, E_trace[i]-E_int/2), 2000, E_int , linewidth=.5,\
+                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.35))
+ #   ax[0].add_patch(rect3) #Add rectangle to plot
+
+#    ax[2].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
+
+
+ax[1].set_xlim(I.delay[1], I.delay[-1])
+
+if norm_trace is True:
+    ax[1].set_ylim(-0.1, 1.1)
+else:
+    ax[1].set_ylim(-0.1, 1.1*np.max(1))
+    
+ax[1].set_ylabel('Norm. Int.', fontsize = 18)
+ax[1].set_xlabel('Delay, fs', fontsize = 18)
+ax[1].legend(frameon = False, loc = 'upper left', fontsize = 15, bbox_to_anchor=(.99, 1))
+#ax[1].legend(frameon=False, loc='upper left', bbox_to_anchor=(1.05, 1))
+ax[1].set_title('Delay Traces')
 
 #ax[3].set_title(f'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
 #ax[3].text(500, 2.4, f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 14)
@@ -657,6 +708,9 @@ params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
+
+fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
+fig.text(.03, .485, "(b)", fontsize = 18, fontweight = 'regular')
 
 fig.tight_layout()
 #ax[1].set_tick_params(axis='both', labelsize=16)

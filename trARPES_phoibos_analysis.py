@@ -31,6 +31,7 @@ image_format = 'pdf'
 
 # Standard 915 nm Excitation
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
+
 #offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
 fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
@@ -143,7 +144,267 @@ if save_figure is True:
 
 
 #%%
+
+%matplotlib inline
+
 save_figure = True
+figure_file_name = 'Cold_Data_phoibos'
+image_format = 'pdf'
+data_path = 'R:\Lawson\Data\phoibos'
+
+# Scans to plot
+# Standard 915 nm Excitation
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+
+# Combined
+scans = [9241, 9240, 9137] #915 nm (top 3) ; 700 nm, 640 nm, 400 nm
+
+#power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
+fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
+fluence = [.2, .8, 2.9, 4.5, 3.6, 0]
+ev = [1.355, 1.355, 3.10]
+# Specify energy and Angle ranges
+E, E_int = [1.325, 2.075], 0.1
+E, E_int = [1.325, 2.025], 0.1
+
+k, k_int = 0, 20
+subtract_neg = True
+norm_trace = False
+
+# Plot
+fig, ax = plt.subplots(1, 3)
+fig.set_size_inches(11, 4, forward=False)
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+for i in np.arange(len(scans)):
+    scan_i = scans[i]
+    res = phoibos.load_data(data_path, scan_i, scan_info, 19.72 , _ , False)
+    WL = scan_info[str(scan_i)].get("Wavelength")
+    temp = scan_info[str(scan_i)].get("Temperature")
+
+    if i == 3:
+        E, E_int = [1.3, 1.92], 0.1
+
+#    res = phoibos.load_data(scan_i, energy_offset, offsets_t0[i])
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    norm = np.max([trace_1,trace_2])
+    #trace_2 = trace_2/np.max(trace_1)
+    #trace_1 = trace_1/np.max(trace_1)
+    trace_2 = trace_2/norm
+    trace_1 = trace_1/norm
+    
+    t1 = trace_1.plot(ax = ax[i], color = 'black', linewidth = 3)
+    t2 = trace_2.plot(ax = ax[i], color = 'crimson', linewidth = 3)
+    #ax[i].text(1000, .9, f"$n_{{eh}} = {fluence[i]:.2f} x 10^{{13}} cm^{{-2}}$", fontsize = 14, fontweight = 'regular')
+
+    # Set major ticks at every 500
+    xticks = np.arange(-1000, 3500, 500)
+    ax[i].set_xticks(xticks)
+    
+    # Hide every other label by replacing with an empty string
+    xtick_labels = [str(tick/1000) if i % 2 == 0 else "" for i, tick in enumerate(xticks)]
+    ax[i].set_xticklabels(xtick_labels)
+    ax[i].set_yticks(np.arange(-0.5,1.25,0.25))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax[i].set_xlim([-500,3000])
+    ax[i].set_ylim([-0.1,1.1])
+    ax[i].set_xlabel('Delay, ps')
+    ax[i].set_ylabel('Nom. Int.')
+    ax[i].set_title(f'$hv_{{ex}} $ = {ev[i]} eV', fontsize = 22)
+    ax[i].text(1000, .95, f'T = {temp} K', fontsize = 18)
+    #ax[0].set_title('Exciton')
+    #ax[1].set_title('CBM')
+
+fig.text(.01, 1, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.33, 1, "(b)", fontsize = 20, fontweight = 'regular')
+fig.text(.66, 1, "(c)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+# sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+# sm.set_array([])  # Required for colorbar to work
+# cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+# cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+# cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+# cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+
+#%% Plot Neg, Pos, and Difference Panels
+
+%matplotlib inline
+
+save_figure = True
+figure_file_name = 'ARPRES_Panels_diff'
+image_format = 'pdf'
+
+E, E_int = [1.375, 2.125], 0.1
+
+colormap = cmap_LTL # 'bone_r'# 'Purples'
+
+fig, axx = plt.subplots(1, 3)
+fig.set_size_inches(12, 4, forward=True)
+plt.gcf().set_dpi(300)
+axx = axx.flatten()
+
+E_inset = .8
+
+res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+res_pos = res.loc[{'Delay':slice(0,5000)}]
+res_neg_mean = res_neg.mean(axis=2)
+res_pos_mean = res_pos.mean(axis=2)
+
+neg_enh = phoibos.enhance_features(res_neg_mean, E_inset, 1, True)
+pos_enh = phoibos.enhance_features(res_pos_mean, E_inset, 1, True)
+diff_enh = phoibos.enhance_features(res_diff_E_Ang, E_inset, 1, True) 
+diff_enh = diff_enh / np.max(np.abs(diff_enh))
+
+im1 = neg_enh.T.plot.imshow(ax = axx[0], cmap = colormap)
+im2 = pos_enh.T.plot.imshow(ax = axx[1], cmap = colormap)
+im3 = diff_enh.T.plot.imshow(ax = axx[2], cmap = 'RdBu_r')
+axx[0].set_ylim(-1,2.65)
+axx[1].set_ylim(-1,2.65)
+axx[2].set_ylim(-1,2.65)
+
+axx[2].axhline(E_inset, color = 'black', linewidth = 1)
+axx[2].axhline(E_inset, color = 'black', linewidth = 1)
+axx[2].axhline(E_inset, color = 'black', linewidth = 1)
+
+axx[0].set_title('$\Delta$t < -300 fs')
+axx[1].set_title('$\Delta$t > 0 fs ')
+axx[2].set_title(f"Scan{scan}")
+axx[2].set_title('Difference')
+
+axx[0].set_ylabel('$E - E_{VBM}, eV$')
+axx[1].set_ylabel('$E - E_{VBM}, eV$')
+axx[2].set_ylabel('$E - E_{VBM}, eV$')
+
+fig.text(.01, .95, "(a)", fontsize = 18, fontweight = 'regular')
+fig.text(.33, .95, "(b)", fontsize = 18, fontweight = 'regular')
+fig.text(.66, .95, "(c)", fontsize = 18, fontweight = 'regular')
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+fig.tight_layout()
+plt.show()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+
+#%% waterfall difference Panel
+
+save_figure = True
+figure_file_name = 'WaterFallDifference'
+image_format = 'pdf'
+
+#E, E_int = [1.3, 2.0], 0.1
+
+A, A_int = 0, 20
+
+colormap = cmap_LTL #'bone_r'
+subtract_neg = True
+norm_trace = False
+
+###
+WL = scan_info[str(scan)].get("Wavelength")
+per = (scan_info[str(scan)].get("Percent"))
+Temp = float(scan_info[str(scan)].get("Temperature"))
+
+res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+res_pos = res.loc[{'Delay':slice(0,5000)}]
+
+res_neg_mean = res_neg.mean(axis=2)
+res_pos_mean = res_pos.mean(axis=2)
+
+#res_diff_E_Ang = res_pos_mean - res_neg_mean
+
+res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+#res_diff_E_Ang = res.loc[{'Delay':slice(-100,0)}].mean(axis=2) - res_neg_mean
+#res_diff_E_Ang = res.loc[{'Delay':slice(250,350)}].mean(axis=2) - res_neg_mean
+
+res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
+
+E_inset = 0.9
+
+res_sum_Angle = res.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
+res_diff = res - res_neg.mean(axis=2)
+res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
+res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
+
+res_sum_Angle = phoibos.enhance_features(res_sum_Angle, E_inset, _ , True)
+
+res_diff_E_Ang = phoibos.enhance_features(res_diff_E_Ang, E_inset, _ , True)
+res_diff_sum_Angle = phoibos.enhance_features(res_diff_sum_Angle, E_inset, _ , True)
+
+trace_1 = phoibos.get_time_trace(res, E[0], E_int, A, A_int, subtract_neg, norm_trace)
+trace_2 = phoibos.get_time_trace(res, E[1], E_int, A, A_int, subtract_neg, norm_trace)
+
+trace_2 = trace_2/trace_1.max()
+trace_1 = trace_1/trace_1.max()
+
+############
+### PLOT ###
+############
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(12, 4, forward=False)
+plt.gcf().set_dpi(300)
+axx = axx.flatten()
+
+im1 = res_sum_Angle.plot.imshow(ax = axx[0], cmap = colormap, vmin = 0, vmax = 1)
+
+im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'RdBu_r', vmin = -1, vmax = 1)
+
+#im_dyn = axx[2].plot(trace_1.Delay.loc[{"Delay":slice(0,50000)}].values, \
+ #                  0.6*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/18000) +
+
+  #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
+#axx[0].axhline(E[0],  color = 'black')
+#axx[0].axhline(E[1],  color = 'red')
+axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
+axx[0].set_title('Integrated')
+axx[1].set_title('Difference')
+axx[0].set_xlim(-300,3000)
+axx[0].set_ylim(0.5,2.65)
+axx[1].set_xlim(-300,3000)
+axx[1].set_ylim(.5,2.65)
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('$E - E_{VBM}, eV$')
+axx[1].set_ylabel('$E - E_{VBM}, eV$')
+
+fig.text(.01, .95, "(d)", fontsize = 18, fontweight = 'regular')
+fig.text(.5, .95, "(e)", fontsize = 18, fontweight = 'regular')
+#axx[1].axhline(E[0],  color = 'black')
+#axx[1].axhline(E[1],  color = 'red')
+
+#axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
+axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
+#axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
+
+fig.tight_layout()
+#plt.show()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    
+#%%
+save_figure = False
 figure_file_name = 'Combined'
 image_format = 'pdf'
 
@@ -249,6 +510,7 @@ plt.plot(fluence, intensity, '-o', color = 'black')
 plt.plot(fluence, .01+(1.025e8)*fluence, color = 'pink', linestyle = 'dashed')
 plt.ylim(0,2.75e8)
 plt.xlim(0,3)
+
 #%% # PLOT Fluence Delay TRACES All Together
 
 save_figure = False

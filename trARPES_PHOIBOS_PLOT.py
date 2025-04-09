@@ -29,8 +29,8 @@ scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/phoibos'
 
-scan = 9103
-energy_offset, delay_offset, force_offset = 19.5,  -52, True
+scan = 9228
+energy_offset, delay_offset, force_offset = 19.62,  -150, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
@@ -67,17 +67,17 @@ def objective(params, x, data):
     resid = np.abs(data-fit)**2
     
     return resid
-
 #%% # PLOT DATA PANEL: Initial Overview
 
 %matplotlib inline
 
-E, E_int = [1.3, 2], 0.1
-k, k_int = 0, 22
-d1, d2 = -1000, -300
+E, E_int = [1.35, 2.025], 0.1
+k, k_int = 0, 20
+d1, d2 = -1000, -400
 d3, d4 = 500, 3000
 
 colormap = 'terrain_r'
+E_inset = 0.9
 
 WL = scan_info[str(scan)].get("Wavelength")
 per = (scan_info[str(scan)].get("Percent"))
@@ -90,13 +90,13 @@ fig.set_size_inches(8, 8, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-im1 = res.loc[{'Delay':slice(-1000,5000)}].sum(axis=2).T.plot.imshow(ax = axx[0], cmap = colormap)
+im1 = res.loc[{'Delay':slice(-1000,50000)}].sum(axis=2).T.plot.imshow(ax = axx[0], cmap = colormap)
 axx[0].set_title(f"Scan{scan}: {WL} nm, {per}%, T = {Temp}")
 
-waterfall = res.loc[{'Energy':slice(E[0]-1,E[1]+1), 'Angle':slice(-12,12)}].sum(axis=0)
-waterfall =  waterfall/np.max(waterfall.loc[{"Energy":slice(1,3)}])
+waterfall = res.loc[{'Energy':slice(E[0]-1,E[1]+1), 'Angle':slice(-12,12)}].sum(dim='Angle')
+waterfall =  waterfall/np.max(waterfall.loc[{"Energy":slice(E_inset,3)}])
 
-im2 = waterfall.plot.imshow(ax = axx[1], vmax = 1, cmap = colormap)
+im2 = waterfall.plot.imshow(ax = axx[1], x='Delay', vmax = 1, cmap = colormap)
 axx[1].axvline(0, color = 'grey', linestyle = 'dashed')
 
 edc_1 = res.loc[{'Angle':slice(k-k_int/2, k+k_int/2), 'Delay':slice(d1, d2)}].mean(axis=(0,2))
@@ -106,7 +106,7 @@ edc_norm = np.max(edc_1)
 edc_1 = edc_1/edc_norm
 edc_2 = edc_2/edc_norm
 edc_diff = edc_2 - edc_1
-edc_diff = edc_diff/np.max(edc_diff.loc[{'Energy':slice(1.1,3)}])
+edc_diff = edc_diff/np.max(edc_diff.loc[{'Energy':slice(1.1,3.1)}])
 
 im3 = edc_1.plot(ax = axx[2], label = f"t < {d2} fs", color = 'grey')
 im3 = edc_2.plot(ax = axx[2], label = f"t = {d3} fs to {d4} fs", color = 'green')
@@ -126,7 +126,8 @@ rect = (Rectangle((k-k_int/2, -2), k_int, 5 , linewidth=.5,\
 axx[0].add_patch(rect) #Add rectangle to plot
 
 for i in np.arange(len(E)):
-    trace = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[i]-E_int/2, E[i]+E_int/2)}].sum(axis=(0,1))
+    #trace = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[i]-E_int/2, E[i]+E_int/2)}].sum(axis=(0,1))
+    trace = phoibos.get_time_trace(res, E[i], E_int, k, k_int, False, False)
     trace.plot(ax = axx[3], color = colors[i])
     rect = (Rectangle((-1000, E[i]-E_int/2), res.Delay.values[-1]*1.5, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.3))
@@ -164,7 +165,7 @@ plt.xlim(-1,2)
 
 #%% Define t0 from Exciton Rise
 
-E, E_int = 2.2, 0.1
+E, E_int = 2.3, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True
@@ -216,6 +217,10 @@ subtract_neg = True
 norm_trace = False
 
 ###
+WL = scan_info[str(scan)].get("Wavelength")
+per = (scan_info[str(scan)].get("Percent"))
+Temp = float(scan_info[str(scan)].get("Temperature"))
+
 res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
 
@@ -276,11 +281,10 @@ axx[1].set_ylim(-0,3.1)
 #axx[1].set_xlim(-200, 3000)
 #axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
-
 #axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
 axx[1].set_title(f"Scan{scan}. Angle-Integr.")
+
 axx[2].set_xlim(res.Delay[0], res.Delay[-1])
-#axx[2].set_xlim(res.Delay[0], 25000)
 axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
 axx[2].set_xlim(-500,3000)
 
@@ -327,7 +331,7 @@ fig.set_size_inches(8, 3, forward=False)
 plt.gcf().set_dpi(200)
 axx = axx.flatten()
 
-E_inset = 1
+E_inset = .8
 
 neg_enh = phoibos.enhance_features(res_neg_mean, E_inset, 1, True)
 pos_enh = phoibos.enhance_features(res_pos_mean, E_inset, 1, True)
