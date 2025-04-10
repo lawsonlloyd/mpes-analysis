@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+from matplotlib.colors import PowerNorm
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 from skimage.draw import disk
@@ -18,6 +19,7 @@ from scipy import signal
 from scipy.fft import fft, fftshift
 #from lmfit import Parameters, minimize, report_fit
 from obspy.imaging.cm import viridis_white
+import cmocean
 import xarray as xr
 from math import nan
 
@@ -38,31 +40,28 @@ data_path = 'R:\Lawson\Data\metis'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
 #filename, offsets = 'Scan682_binned.h5', [0,0]
-filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
+#filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
+filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [.0085, -127.3]
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan803_binned.h5', [0.2, -102]
-
-#filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
+filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
-
 #filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
-
 
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename)
 value_manager =  ValueHandler()
 
-#I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
-#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
-
 I = data_loader.load()
 #data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
 
 I = I.assign_coords(E=(I.E-offsets[0]))
 I = I.assign_coords(delay=(I.delay-offsets[1]))
+
 I_res = I/np.max(I)
+I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
+I_diff = I_diff/np.max(I_diff)
 
 #%% This sets the plots to plot in the IDE window
 
@@ -121,7 +120,7 @@ a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
 x, y = -2*X, 0*Y
 
-(kx, ky), k_int = (x, y), 0.1
+(kx, ky), k_int = (x, .075), 0.1
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -193,6 +192,7 @@ if save_figure is True:
 
 #%% Plots EDC Comparisons
 
+
 edc_pos = (I_res.loc[{"delay":slice(200,1100)}].mean(dim=("kx","ky","delay")))
 edc_neg = (I_res.loc[{"delay":slice(-200,-90)}].mean(dim=("kx","ky","delay")))
 
@@ -203,12 +203,16 @@ edc_diff = edc_diff/np.max(edc_diff.loc[{"E":slice(1,3)}])
 
 edc_pos = np.log(edc_pos)
 edc_neg = np.log(edc_neg)
-#edc_diff = np.log(edc_pos - edc_neg)
 
 plt.plot(I_res.E, edc_pos , color = 'green', label = 't > 200 fs')
 plt.plot(I_res.E, edc_neg, color = 'grey', label = 'Neg Delays') 
+plt.plot(I_res.E, edc_diff, color = 'purple', label = 'Neg Delays') 
+
+plt.axvline(1.325, linestyle = 'dashed', color = 'black')
+plt.axvline(2.1, linestyle = 'dashed', color = 'crimson')
 
 plt.xlim(-.5,2.75)
+plt.ylim(-.2, 1.1)
 plt.xlabel('Energy, eV')
 plt.ylabel('Int, logscale')
 plt.legend(frameon=False)
@@ -217,6 +221,7 @@ plt.legend(frameon=False)
 #plt.ylim(-.1,1.2)
 
 #%% Define t0 from Exciton Rise
+
 
 from scipy.special import erf
 
@@ -289,14 +294,16 @@ if save_figure is True:
 #%% Plot Momentum Maps at Constant Energy
 
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-delays, delay_int = [0, 100, 250, 0, 100, 250], 500 #Integration range for delays
+E, E_int = [1.35, 1.35, 1.35, 2.1, 2.1, 2.1], 0.2 # Energies and Total Energy Integration Window to Plot MMs
+
+delays, delay_int = [0, 100, 250, 0, 100, 250], 50 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
 figure_file_name = f'MMs_delayIntegrated_delta500fs_200mev' 
-save_figure = True
+save_figure = False
 image_format = 'svg'
 
 #cmap_plot = viridis_white
@@ -390,37 +397,46 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
-
-#%% Plot Dynamics: Extract Traces At Different Energies and Momenta
+#%% Plot Dynamics: Extract Traces At Different Energies and Integrated k
 
 save_figure = False
 figure_file_name = 'k-integrated 4Panel_'
-image_format = 'svg'
+image_format = 'pdf'
 
 E_trace, E_int = [2.05, 2.3, 2.5, 2.7, 2.9, 3.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
-
-colors = ['crimson', 'violet', 'purple', 'midnightblue', 'orange', 'grey'] #colors for plotting the traces
-
 colors = colors[::-1]
 E_trace = E_trace[::-1]
 
-subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
-norm_trace = False
-
-E_MM ,E_MM_int = 1.4, 0.2
+E_trace, E_int = [1.33, 2.15], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (4, 5) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000 #kx frame
 
-Ein = .95 #Enhance excited states above this Energy, eV
-energy_limits = [-0.1, 3] # Energy Y Limits for Plotting Panels 3 and 4
+colors = ['black', 'crimson'] #colors for plotting the traces
 
-#######################
+subtract_neg, neg_delays = True, [-200,-100] #If you want to subtract negative time delay baseline
+norm_trace = False
+subtract_neg_maps = True
+
+E_MM ,E_MM_int = 1.3, 0.2
+Ein = .9 #Enhance excited states above this Energy, eV
+energy_limits = [.25, 3] # Energy Y Limits for Plotting Panels 3 and 4
+
+# Define Data Slices
+if subtract_neg_maps is True:
+    mm_frame = mpes.get_momentum_map(I_diff, E_MM, E_MM_int, 500, 2000)
+    kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delay, delay_int)
+    waterfall = mpes.get_waterfall(I_diff, kx, kx_int, ky, ky_int)
+    scale = [-1, 1]
+    cmap_plot = cmocean.cm.balance
+else:
+    scale = [0, 1]
+    cmap_plot = cmap_LTL
+    mm_frame = mpes.get_momentum_map(I_res, E_MM, E_MM_int, 500, 2000)
+    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+    waterfall = mpes.get_waterfall(I_res, kx, kx_int, ky, ky_int)
+
 ### Do the Plotting ###
-#######################
-
-i = 0
-frame = mpes.get_momentum_map(I, E_MM, E_MM_int, 500, 2000)
-
 fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1.5], 'height_ratios':[1, 1]})
 fig.set_size_inches(8, 6, forward=False)
 ax = ax.flatten()
@@ -428,11 +444,12 @@ ax = ax.flatten()
 plot_symmetry_points = False
 
 ### FIRST PLOT: MM of the First Energy
-im = frame.plot.imshow(ax = ax[i], clim = None, cmap = cmap_plot, add_colorbar=False)
+mm_frame = mm_frame/np.max(mm_frame)
+im = mm_frame.plot.imshow(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
+
 ax[0].set_aspect(1)
 ax[0].set_xlim(-2,2)
 ax[0].set_ylim(-2,2)
-
 ax[0].set_xticks(np.arange(-2,2.2,1))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
@@ -449,12 +466,10 @@ rect = (Rectangle((kx-kx_int/2, ky-ky_int/2), kx_int, ky_int, linewidth=.5,\
 if kx_int < 4:
     ax[0].add_patch(rect) #Add rectangle to plot
 
-### kx Frame
-kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
-kx_frame = kx_frame/np.max(kx_frame)
-kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(Ein,3)}])
+### SECOND PLOT: kx Frame
+kx_frame = mpes.enhance_features(kx_frame, Ein, factor = 0, norm = True)
 
-im2 = kx_frame.T.plot.imshow(ax=ax[2], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+im2 = kx_frame.T.plot.imshow(ax=ax[2], cmap=cmap_plot, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
 ax[2].set_aspect(1)
 ax[2].set_xticks(np.arange(-2,2.2,1))
 for label in ax[2].xaxis.get_ticklabels()[1::2]:
@@ -479,29 +494,13 @@ if plot_symmetry_points is True:
     ax[2].axvline(2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
     ax[2].axvline(-2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
 #ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
-
 ax[2].set_aspect("auto")
 
-### SECOND PLOT: WATERFALL
-I_norm = I/np.max(I)
-I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
+### THIRD PLOT: WATERFALL
 
-#I_norm = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
-#I_neg_mean = I_neg_mean.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
+waterfall = mpes.enhance_features(waterfall, Ein, factor = 0, norm = True)
 
-I_diff = I_norm - I_neg_mean
-I_diff = I_diff.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_diff = I_diff/np.max(I_diff)
-
-I_k_int = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_k_int = I_k_int/np.max(I_k_int)
-
-I3 = mpes.enhance_features(I_diff, Ein, factor = 0, norm = True)
-
-color_max = 1
-#waterfall = I3.plot(ax = ax[1], vmin = -1, vmax = 1, cmap = cmap_LTL)
-waterfall = I3.plot(ax = ax[3], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
-#waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
+im3 = waterfall.plot(ax = ax[3], vmin = scale[0], vmax = scale[1], cmap = cmap_plot, add_colorbar=False)
 ax[3].set_xlabel('Delay, fs', fontsize = 18)
 ax[3].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
 ax[3].set_yticks(np.arange(-1,3.5,0.25))
@@ -562,7 +561,7 @@ else:
     
 ax[1].set_ylabel('Norm. Int.', fontsize = 18)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
-ax[1].legend(frameon = False)
+ax[1].legend(frameon = False, loc = 'upper right', fontsize = 14)
 ax[1].set_title('Delay Traces')
 
 fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
@@ -584,7 +583,7 @@ if save_figure is True:
 
 #%% Plot Waterfall Only
 
-save_figure = True
+save_figure = False
 figure_file_name = 'k-integrated_withtraces'
 image_format = 'pdf'
 
@@ -609,30 +608,17 @@ energy_limits = [.9, 3.15] # Energy Y Limits for Plotting Panels 3 and 4
 #fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1], 'height_ratios':[1]})
 fig, ax = plt.subplots(2, 1)
 fig.set_size_inches(8, 8, forward=False)
-#ax = [ax]
-#ax = ax.flatten()
 
 plot_symmetry_points = False
 
 ### SECOND PLOT: WATERFALL
-I_norm = I/np.max(I)
-I_neg_mean = I_norm.loc[{"delay":slice(-130,-95)}].mean(axis=(3))
-
-#I_norm = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
-#I_neg_mean = I_neg_mean.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].sum(dim=("kx","ky"))
-
-I_diff = I_norm - I_neg_mean
-I_diff = I_diff.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_diff = I_diff/np.max(I_diff)
-
-I_k_int = I_norm.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
-I_k_int = I_k_int/np.max(I_k_int)
-
-I3 = mpes.enhance_features(I_k_int, Ein, factor = 0, norm = True)
+waterfall = mpes.get_waterfall(I_res, kx, kx_int, ky, ky_int)
+waterfall = mpes.enhance_features(waterfall, Ein, factor = 0, norm = True)
+I3 = mpes.enhance_features(waterfall, Ein, factor = 0, norm = True)
 
 color_max = 1
 #waterfall = I3.plot(ax = ax[1], vmin = -1, vmax = 1, cmap = cmap_LTL)
-waterfall = I3.plot.imshow(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
+im2 = I3.plot.imshow(ax = ax[0], vmin = 0, vmax = 1, cmap = cmap_LTL, add_colorbar=False)
 #waterfall = ax[1].imshow(diff_ang, clim = clim, origin = 'lower', cmap = cmap_LTL, extent=[ax_delay_offset[0], ax_delay_offset[-1], ax_E_offset[0], ax_E_offset[-1]])
 ax[0].set_xlabel('Delay, fs', fontsize = 18)
 ax[0].set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
@@ -652,7 +638,7 @@ aspra = hor/ver
 ax[0].set_aspect("auto")
 
 cbar_ax = fig.add_axes([.825, 0.612, 0.025, 0.3])
-cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
+cbar = fig.colorbar(im2, cax=cbar_ax, ticks = [0,waterfall.max()])
 cbar.ax.set_yticklabels(['min', 'max'], fontsize=16)  # vertically oriented colorbar
 
 ### THIRD PLOT: DELAY TRACES (Angle-Integrated)
@@ -661,30 +647,18 @@ trace_norm_i = len(E_trace)
 for i in np.arange(len(E_trace)):
     
     trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
-    trace_norms.append(np.max(trace))
+    trace_norms.append(np.max(trace.values))
 
 for i in np.arange(len(E_trace)):
     trace = mpes.get_time_trace(I, E_trace[i], E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
-
-    trace = trace/np.max(trace_norms)
-        
+    trace = trace/np.max(trace_norms)      
     trace.plot(ax = ax[1], color = colors[i], label = str(E_trace[i]) + ' eV')
-#    ax[3].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
-
-#   ax[1].axhline(E_trace[i]-E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
-#   ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     
     rect2 = (Rectangle((kx-kx_int/2, E_trace[i]-E_int/2), kx_int, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.5))
-#    if kx_int < 4:
-#    ax[0].add_patch(rect2) #Add rectangle to plot
     
     rect3 = (Rectangle((-500, E_trace[i]-E_int/2), 2000, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.35))
- #   ax[0].add_patch(rect3) #Add rectangle to plot
-
-#    ax[2].axhline(E_trace[i], linestyle = 'dashed', color = colors[i], linewidth = 1.5)
-
 
 ax[1].set_xlim(I.delay[1], I.delay[-1])
 
@@ -698,11 +672,6 @@ ax[1].set_xlabel('Delay, fs', fontsize = 18)
 ax[1].legend(frameon = False, loc = 'upper left', fontsize = 15, bbox_to_anchor=(.99, 1))
 #ax[1].legend(frameon=False, loc='upper left', bbox_to_anchor=(1.05, 1))
 ax[1].set_title('Delay Traces')
-
-#ax[3].set_title(f'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
-#ax[3].text(500, 2.4, f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 14)
-#fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
-#fig.text(.44, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
@@ -721,7 +690,7 @@ if save_figure is True:
 
 #%% Plot Dynamics: Extract Traces At Different Energies and Momenta: Distinct k Points
 
-save_figure = True
+save_figure = False
 figure_file_name = 'distinct_K_Points'
 image_format = 'pdf'
 
@@ -812,9 +781,6 @@ for i in np.arange(len(kx)):
     trace = trace/np.max(trace)
         
     trace.plot(ax = ax[1], color = colors[i], label = k_point_label[i])
-
-#   ax[1].axhline(E_trace[i]-E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
-#   ax[1].axhline(E_trace[i]+E_int/2, linestyle = 'dashed', color = colors[i], linewidth = 1.5)
     
     rect2 = (Rectangle((kx[i]-kx_int/2, E-E_int/2), kx_int, E_int , linewidth=.5,\
                          edgecolor=colors[i], facecolor=colors[i], alpha = 0.75))
@@ -891,17 +857,20 @@ if save_figure is True:
 
 #%% Plot Excited State kx Panels
 
-save_figure = True
+save_figure = False
 figure_file_name = 'kx_PANELS_alldelays_0.25dky'
-image_format = 'svg'
+image_format = 'pdf'
+cmap_plot = 'seismic'
+cmap_plot = cmocean.cm.balance
+scale = 1
 
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
 
-delays, delay_int = [-120, 0, 50, 100, 200, 500], 1000 #kx frame
+delays, delay_int = [-120, 0, 50, 100, 200, 500], 50 #kx frame
 
 Ein = .8 #Enhance excited states above this Energy, eV
 energy_limits = [0.8, 3] # Energy Y Limits for Plotting Panels 3 and 4
-plot_symmetry_points = True
+plot_symmetry_points = False
 
 #######################
 ### Do the Plotting ###
@@ -911,19 +880,14 @@ fig, ax = plt.subplots(2, 3)
 fig.set_size_inches(9, 5, forward=False)
 ax = ax.flatten()
 
-### kx Frame
-kx_norm_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, 100, delay_int)
-kx_norm_frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(100-50/2, 100+50/2)}].mean(dim="ky").mean(dim="delay")
-#kx_norm_frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
-
 for i in np.arange(len(delays)):
     
-    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delays[i], delay_int)
-#    kx_frame = kx_frame/np.max(kx_frame)
+    kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delays[i], delay_int)
+    kx_frame = mpes.enhance_features(kx_frame, Ein, factor = 0, norm = True)
     kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(Ein,3)}])
-    print(kx_frame.loc[{"E":slice(1,3)}].values.max())
-    
-    im2 = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+
+    im_kx = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=-1*scale, vmax=scale) #kx, ky, t
+
     ax[i].set_aspect(1)
     ax[i].set_xticks(np.arange(-2,2.2,1))
     for label in ax[i].xaxis.get_ticklabels()[1::2]:
@@ -959,8 +923,8 @@ fig.text(.68, 0.975, "(c)", fontsize = 18, fontweight = 'regular')
 fig.text(.68, 0.5, "(f)", fontsize = 18, fontweight = 'regular')
 
 cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.5])
-cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
-cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
+cbar = fig.colorbar(im_kx, cax=cbar_ax, ticks = [-1, 0, 1])
+cbar.ax.set_yticklabels(['-1', 0, '1'])  # vertically oriented colorbar
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
@@ -976,9 +940,11 @@ if save_figure is True:
 
 #%% Excited State ky Panels
 
-save_figure = True
+save_figure = False
 figure_file_name = 'ky_PANELS_kx=negX'
 image_format = 'pdf'
+cmap_plot = cmocean.cm.balance
+scale = [-1, 1]
 
 (kx, ky), (kx_int, ky_int) = (-X, 0), (0.4, 0) # Central (kx, ky) point and k-integration
 
@@ -997,19 +963,13 @@ fig.set_size_inches(9, 5, forward=False)
 ax = ax.flatten()
 plt.gcf().set_dpi(1000)
 
-### kx Frame
-ky_norm_frame = mpes.get_ky_E_frame(I_res, kx, kx_int, 100, delay_int)
-ky_norm_frame = I_res.loc[{"ky":slice(kx-kx_int/2, kx+kx_int/2), "delay":slice(100-delay_int/2, 100+delay_int/2)}].mean(dim="kx").mean(dim="delay")
-#kx_norm_frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
-
 for i in np.arange(len(delays)):
     
-    ky_frame = mpes.get_ky_E_frame(I_res, kx, kx_int, delays[i], delay_int)
-#    kx_frame = kx_frame/np.max(kx_frame)
+    ky_frame = mpes.get_ky_E_frame(I_diff, kx, kx_int, delays[i], delay_int)
+    ky_frame = mpes.enhance_features(ky_frame, Ein, factor = 0, norm = True)
     ky_frame = ky_frame/np.max(ky_frame.loc[{"E":slice(Ein,3)}])
-    print(ky_frame.loc[{"E":slice(1,3)}].values.max())
-    
-    im2 = ky_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+        
+    im_ky = ky_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
     ax[i].set_aspect(1)
     ax[i].set_xticks(np.arange(-2,2.2,1))
     for label in ax[i].xaxis.get_ticklabels()[1::2]:
@@ -1045,8 +1005,8 @@ fig.text(.68, 0.975, "(c)", fontsize = 18, fontweight = 'regular')
 fig.text(.68, 0.5, "(f)", fontsize = 18, fontweight = 'regular')
 
 cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.5])
-cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
-cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
+cbar = fig.colorbar(im_kx, cax=cbar_ax, ticks = [-1, 0, 1])
+cbar.ax.set_yticklabels(['-1', 0, '1'])  # vertically oriented colorbar
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
@@ -1197,24 +1157,26 @@ if save_figure is True:
 
 #%% Extract k-Dispersion and Eb momentum-depenence
 
-save_figure = True
+save_figure = False
 figure_file_name = 'eb-dispersion'
 image_format = 'pdf'
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0.0, 0), (0.4, 0.2) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0.0, 0.05), (0.2, 0.2) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000
 
-kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delay, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
+ax_kx = kx_frame.loc[{"kx":slice(k1,k2)}].kx.values
 
-k1, k2 = -1.9, 1.9
+k1, k2 = -1.83, 1.8
 kx_fits = np.zeros((len(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values),2))
 kx_fits_error = np.zeros(kx_fits.shape)
+eb_kx = np.zeros(kx_fits.shape[0])
 eb_kx_error = np.zeros(kx_fits.shape[0])
 
 i = 0
-for k in kx_frame.loc[{"kx":slice(k1,k2)}].kx:
+for k in ax_kx:
     kx_int = 0.2
     
     kx_edc = kx_frame.loc[{"kx":slice(k-kx_int/2,k+kx_int/2)}].mean(dim="kx")
@@ -1236,7 +1198,7 @@ for k in kx_frame.loc[{"kx":slice(k1,k2)}].kx:
     eb_kx[i] = kx_fits[i,1] - kx_fits[i,0]
     eb_kx_error[i] = np.sqrt(perr[3]**2+perr[2]**2)
     
-    if k.values < 0.02 and k.values > -0.5:
+    if k < 0.02 and k > -0.6:
         kx_fits[i,:] = nan
         eb_kx[i] = nan
         eb_kx_error[i] = nan
@@ -1249,9 +1211,7 @@ fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios
 fig.set_size_inches(9, 3.5, forward=False)
 ax = ax.flatten()
 
-kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
-kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
-
+kx, kx_int = 0, 3.75
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
 kx_edc = kx_edc/np.max(kx_edc.loc[{"E":slice(0.8,3)}])
 
@@ -1265,7 +1225,8 @@ popt, pcov = curve_fit(two_gaussians, kx_edc.loc[{"E":slice(e1,e2)}].E.values, k
 perr = np.sqrt(np.diag(pcov))
 g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, *popt)
 Eb = round(popt[3] - popt[2],3)
-    
+np.nanmean(eb_kx)
+
 im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
 #ax[0].set_aspect(1)
 
@@ -1297,8 +1258,8 @@ ax[0].axvline(2*X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(-2*X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 #ax[0].axhline(popt[2], linestyle = 'dashed', color = 'k', linewidth = 1.5)
 #ax[0].axhline(popt[3], linestyle = 'dashed', color = 'r', linewidth = 1.5)
-ax[0].plot(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, kx_fits[:,0], 'o', color = 'black')
-ax[0].plot(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, kx_fits[:,1], 'o', color = 'crimson')
+ax[0].plot(ax_kx, kx_fits[:,0], 'o', color = 'black')
+ax[0].plot(ax_kx, kx_fits[:,1], 'o', color = 'crimson')
 #ax[0].fill_between(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, kx_fits[:,0] - kx_fits_error[:,0], kx_fits[:,0] + kx_fits_error[:,0], color = 'grey', alpha = 0.5)
 #ax[0].fill_between(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, kx_fits[:,1] - kx_fits_error[:,1], kx_fits[:,1] + kx_fits_error[:,1], color = 'crimson', alpha = 0.5)
 
@@ -1308,8 +1269,8 @@ rect = (Rectangle((kx-kx_int/2, .5), kx_int, 3, linewidth=2.5,\
 #if kx_int < 4:
     #ax[0].add_patch(rect) #Add rectangle to plot
 
-ax[1].fill_between(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, 1000*eb_kx - 1000*eb_kx_error, 1000*eb_kx + 1000*eb_kx_error, color = 'violet', alpha = 0.5)
-ax[1].plot(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, 1000*eb_kx, color = 'darkviolet')
+ax[1].fill_between(ax_kx, 1000*eb_kx - 1000*eb_kx_error, 1000*eb_kx + 1000*eb_kx_error, color = 'violet', alpha = 0.5)
+ax[1].plot(ax_kx, 1000*eb_kx, color = 'darkviolet')
 ax[1].set_xlim(-2,2)
 ax[1].set_ylim(700,900)
 ax[1].set_ylabel('$E_{b}, meV$', fontsize = 18)
@@ -1342,10 +1303,10 @@ save_figure = False
 figure_name = 'kx_excited'
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (3.9, 0.25) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (3.7, 0.25) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 500
 
-kx_frame = mpes.get_kx_E_frame(I, ky, ky_int, delay, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delay, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -1448,7 +1409,7 @@ p_err_eb = np.zeros((len(I.delay)))
 n = len(I.delay.values)
 for t in range(n):
 
-    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, I.delay.values[t], delay_int)
+    kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, I.delay.values[t], delay_int)
 
     kx_edc_i = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].sum(dim="kx")
     kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"E":slice(0.8,3)}])
@@ -1478,7 +1439,7 @@ fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'heig
 fig.set_size_inches(14, 4, forward=False)
 ax = ax.flatten()
 
-kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, 500, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, 500, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -1524,8 +1485,8 @@ ax2.set_ylim([2.0,2.25])
 ax[1].set_ylabel('$E_{Exciton}$, eV', color = 'black')
 ax2.set_ylabel('$E_{CBM}$, eV', color = 'red')
 #ax[1].set_title(f"From {round(I.delay.values[t])} fs")
-ax[1].legend(frameon=False)
-ax2.legend(frameon=False, bbox_to_anchor=(.9, 0.875))
+ax[1].legend(frameon=False, loc = 'lower left',  bbox_to_anchor=(.07, .02))
+ax2.legend(frameon=False, bbox_to_anchor=(.0785, .35))
 ax[1].arrow(250, 1.3, -75, 0, head_width = .025, width = 0.005, head_length = 40, fc='black', ec='black')
 ax[1].arrow(650, 1.12, 75, 0, head_width = .025, width = 0.005, head_length = 40, fc='red', ec='red')
 
@@ -1535,7 +1496,7 @@ ax[2].set_xlim([0, I.delay.values[-1]])
 ax[2].set_ylim([700,900])
 ax[2].set_xlabel('Delay, fs')
 ax[2].set_ylabel('$E_{b}$, meV', color = 'black')
-ax[2].legend(frameon=False)
+ax[2].legend(frameon=False, loc = 'lower right')
 
 fig.text(.02, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.32, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
@@ -1558,18 +1519,19 @@ if save_figure is True:
 
 save_figure = False
 figure_file_name = 'EDC_metis'
+image_format = 'pdf'
 
 #I_res = I.groupby_bins('delay', 50)
 #I_res = I_res.rename({"delay_bins":"delay"})
 #I_res = I_res/np.max(I_res)
 I_res = I/np.max(I)
 
-fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_ratios':[1]})
-fig.set_size_inches(10, 4, forward=False)
+fig, ax = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios':[1, 1]})
+fig.set_size_inches(10, 8, forward=False)
 ax = ax.flatten()
 ### Plot EDCs at GAMMA vs time
 
-(kx, ky), k_int = (-1.9, 0), 0.25
+(kx, ky), k_int = (-2*X, 0), 0.12
 edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
@@ -1584,14 +1546,15 @@ ax[0].set_xlim([edc_gamma.delay[0],edc_gamma.delay[-1]])
 #plt.axvline(0, linestyle = 'dashed', color = 'black')
 ax[0].set_xlabel('Delay, fs')
 ax[0].set_ylabel('E - E$_{VBM}$, eV')
+ax[0].set_title('EDCs at $\Gamma$')
 
-pts = [-120, 0, 50, 100, 500]
+delays, delay_int  = [-120, 0, 50, 100, 500], 30
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 n = len(pts)
 colors = mpl.cm.inferno(np.linspace(0,.8,n))
                     
 for i in range(n):
-    edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(pts[i]-5,pts[i]+5)}].sum(dim=("kx","ky","delay"))
+    edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(delays[i]-delay_int/2,delays[i]+delay_int/2)}].sum(dim=("kx","ky","delay"))
     edc = edc/np.max(edc)
     
     e = edc.plot(ax = ax[1], color = colors[i], label = f"{pts[i]} fs")
@@ -1601,6 +1564,7 @@ ax[1].set_xlim([-1.5, 1])
 #ax[1].set_ylim([0, 1.1])
 ax[1].set_xlabel('E - E$_{VBM}$, eV')
 ax[1].set_ylabel('Norm. Int.')
+#ax[1].set_title('EDCs at $\Gamma$')
 #ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
 ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
 #ax[1].set_yscale('log')
@@ -1635,6 +1599,46 @@ for t in np.arange(n):
     perr = np.sqrt(np.diag(pcov))
     p_err_VBM[t,:] = perr[1:2+1]
 
+# VBM FIT TESTS FOR ONE POINT
+t = 9
+gauss_test = gaussian(edc_gamma.E.values, *p_fits_VBM[t,:])
+ax[2].plot(edc_gamma.E.values, edc_gamma.loc[{"delay":slice(-120-10,-120+10)}]/edc_gamma.loc[{"delay":slice(-120-10,-120+10),"E":slice(e1,e2)}].max(), color = 'black', label = 'Data')
+ax[2].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey', label = 'Fit')
+#plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
+ax[2].set_xlim([-2,1.5])
+ax[2].set_xlabel('E - E$_{VBM}$, eV')
+ax[2].set_ylabel('Norm. Int.')
+ax[2].set_title(f'$\Delta$t = {-120} fs')
+ax[2].legend(frameon=False, loc = 'upper left')
+#ax[0].axvline(0, linestyle = 'dashed', color = 'grey')
+#ax[0].axvline(e2, linestyle = 'dashed', color = 'black')
+
+# PLOT VBM SHIFT DYNAMICS
+
+t = 39 # Show only after 50 (?) fs
+y_vb, y_vb_err = 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean()), 1000*p_err_VBM[:,0]
+y_vb_w, y_vb_w_err = 1000*(p_fits_VBM[:,2]),  1000*p_err_VBM[:,1]
+
+ax[3].plot(I.delay.values, y_vb, color = 'navy', label = '$\Delta E_{VBM}$')
+ax[3].fill_between(I.delay.values, y_vb - y_vb_err, y_vb + y_vb_err, color = 'navy', alpha = 0.5)
+
+ax[3].set_xlim([edc_gamma.delay.values[1], edc_gamma.delay.values[-1]])
+ax[3].set_ylim([-30,15])
+ax[3].set_xlabel('Delay, fs')
+ax[3].set_ylabel('$\Delta E_{VBM}$, meV', color = 'navy')
+ax[3].set_title('Peak Dynamics')
+ax[3].legend(frameon=False, loc = 'upper left')
+#ax[3].arrow(250, 1.3, -75, 0, head_width = .025, width = 0.005, head_length = 40, fc='black', ec='navy')
+#ax[3].arrow(650, 1.12, 75, 0, head_width = .025, width = 0.005, head_length = 40, fc='red', ec='maroon')
+
+# PLOT VBM PEAK WIDTH DYNAMICS
+ax2 = ax[3].twinx()
+ax2.plot(I.delay.values, y_vb_w, color = 'maroon', label = '$\sigma_{VBM}$')
+ax2.fill_between(I.delay.values, y_vb_w - y_vb_w_err, y_vb_w + y_vb_w_err, color = 'maroon', alpha = 0.5)
+ax2.set_ylim([125,275])
+ax2.legend(frameon=False, loc = 'upper right')
+ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
+
 # #ax[1].plot(edc_gamma.E.values, edc_gamma[:,t].values/edc_gamma.loc[{"E":slice(e1,e2)}][:,t].values.max(), color = 'pink')
 # ax[1].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey')
 # #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
@@ -1659,59 +1663,14 @@ for t in np.arange(n):
 # #ax2.set_ylim([-75,50])
 # ax2.set_ylabel('Energy Width Shift, meV')
 
+fig.text(.02, 1, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 1, "(b)", fontsize = 20, fontweight = 'regular')
+fig.text(.02, 0.5, "(c)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.5, "(d)", fontsize = 20, fontweight = 'regular')
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg', dpi = 300)
-
-#%% Fit VBM
-
-figure_file_name = 'EDC_metis_fits'
-save_figure = False
-
-fig, ax = plt.subplots(1, 2)
-fig.set_size_inches(10, 4, forward=False)
-ax = ax.flatten()
-
-# VBM FIT TESTS FOR ONE POINT
-t = 9
-gauss_test = gaussian(edc_gamma.E.values, *p_fits_VBM[t,:])
-ax[0].plot(edc_gamma.E.values, edc_gamma[:,t].values/edc_gamma.loc[{"E":slice(e1,e2)}][:,t].values.max(), color = 'black')
-ax[0].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey')
-#plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
-ax[0].set_xlim([-2,1.5])
-ax[0].set_xlabel('E - E$_{VBM}$, eV')
-ax[0].set_ylabel('Norm. Int.')
-#ax[0].axvline(0, linestyle = 'dashed', color = 'grey')
-#ax[0].axvline(e2, linestyle = 'dashed', color = 'black')
-
-# PLOT VBM SHIFT DYNAMICS
-
-t = 39 # Show only after 50 (?) fs
-y_vb, y_vb_err = 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean()), 1000*p_err_VBM[:,0]
-y_vb_w, y_vb_w_err = 1000*(p_fits_VBM[:,2]),  1000*p_err_VBM[:,1]
-
-ax[1].plot(I.delay.values, y_vb, color = 'navy', label = '$\Delta E_{VBM}$')
-ax[1].fill_between(I.delay.values, y_vb - y_vb_err, y_vb + y_vb_err, color = 'navy', alpha = 0.5)
-
-ax[1].set_xlim([edc_gamma.delay.values[1], edc_gamma.delay.values[-1]])
-ax[1].set_ylim([-30,20])
-ax[1].set_xlabel('Delay, fs')
-ax[1].set_ylabel('$\Delta E_{VBM}$, meV', color = 'navy')
-ax[1].legend(frameon=False)
-
-# PLOT VBM PEAK WIDTH DYNAMICS
-ax2 = ax[1].twinx()
-ax2.plot(I.delay.values, y_vb_w, color = 'maroon', label = '$\sigma_{VBM}$')
-ax2.fill_between(I.delay.values, y_vb_w - y_vb_w_err, y_vb_w + y_vb_w_err, color = 'maroon', alpha = 0.5)
-ax2.set_ylim([150,250])
-ax2.legend(frameon=False, loc = 'upper left')
-ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
-
-fig.tight_layout()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
 
 #%% Plot Difference of MMs

@@ -109,7 +109,7 @@ plt.title('640nm')
 # CALCULATING ABSORBED EXCITATION FLUENCE.
 
 thickness =  1 * 0.57e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 40
+AOI = 65
 
 ### Load Dielectric Constant
 
@@ -164,8 +164,8 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 915
-average_power = 15 #116.6 #mW
+lam = 800
+average_power = 100 #116.6 #mW
 fwhm = 0.110 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000

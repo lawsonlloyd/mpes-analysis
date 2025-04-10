@@ -236,12 +236,14 @@ X, Y = np.pi/a, np.pi/b
 x, y = -2*X, 0*Y
 
 E, E_int  = 1.25, 0.200 #Energy and total width in eV
+E, E_int  = 1.33, 0.200 #Energy and total width in eV
+
 kx, kx_int = (1*X+dkx), 2.1*X # 1.25*X
 kx, kx_int = (1.5*X+dkx), 1.1*X # 1.25*X
 kx, kx_int = (0.5*X+dkx), 1.1*X # 1.25*X
 
-ky, ky_int = 0, 0.8
-delays, delay_int = 550, 650 
+ky, ky_int = 0.1, 1
+delays, delay_int = 600, 800 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
 alpha = 0.5
@@ -268,6 +270,7 @@ elif testing == 0:
 
 background = kspace_frame.loc[{"kx":slice(0.2,1.8), "ky":slice(0.5,0.6)}].mean(dim=("kx","ky"))
 background = 0.05
+background = 0.02
 
 kspace_frame = kspace_frame - background
 kspace_frame = kspace_frame/np.max(kspace_frame)
@@ -275,7 +278,7 @@ kspace_frame = kspace_frame/np.max(kspace_frame)
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
-MM_frame = kspace_frame_sym_win
+#MM_frame = kspace_frame_sym_win
 
 #MM_frame = window_tukey_box
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
@@ -590,12 +593,12 @@ k_sig_fit_x = popt_kx[2]
 #plt.plot(ax_kx, kx_cut) ; plt.plot(ax_kx, g_fit_kx)
 
 # Fit ky Cut
-ylim = 0.3
-p0 = [.9, 0, .1, 0.05]
-bnds = ((0.5, -0.2, 0, 0), (1.5, 0.2, .8, .5))
-popt_ky, pcov = curve_fit(gaussian, ax_ky.loc[{"ky":slice(-ylim,ylim)}], ky_cut.loc[{"ky":slice(-ylim,ylim)}], p0, method=None, bounds = bnds)
-g_fit_ky = gaussian(ax_ky, *popt_ky)
+ylim = [-.9, 0.2]
+p0 = [0.75, 0.1, .105, 0.25]
+bnds = ((0.5, -0.2, 0, .2), (1.5, 0.2, .8, .5))
+popt_ky, pcov = curve_fit(gaussian, ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], p0, method=None, bounds = bnds)
 
+g_fit_ky = gaussian(ax_ky, *popt_ky)
 #popt_ky, pcov = curve_fit(lorentzian, ax_ky.loc[{"ky":slice(-ylim,ylim)}], ky_cut.loc[{"ky":slice(-ylim,ylim)}], p0, method=None, bounds = bnds)
 #g_fit_ky = lorentzian(ax_ky, *popt_ky)
 

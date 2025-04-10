@@ -59,6 +59,12 @@ def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
     
     return frame
 
+def get_waterfall(I_res, kx, kx_int, ky, ky_int):
+    
+    frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
+
+    return frame
+
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k , k_int, norm_trace, subtract_neg, neg_delays):
     
