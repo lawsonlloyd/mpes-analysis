@@ -22,7 +22,7 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 
 import mpes
@@ -34,17 +34,12 @@ from mpes import cmap_LTL
 data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
-#data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/'
+data_path = 'R:\Lawson\Data\metis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/'
 
-#filename, offsets = 'Scan682_binned.h5', [0,0]
-filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan803_binned.h5', [0.2, -102]
-
-#filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [0, 100]
-#filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
-#filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
+#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+#filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 
 #%% Load the data and axes information
 
@@ -69,14 +64,14 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):
     fwhm = 0.063
     fwhm_pixel = fwhm/dkx
     sigma = fwhm_pixel/2.355
-    gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
-    gaussian_kx = gaussian_kx/np.max(gaussian_kx)
-    gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
-    gaussian_ky = gaussian_ky/np.max(gaussian_ky)
+    # gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
+    # gaussian_kx = gaussian_kx/np.max(gaussian_kx)
+    # gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
+    # gaussian_ky = gaussian_ky/np.max(gaussian_ky)
     
-    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
-    gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
-    gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    # gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    # gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
+    # gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
     #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
     
     ### Symmetrize Data
@@ -235,14 +230,14 @@ a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
 x, y = -2*X, 0*Y
 
-E, E_int  = 1.25, 0.200 #Energy and total width in eV
-E, E_int  = 1.33, 0.200 #Energy and total width in eV
+E, E_int  = 1.35, 0.200 #Energy and total width in eV
+#E, E_int  = 1.33, 0.200 #Energy and total width in eV
 
 kx, kx_int = (1*X+dkx), 2.1*X # 1.25*X
 kx, kx_int = (1.5*X+dkx), 1.1*X # 1.25*X
-kx, kx_int = (0.5*X+dkx), 1.1*X # 1.25*X
+kx, kx_int = (0.0*X+dkx), 2.1*X # 1.25*X
 
-ky, ky_int = 0.1, 1
+ky, ky_int = 0.0, .75
 delays, delay_int = 600, 800 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
@@ -255,13 +250,18 @@ frame_diff = frame_pos - frame_neg
 
 testing = 0
 if testing == 1:
-    ax_kx, ax_ky = np.linspace(-2,2,1000), np.linspace(-2,2,1000)
-    dkx = (ax_kx[1] - ax_kx[0])
+    ax_kx, ax_ky = np.linspace(-2,2,120), np.linspace(-2,2,120)
+    ax_kx = xr.DataArray(ax_kx, coords = {"kx": ax_kx})
+    ax_ky = xr.DataArray(ax_ky, coords = {"ky": ax_ky})
+
+    dkx = (ax_kx.values[1] - ax_kx.values[0])
     g_test = gaussian(ax_kx, *[1, 0, 0.15, 0])
     kspace_frame_test = np.zeros((g_test.shape[0], g_test.shape[0]))
-    i, f = round(0.45*len(g_test)), round(0.8*len(g_test))
+    i, f = round(0.45*len(g_test)), round(0.85*len(g_test))
+    kspace_frame_test = np.ones((g_test.shape[0], g_test.shape[0]))
+    
     kspace_frame_test[:,i:f] = np.tile(g_test, (f-i,1)).T
-    kspace_frame = xr.DataArray(kspace_frame_test, coords = {"ky": ax_kx, "kx": ax_ky})
+    kspace_frame = xr.DataArray(kspace_frame_test, coords = {"ky": ax_ky, "kx": ax_kx})
 
 elif testing == 0:
     kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
@@ -270,9 +270,9 @@ elif testing == 0:
 
 background = kspace_frame.loc[{"kx":slice(0.2,1.8), "ky":slice(0.5,0.6)}].mean(dim=("kx","ky"))
 background = 0.05
-background = 0.02
+#background = 0.1
 
-kspace_frame = kspace_frame - background
+#kspace_frame = kspace_frame - background
 kspace_frame = kspace_frame/np.max(kspace_frame)
 
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
@@ -564,6 +564,7 @@ if save_figure is True:
 test_frame = kspace_frame_sym
 test_frame_win = kspace_frame_sym_win
 
+kx = X/2
 kx_cut = test_frame.loc[{"ky":slice(-0.05,0.05)}].mean(dim="ky")
 ky_cut = test_frame.loc[{"kx":slice(kx-.05,kx+.05)}].mean(dim="kx")
 kx_win_cut = test_frame_win.loc[{"ky":slice(-0.05,0.05)}].mean(dim="ky")
@@ -584,7 +585,7 @@ kx_win_cut = kx_win_cut/np.max(kx_cut.loc[{"kx":slice(0,1.5)}])
 ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 
 # Fit kx Cut
-xlim = [-0.1, 2]
+xlim = [-0.1, 1]
 p0 = [0.5, 0.9, 0.5, 0.4]
 bnds = ((0.1, -0.5, .2, 0), (1.5, 1.5, 1.2, 0.8))
 popt_kx, pcov = curve_fit(gaussian, ax_kx.loc[{"kx":slice(xlim[0],xlim[1])}], kx_cut.loc[{"kx":slice(xlim[0],xlim[1])}], p0, method=None, bounds = bnds)
@@ -593,13 +594,13 @@ k_sig_fit_x = popt_kx[2]
 #plt.plot(ax_kx, kx_cut) ; plt.plot(ax_kx, g_fit_kx)
 
 # Fit ky Cut
-ylim = [-.9, 0.2]
-p0 = [0.75, 0.1, .105, 0.25]
-bnds = ((0.5, -0.2, 0, .2), (1.5, 0.2, .8, .5))
+ylim = [-1, 1]
+p0 = [0.75, 0.0, .105, 0.25]
+bnds = ((0.5, -0.2, 0, 0), (1.5, 0.2, .2, .5)) #Amp, mean, std. offset
 popt_ky, pcov = curve_fit(gaussian, ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], p0, method=None, bounds = bnds)
-
 g_fit_ky = gaussian(ax_ky, *popt_ky)
-#popt_ky, pcov = curve_fit(lorentzian, ax_ky.loc[{"ky":slice(-ylim,ylim)}], ky_cut.loc[{"ky":slice(-ylim,ylim)}], p0, method=None, bounds = bnds)
+#popt_ky, pcov = curve_fit(lorentzian, ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], p0, method=None, bounds = bnds)
+#popt_ky = [0.88, 0.0, .3, 0.12]
 #g_fit_ky = lorentzian(ax_ky, *popt_ky)
 
 k_sig_fit_y = popt_ky[2]
@@ -692,14 +693,14 @@ for i in [0,1,2,3]:
 
 #ax[0].axhline(xi, color='black', linewidth = 1, linestyle = 'dashed')
 #ax[0].axvline(yi, color='black', linewidth = 1, linestyle = 'dashed')
-ax[0].set_title(f'$k_y$ = {ky:.2f} $\AA^{{-1}}$', fontsize = 14)
-ax[1].set_title(f'$k_x$ = {kx:.2f} $\AA^{{-1}}$', fontsize = 14)
-ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 14)
-ax[1].set_xlabel('$k_y$, $\AA^{-1}$', fontsize = 14)
-ax[2].set_xlabel('$r_x$, nm', fontsize = 14)
-ax[3].set_xlabel('$r_y$, nm', fontsize = 14)
-ax[2].set_title('FFT', fontsize = 14)
-ax[3].set_title('FFT', fontsize = 14)
+ax[0].set_title(f'$k_y$ = {ky:.2f} $\AA^{{-1}}$', fontsize = 18)
+ax[1].set_title(f'$k_x$ = {kx:.2f} $\AA^{{-1}}$', fontsize = 18)
+ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
+ax[1].set_xlabel('$k_y$, $\AA^{-1}$', fontsize = 16)
+ax[2].set_xlabel('$r_x$, nm', fontsize = 16)
+ax[3].set_xlabel('$r_y$, nm', fontsize = 16)
+ax[2].set_title('FFT', fontsize = 18)
+ax[3].set_title('FFT', fontsize = 18)
 
 ax[2].plot(r_axis, g_fit_fft_x, linewidth = 3, color = 'pink', label = 'FFT of k-fit (w/o offset)')
 #ax[4].plot(r_axis, g_fit_rx/np.max(g_fit_rx), linewidth = 3, color = 'green', label = 'fit to FFT of Win. k-data')

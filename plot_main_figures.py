@@ -25,9 +25,9 @@ import mpes
 
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 E, E_int = [0, 1.4, 2.2], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-E, E_int = [0,1.25, 2.05], 0.2
+E, E_int = [0, 1.25, 2.05], 0.2
 
-delays, delay_int = [600], 1000 #Integration range for delays
+delays, delay_int = [-250, 500, 500], 50 #Integration range for delays
 
 #######################
 
@@ -38,7 +38,7 @@ save_figure = False
 image_format = 'pdf'
 
 #cmap_plot = viridis_white
-cmap_plot = cmap_LTL
+cmap_plot = cmap_LTL_2
 #cmap_plot = 'turbo'
 
 fig, ax = plt.subplots(1, 3, squeeze = False, sharey=False)
@@ -73,7 +73,7 @@ for i in np.arange(np.max([len(E), len(delays)])):
     frame = frame/frame.max()
     frame_norms.append(np.max(frame.values))
     
-    im = frame.plot.imshow(ax = ax[i], vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
+    im = frame.plot.imshow(ax = ax[i], vmin = -1, vmax = 1, cmap = cmap_plot, add_colorbar=False)
     ax[i].set_aspect(1)
     ax[i].set_xlim(-2,2)
     ax[i].set_ylim(-2,2)

@@ -403,7 +403,8 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
     
-#%%
+#%% Total Excited State Population 
+
 save_figure = False
 figure_file_name = 'Combined'
 image_format = 'pdf'
@@ -939,7 +940,7 @@ ax[1].set_ylim(0, 1.1)
 #%% Plot Excited State EDC Fits and Binding Energy
 
 figure_file_name = 'EDC_fits_phoibos_excted2'
-save_figure = True
+save_figure = False
 
 fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1, 1.25, 1.25], 'height_ratios':[1]})
 fig.set_size_inches(13, 4, forward=False)
@@ -1066,7 +1067,7 @@ def plot_band_dynamics(ax):
     #ax[2].legend(frameon=False)
 #    plt.show()
 
-#%%
+#%% Plot Band Dynamics
 
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 offset = np.linspace(0,100,6)
@@ -1151,9 +1152,9 @@ def fit_ex_cbm_int(res):
     p_err_eb = np.zeros((len(res.Delay)))
 
     #kx_frame = res.loc[{"Delay":slice(res.Delay.values[t]-delay_int/2, res.Delay.values[t]+delay_int/2)}].mean(dim="Delay")
-    kx_frame = res - res.loc[{"Delay":slice(-1000,-150)}].mean(dim="Delay")
+    kx_frame = res - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
 
-    kx_frame = kx_frame.loc[{"Delay":slice(0,3000)}].mean(dim="Delay")
+    kx_frame = kx_frame.loc[{"Delay":slice(200,300)}].mean(dim="Delay")
     kx_edc_i = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
     kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"Energy":slice(0.8,3)}])
     
@@ -1177,7 +1178,7 @@ def fit_ex_cbm_int(res):
 
 
 #%%
-save_figure = True
+save_figure = False
 figure_file_name = 'phoibos_power_fits2'
 
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
@@ -1211,7 +1212,8 @@ p_err_eb = np.asarray(p_err_eb)
 p_err_excited = np.asarray(p_err_excited)
 p_err_VBM = np.asarray(p_err_VBM)
 
-#%%
+#%% Plot Peak Energies and Eb Change
+
 fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(12, 4, forward=False)
 ax = ax.flatten()

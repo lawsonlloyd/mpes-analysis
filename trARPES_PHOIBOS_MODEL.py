@@ -26,7 +26,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -71,6 +71,12 @@ for scan_i in scans:
 
 #    E, Eint = [21.75, 21], 0.1 # center energies, half of full E integration range
     E, Eint = [1.325, 2.075], 0.1 # center energies, half of full E integration range
+    
+    if s > 7:
+        E, E_int = [1.37, 2.125], 0.1
+    else:
+        E, Eint = [1.325, 2.075], 0.1 # center energies, half of full E integration range
+
     a, aint, a_full = [-12, 15], 20, [-11, 15]
 
 #    res_to_plot = vars()[str('res_'+str(scans[s]))]
@@ -96,40 +102,19 @@ for scan_i in scans:
     
     R = np.max(trace_2)/np.max(trace_1)
     counts.append(np.max(trace_2.values))
+    
+    norm_factor = np.max([np.max(trace_1), np.max(trace_2)])
 
     trace_1 = trace_1/norm_factor
     trace_2 = trace_2/norm_factor
+    
+    #trace_1 = trace_1 * power[s]
+    #trace_2 = trace_2 * power[s]
 
     # Collect all data together
     delay_axes.append(trace_2.Delay.values)
     data_traces.append(trace_1.values)   
     data_traces.append(trace_2.values)   
-
-    #data_ALL[s,:,:] = np.asarray([power[s]*trace_2/np.max(trace_2), power[s]*trace_1/np.max(trace_2)])
-    # if s < 7:
-    #     #data_910nm[s,:,:] = np.asarray([1*trace_2/np.max(trace_2),1*trace_1/np.max(trace_2)])
-    #     delay_times_910nm = trace_2.Delay.values
-    #     data_ALL_WL[s,:,:] = np.asarray([trace_2, trace_1])
-        
-    # if s == 7:
-    #     delay_times_9231 = trace_2.Delay.values
-    #     trace_2 = np.interp(delay_times_910nm, delay_times_9231, trace_2)
-    #     trace_1 = np.interp(delay_times_910nm, delay_times_9231, trace_1)
-    #     #data_400nm[0,:,:] = np.asarray([1*trace_2/np.max(trace_2), 1*trace_1/np.max(trace_2)]) #By default normalize to relative ratio   
-    #     data_ALL_WL[s,:,:] = np.asarray([trace_2, trace_1])
-    # if s > 7:
-    #     delay_times_400nm = trace_2.Delay.values
-    #     trace_2 = np.interp(delay_times_910nm, delay_times_400nm, trace_2)
-    #     trace_1 = np.interp(delay_times_910nm, delay_times_400nm, trace_1)
-    #     R = np.max(trace_2)/np.max(trace_1)
-    #     trace_2 = trace_2/np.max(trace_2)
-    #     trace_1 = trace_1/np.max(trace_1)
-    #     trace_2 = R*trace_2
-
-    #     #data_400nm[0,:,:] = np.asarray([1*trace_2/np.max(trace_2), 1*trace_1/np.max(trace_2)]) #By default normalize to relative ratio   
-    #     data_ALL_WL[s,:,:] = np.asarray([trace_2, trace_1])
-    
-    # t_values = delay_times_910nm
     
     s += 1
     
@@ -138,22 +123,25 @@ for scan_i in scans:
 from scipy.integrate import solve_ivp
 
 tau_ex_r = 20000
-tau_EEA = 2500
-tau_ex_f = 100
-tau_hc = 100
-t_0 = 100
-fwhm = 80
+tau_EEA = 10000
+tau_ex_f = 300
+tau_hc = 500
+t_0 = 0
+fwhm = 50
 F = 1
 H = 0
-fi = 100
+fi = 150
 
 def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
     
     #G = np.exp(-(t-t_0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
     G = np.exp(-(t-0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
 
-    f0 = 8.3
+    f0 = 4.7
     h0 = 20
+    
+    #f0 = 1e-10
+    #h0 = 1e-10
     
     #EEA Auger Model
     Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1]**2)/tau_ex_f
@@ -173,12 +161,15 @@ res_ALL_2 = solve_ivp(global_fit_Excitons_and_CB_ALL_WL, t_span=(-200, 3000), t_
 
 #%%
 
-plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
+%matplotlib inline
+#plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
+plt.plot(res_ALL_2.t, res_ALL_2.y.T, label = ('X', 'CB', 'hc'))
+
 plt.legend(frameon=False)
 plt.axvline(0, linestyle ='dashed', color = 'grey')
 plt.show()
 
-#%%
+#%% Define
 
 def ode_resolution_GLOBAL(t, fi, i, a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10, F, H, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
     N0 = [0, 0, 0]
@@ -197,11 +188,14 @@ def ode_resolution_GLOBAL(t, fi, i, a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2,
     #ret = np.asarray([A[i]*res.y[0]/ res.y[0].max(), B[i]*res.y[1]/ res.y[1].max()])
     
     if i > 7: #FOR HC EXCITATION
-#        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[1].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
-        ret = np.asarray([res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
+        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[1].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
+        #ret = np.asarray([res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
+        #ret = np.asarray([res_model.y[0], res_model.y[1]])
+
     else: #FOR EXCITON EXCITATION
-    #    ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[0].max()])
-        ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), res_model.y[1]/ res_model.y[0].max()])
+        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[0].max()])
+        #ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), res_model.y[1]/ res_model.y[0].max()])
+        #ret = np.asarray([res_model.y[0], res_model.y[1]])
 
     return ret
 
@@ -232,15 +226,15 @@ def objective_GLOBAL(params, ts, data):
 t_values = np.arange(-500,3100,20)
 
 tau_ex_r = 15000
-tau_EEA = 4500
-tau_ex_f = 300 #40
-tau_hc = 0 #258
+tau_EEA = 12000
+tau_ex_f = 250 #40
+tau_hc = 75 #258
 fwhm = 80
 F = 1
 H = 1
 
-a = [.9, .92, .94, .99, .93, .90, 0.88, .95, 0.4, .3, .32]
-b = [2.4, 2.5, 2.83, 3.91, 4.57, 5.22, 5.4, 5.17, 4, 3.2, 2.75]
+a = [.9, .92, .94, .99, .93, .90, 0.88, .95, 0.6, .6, .55]
+b = [2.4, 2.5, 2.83, 3.91, 3.57, 4, 4.8, 4.5, 4, 3.2, 2.5]
 
 #t_0 = np.zeros(11)
 #a = [1.0*x for x in a]
@@ -302,9 +296,9 @@ fig.tight_layout()
 from lmfit import Parameters, minimize, report_fit
 
 tau_ex_r = 15000
-tau_EEA = 4500
-tau_ex_f = 200 #40
-tau_hc = 50 #258
+tau_EEA = 10000
+tau_ex_f = 250 #40
+tau_hc = 75 #258
 fwhm = 80
 F = 1
 H = 1
@@ -327,9 +321,9 @@ fit_params.add("H", value=H, min=0.01, max=10, vary=False)
 fit_params.add("fwhm", value=fwhm, min=10, max=120, vary=False)
 
 fit_params.add("tau_ex_r", value=tau_ex_r, min=10, max=30000, vary=False)
-fit_params.add("tau_EEA", value=tau_EEA, min=5000, max=10000, vary=True)
-fit_params.add("tau_ex_f", value=tau_ex_f, min=50, max=1200, vary=True)
-fit_params.add("tau_hc", value=tau_hc, min=20, max=250, vary=True)
+fit_params.add("tau_EEA", value=tau_EEA, min=2000, max=15000, vary=True)
+fit_params.add("tau_ex_f", value=tau_ex_f, min=20, max=1200, vary=False)
+fit_params.add("tau_hc", value=tau_hc, min=20, max=120, vary=False)
 
 fit_params
 
@@ -380,8 +374,8 @@ for s in range(10+1):
     ax[s].set_xlim([-500,3000])
     ax[s].set_ylim(-.1,1.2)
 
-    if s > 7:
-        ax[s].set_ylim(-.1, 3.5)
+    #if s > 7:
+     #   ax[s].set_ylim(-.1, 3.5)
     #ax[s].plot(t_values_offset-t_0[s], gaussian_pulse, linestyle = 'dashed', color='green')
     
 fig.tight_layout()
@@ -475,10 +469,10 @@ ax = ax.flatten()
 
 # Load Data
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = [8.3, 20.9, 41.7, 65.6, 83.2, 104.7]
+scans = [9525]
 
-scans = [9241, 9237, 9240]
+#scans = [9241, 9237, 9240]
 popt_ex, popt_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),3))
 perr_ex, perr_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),3))
 
@@ -486,7 +480,7 @@ sigma_IRF = 29   # Fixed IRF width (fs)
 
 for s in range(len(scans)):
 
-    res = load_data(scans[s], 19.72,  offsets_t0[s])
+    res = phoibos.load_data(data_path, scans[s], scan_info, 19.7, 0, False)
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
@@ -510,11 +504,11 @@ for s in range(len(scans)):
     
     # Initial guesses for fitting
     init_guess_exciton = [0.8, 100]  # A, tau1
-    init_guess_conduction = [1, 150, 500]  # C, tau_rise, tau_decay
+    init_guess_conduction = [2, 1500, 5000]  # C, tau_rise, tau_decay
     
     # Bounds for fitting
     bnds_exciton = [ [0,0], [2,15000] ]
-    bnds_cbm =  [[0,0,0], [2, 2000, 15000] ]
+    bnds_cbm =  [[0,0,0], [6, 2000, 15000] ]
     
     # Fit noisy exciton data
     popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
@@ -573,7 +567,6 @@ for s in range(len(scans)):
 
 fig.tight_layout()
 plt.show()
-
 
 #%% # PLOT DECAY CONSTANTS AND AMPLITUDES FROM THE FIT
 
@@ -670,34 +663,31 @@ def exciton_model(t, A, tau1, B, tau2):
 def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
     return convolved_signal(t, exp_rise_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
 
-
 ########
 
 # Initialize figure
-fig, ax = plt.subplots(3, 2, figsize=(12, 16))
+fig, ax = plt.subplots(6, 2, figsize=(12, 16))
 ax = ax.flatten()
 
 # Load Data
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
 power = [8.3, 20.9, 41.7, 65.6, 83.2, 104.7]
 # Load Data
-scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
-offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6]
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
 trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
 power = [500*0.01*t for t in trans_percent]
 
-scans = [9241, 9237, 9240]
-
+#scans = [9241, 9237, 9240]
+scans = [9525]
 
 popt_ex, popt_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
 perr_ex, perr_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
 
-sigma_IRF = 40   # Fixed IRF width (fs)
+sigma_IRF = 50   # Fixed IRF width (fs)
 
 for s in range(len(scans)):
 
-    res = load_data(scans[s], 19.72,  offsets_t0[s])
+    res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
@@ -721,11 +711,11 @@ for s in range(len(scans)):
     
     # Initial guesses for fitting
     init_guess_exciton = [0.8, 100, 0.2, 1000]  # A, tau1, B, tau2
-    init_guess_conduction = [1, 150, .5, 500, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
+    init_guess_conduction = [6, 200, .5, 300, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
     
     # Bounds for fitting
     bnds_exciton = [ [0,0,0,0], [2,1000,2,25000] ]
-    bnds_cbm =  [[0,0,0,0,0], [2, 1000, 1, 500, 20000] ]
+    bnds_cbm =  [[0,0,0,0,0], [6, 1000, 10, 1000, 20000] ]
     
     # Fit noisy exciton data
     popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
@@ -903,7 +893,7 @@ popt_combined, perr_combined =  np.zeros((len(scans),7)), np.zeros((len(scans),7
 
 for s in range(len(scans)):
 
-    res = load_data(scans[s], 19.72,  offsets_t0[s])
+    res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, force_offset)
     delay_axis = res.Delay.values
     
     ### Extract time traces ###

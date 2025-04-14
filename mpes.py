@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 import xarray as xr
@@ -174,4 +175,23 @@ def custom_colormap(CMAP, lower_portion_percentage):
     
     return custom_cmap
 
+def create_custom_diverging_colormap():
+    # Create the negative part from seismic (from 0.5 to 1 -> blue to white)
+    seismic = plt.get_cmap('Blues')
+    seismic_colors = seismic(np.linspace(0, 1, 128))  # -1 to 0
+
+    # Create the positive part from viridis (from 0 to 1)
+    viridis = plt.get_cmap('viridis')
+    viridis = cmap_LTL
+    viridis_colors = viridis(np.linspace(0, 1, 128))  # 0 to 1
+
+    # Combine both
+    combined_colors = np.vstack((seismic_colors[::-1], viridis_colors))
+
+    # Create a new colormap
+    custom_colormap = LinearSegmentedColormap.from_list('seismic_viridis', combined_colors)
+
+    return custom_colormap
+
 cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
+cmap_LTL_2 = create_custom_diverging_colormap()

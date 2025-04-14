@@ -27,7 +27,7 @@ from Loader import DataLoader
 from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import mpes
-from mpes import cmap_LTL
+from mpes import cmap_LTL, cmap_LTL2
 
 #%% Specifiy filename of h5 file in your path.
 # Include manual energy and time delay offsets for the axes, if required.
@@ -36,12 +36,14 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
 
 #filename, offsets = 'Scan682_binned.h5', [0,0]
 #filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
 #filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [.0085, -127.3]
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [-0.0608, -102]
+#filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
+
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
@@ -292,7 +294,7 @@ if save_figure is True:
 #%% Plot Momentum Maps at Constant Energy
 
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-E, E_int = [1.35, 1.35, 1.35, 2.1, 2.1, 2.1], 0.2 # Energies and Total Energy Integration Window to Plot MMs
+E, E_int = [1.35, 1.35, 1.35, 2.15, 2.15, 2.15], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 
 delays, delay_int = [0, 100, 250, 0, 100, 250], 50 #Integration range for delays
 
@@ -300,12 +302,13 @@ delays, delay_int = [0, 100, 250, 0, 100, 250], 50 #Integration range for delays
 
 %matplotlib inline
 
-figure_file_name = f'MMs_delayIntegrated_delta500fs_200mev' 
-save_figure = False
+figure_file_name = f'MMs_Scan163' 
+save_figure = True
 image_format = 'pdf'
 
 #cmap_plot = viridis_white
-cmap_plot = cmap_LTL
+cmap_plot = cmap_LTL_2
+scale = [-1,1]
 #cmap_plot = 'turbo'
 
 fig, ax = plt.subplots(2, 3, squeeze = False, sharey=False)
@@ -313,14 +316,14 @@ fig.set_size_inches(8, 5, forward=False)
 plt.gcf().set_dpi(400)
 ax = ax.flatten()
 
-norm_frame_ex = I_res.loc[{"E":slice(1.25-E_int/2,1.25+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
-norm_frame_cbm = I_res.loc[{"E":slice(2.05-E_int/2,2.05+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
-norm_all = I_res.loc[{"E":slice(1,3)}].max()
+norm_frame_ex = I_diff.loc[{"E":slice(1.25-E_int/2,1.25+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
+norm_frame_cbm = I_diff.loc[{"E":slice(2.05-E_int/2,2.05+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
+norm_all = I_diff.loc[{"E":slice(1,3)}].max()
     
 frame_norms = []
 for i in np.arange(len(E)):
 
-    frame = mpes.get_momentum_map(I_res, E[i], E_int, delays[i], delay_int)
+    frame = mpes.get_momentum_map(I_diff, E[i], E_int, delays[i], delay_int)
 #    frame = I_res.loc[{"E":slice(E[i]-E_int/2,E[i]+E_int/2), "delay":slice(100,140)}].mean(dim=("E","delay")).T
 
     if i in [0, 1, 2]:
@@ -331,7 +334,7 @@ for i in np.arange(len(E)):
     frame = frame/frame.max()
     frame_norms.append(np.max(frame.values))
     
-    im = frame.plot.imshow(ax = ax[i], vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
+    im = frame.plot.imshow(ax = ax[i], vmin = scale[0], vmax = scale[1], cmap = cmap_plot, add_colorbar=False)
     ax[i].set_aspect(1)
     ax[i].set_xlim(-2,2)
     ax[i].set_ylim(-2,2)
@@ -416,7 +419,7 @@ colors = ['black', 'crimson'] #colors for plotting the traces
 
 subtract_neg, neg_delays = True, [-200,-100] #If you want to subtract negative time delay baseline
 norm_trace = False
-subtract_neg_maps = False
+subtract_neg_maps = True
 
 E_MM ,E_MM_int = 1.4, 0.2
 Ein = .9 #Enhance excited states above this Energy, eV

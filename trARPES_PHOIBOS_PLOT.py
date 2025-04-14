@@ -26,17 +26,16 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-#data_path = 'R:\Lawson\Data\phoibos'
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path = 'R:\Lawson\Data\phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-scan = 9227
+scan = 9517
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 #%% Fitting Functions etc
-
 
 def gaussian(x, amp_1, mean_1, stddev_1, offset):
     
@@ -71,7 +70,9 @@ def objective(params, x, data):
 
 %matplotlib inline
 
-E, E_int = [1.35, 2.025], 0.1
+E, E_int = [1.325, 2.075], 0.1
+E, E_int = [1.37, 2.125], 0.1
+
 k, k_int = 0, 20
 d1, d2 = -1000, -400
 d3, d4 = 500, 3000
@@ -165,7 +166,7 @@ plt.xlim(-1,2)
 
 #%% Define t0 from Exciton Rise
 
-E, E_int = 2.5, 0.1
+E, E_int = 2.1, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True
@@ -208,6 +209,8 @@ figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [10, 100000]
 E, E_int = [1.3, 2], 0.1
+E, E_int = [1.37, 2.125], 0.1
+
 #E, E_int = [1.3, 2.0], 0.1
 
 A, A_int = 0, 20
