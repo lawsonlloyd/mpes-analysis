@@ -18,6 +18,7 @@ from scipy.optimize import curve_fit
 import csv
 from Loader import DataLoader
 import xarray as xr
+import phoibos
 
 #%%
 
@@ -25,33 +26,14 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-with open(data_path + '//' + filename) as f:
-    
-    reader = csv.DictReader(f
-                            )
-    for row in reader:
-        key = row.pop('Scan')
-        if key in scan_info:
-            # implement your duplicate row handling here
-            pass
-        scan_info[key] = row
-        
-            
-def load_data(scan, energy_offset, delay_offset):
-    filename = f"Scan{scan}.h5"
-    
-    data_loader = DataLoader(data_path + '//' + filename)
-    res = data_loader.load_phoibos()
-    
-    res = res.assign_coords(Energy=(res.Energy-energy_offset))
-    res = res.assign_coords(Delay=(res.Delay-delay_offset))
-    
-    return res
+energy_offset, delay_offset, force_offset = 19.62,  0, False
+
+scan_info = phoibos.get_scan_info(data_path, filename, {})
+res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 #%%
-
 
 def objective(params, x, data):
     
@@ -63,30 +45,8 @@ def objective(params, x, data):
 
 #%%
 
-phoibos = True
-
-#data_path = 'path_to_your_data'
-#filename = 'your_file_name.h5'
-
-#data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
-
-scan = 9241
-
-energy_offset = + 19.72
-delay_offset = -80
-
-res = load_data(scan, energy_offset, delay_offset)
-
-#%%
-
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offsets_t0 = [-162.4, -152.7, -183.1, -118.5, -113.7, -125.2]
-
 scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231, 9525, 9517, 9526] # Scans to analyze and fit below: 910 nm + 400 nm
-offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6, -77, -151.1, -200.6]
-
-#res = load_data(scan_i, 19.72,  offsets_t0[i])
 
 trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
 power = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151, 20, 36.3, 45]
@@ -96,6 +56,7 @@ power = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151, 20, 36.3, 45]
 # Give the data points for Exciton and CB signal...for all Fluences...
 
 E = [1.35, 2.05]
+energy_offset, delay_offset, force_offset = 19.72, 0, True
 
 data_910nm = np.zeros((8,2,69))
 data_400nm = np.zeros((3,2,49))
@@ -106,14 +67,15 @@ delay_axes = []
 data_traces = []
 
 s = 0
-for scan in scans:
+for scan_i in scans:
 
 #    E, Eint = [21.75, 21], 0.1 # center energies, half of full E integration range
-    E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
+    E, Eint = [1.325, 2.075], 0.1 # center energies, half of full E integration range
     a, aint, a_full = [-12, 15], 20, [-11, 15]
 
 #    res_to_plot = vars()[str('res_'+str(scans[s]))]
-    res = load_data(scan, 19.72,  offsets_t0[s])
+    #res = phoibos.load_data(data_path, scan_i, scan_info, 19.72 , 0 , force_offset)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
 
     delay_limit = [np.min(res.Delay.values), np.max(res.Delay.values)]
     delay_limit[0] = -450
@@ -211,8 +173,6 @@ res_ALL_2 = solve_ivp(global_fit_Excitons_and_CB_ALL_WL, t_span=(-200, 3000), t_
 
 #%%
 
-%matplotlib inline
-
 plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
 plt.legend(frameon=False)
 plt.axvline(0, linestyle ='dashed', color = 'grey')
@@ -220,7 +180,7 @@ plt.show()
 
 #%%
 
-def ode_resolution_GLOBAL(t, fi, i, a0, a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10, F, H, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
+def ode_resolution_GLOBAL(t, fi, i, a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10, F, H, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
     N0 = [0, 0, 0]
     A = [a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10]
     B = [b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10]
@@ -232,14 +192,17 @@ def ode_resolution_GLOBAL(t, fi, i, a0, a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2
     else:
         H = 0
         
-    res_model = solve_ivp(global_fit_Excitons_and_CB_ALL_WL,  t_span = (t[0], t[-1]), t_eval=t, y0=N0, args = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc))
+    res_model = solve_ivp(global_fit_Excitons_and_CB_ALL_WL,  t_span = (t[0], t[-1]), t_eval=t, y0=N0, \
+                          args = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc))
     #ret = np.asarray([A[i]*res.y[0]/ res.y[0].max(), B[i]*res.y[1]/ res.y[1].max()])
     
     if i > 7: #FOR HC EXCITATION
-        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[1].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
+#        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[1].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
+        ret = np.asarray([res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
     else: #FOR EXCITON EXCITATION
-        ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[0].max()])
-    
+    #    ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[0].max()])
+        ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), res_model.y[1]/ res_model.y[0].max()])
+
     return ret
 
 #%%
@@ -266,7 +229,7 @@ def objective_GLOBAL(params, ts, data):
 
 %matplotlib inline
 
-t_values = np.arange(-500,3100,50)
+t_values = np.arange(-500,3100,20)
 
 tau_ex_r = 15000
 tau_EEA = 4500
@@ -276,7 +239,6 @@ fwhm = 80
 F = 1
 H = 1
 
-t_0 = 0
 a = [.9, .92, .94, .99, .93, .90, 0.88, .95, 0.4, .3, .32]
 b = [2.4, 2.5, 2.83, 3.91, 4.57, 5.22, 5.4, 5.17, 4, 3.2, 2.75]
 
@@ -424,8 +386,6 @@ for s in range(10+1):
     
 fig.tight_layout()
 plt.show()
-
-#%%
 
 #%%
 

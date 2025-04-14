@@ -19,12 +19,13 @@ from scipy.optimize import curve_fit
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'pump_spectra'
 
 #data = np.loadtxt("920nm_51fsFROG_.txt", skiprows = 1)
 
-data_path = 'R:\Lawson\Data\spectra'
+#data_path = 'R:\Lawson\Data\spectra'
+data_path = '/Users/lawsonlloyd/Desktop/Data/spectra'
 
 #ds910 = "910nm_opa_pumpspectrum_18042024_beforechamber.txt"
 ds915 = "OPA_pump_spectrum_910nm_DATA_2.txt"
@@ -165,8 +166,8 @@ plt.legend(frameon=False)
 
 ### Define experimental pump parameters
 lam = 800
-average_power = 100 #116.6 #mW
-fwhm = 0.110 #mm #110
+average_power = 120 #116.6 #mW
+fwhm = 0.100 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
 
@@ -213,9 +214,12 @@ abs_spec = np.interp(wl , lam_from_energy, absorbance_test)
 ### Calculate the beam spot size and the excitation fluence
 beam_rad = 0.1*fwhm*1.699*0.5 #Get 1/e^2 beam radius, cm (from FWHM)
 beam_rad_2 = 0.1*fwhm*1.699*0.5*(1/np.cos(theta)) #Get 1/e^2 beam radius, cm (from FWHM)
-spot_size = np.pi*beam_rad*beam_rad_2/2 #cm^2
+spot_size = np.pi*beam_rad*beam_rad_2 #cm^2
+#spot_size = np.pi*beam_rad*beam_rad #cm2
 pulse_energy = (average_power_scaled/1000)/rep_rate #Joules
-energy_density = 1000*pulse_energy/(spot_size) #mJ/cm^2
+
+energy_density = 2 * (1000*pulse_energy)/(spot_size) #mJ/cm^2, factor of 2 for Gaussians
+energy_density_unscaled = energy_density/Ts #mJ/cm^2
 
 h, c = 6.6261E-34, 299792458 # constants
 
@@ -245,12 +249,14 @@ plt.ylim([0,1.05])
 plt.title('Estimated Carrier Density')
 plt.axvline(lam, linestyle = 'dashed', color = 'pink')
 plt.legend(frameon=False)
-print('Est. Ex. Density for ' + str(round(average_power_scaled,1)) +  ' mW, ' + str(round(energy_density, 2)) + ' mJ/cm2 (' + str(lam) + 'nm) ' ': ' + str(round(exc_density, 2)) + ' E13/cm2')
+print(f'Est. Ex. Density for {average_power_scaled:.1f} mW, {energy_density:.2f} mJ/cm2 [{average_power:.1f} mW, {energy_density_unscaled:.2f} mJ/cm2] ({lam} nm): {exc_density:.2f} E13/cm2')
 plt.show()
 
 aB = 1 #bohr radius, nm
 rx = 1e7*(1/np.sqrt(np.pi*aB**2*0.3*exc_density*1e6*1e6))
 print(rx)
+
+#%%
 
 #%%
 

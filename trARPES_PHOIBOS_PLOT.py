@@ -26,11 +26,11 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-scan = 9228
-energy_offset, delay_offset, force_offset = 19.62,  -150, False
+scan = 9227
+energy_offset, delay_offset, force_offset = 19.62,  0, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
@@ -165,7 +165,7 @@ plt.xlim(-1,2)
 
 #%% Define t0 from Exciton Rise
 
-E, E_int = 2.3, 0.1
+E, E_int = 2.5, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True

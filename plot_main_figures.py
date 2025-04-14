@@ -21,6 +21,122 @@ import mpes
 
 #%% Useful Script Portions for Main Text Figures
 
+#%% Figure 1: Momentum Maps
+
+E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
+E, E_int = [0, 1.4, 2.2], 0.2 # Energies and Total Energy Integration Window to Plot MMs
+E, E_int = [0,1.25, 2.05], 0.2
+
+delays, delay_int = [600], 1000 #Integration range for delays
+
+#######################
+
+%matplotlib inline
+
+figure_file_name = f'MMs_delayIntegrated_delta500fs_200mev' 
+save_figure = False
+image_format = 'pdf'
+
+#cmap_plot = viridis_white
+cmap_plot = cmap_LTL
+#cmap_plot = 'turbo'
+
+fig, ax = plt.subplots(1, 3, squeeze = False, sharey=False)
+fig.set_size_inches(8, 5, forward=False)
+plt.gcf().set_dpi(400)
+ax = ax.flatten()
+
+norm_frame_ex = I_res.loc[{"E":slice(1.25-E_int/2,1.25+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
+norm_frame_cbm = I_res.loc[{"E":slice(2.05-E_int/2,2.05+E_int/2), "delay":slice(75,125)}].mean(dim=("E")).max().values
+norm_all = I_res.loc[{"E":slice(1,3)}].max()
+    
+frame_norms = []
+for i in np.arange(np.max([len(E), len(delays)])):
+    if len(delays) == 1:
+        time_delay = delays[0]
+    else:
+        time_delay = delays[i]
+
+    if len(E) == 1:
+        energy = E[0]
+    else:
+        energy = E[i]
+        
+    frame = mpes.get_momentum_map(I_res, energy, E_int, time_delay, delay_int)
+#    frame = I_res.loc[{"E":slice(E[i]-E_int/2,E[i]+E_int/2), "delay":slice(100,140)}].mean(dim=("E","delay")).T
+
+    if i in [0, 1, 2]:
+        frame_norm = norm_frame_ex
+    elif i in [3, 4, 5]:
+        frame_norm = norm_frame_cbm
+
+    frame = frame/frame.max()
+    frame_norms.append(np.max(frame.values))
+    
+    im = frame.plot.imshow(ax = ax[i], vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
+    ax[i].set_aspect(1)
+    ax[i].set_xlim(-2,2)
+    ax[i].set_ylim(-2,2)
+    
+    ax[i].set_xticks(np.arange(-2,2.2,1))
+    for label in ax[i].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+       
+    ax[i].set_yticks(np.arange(-2,2.1,1))
+    for label in ax[i].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
+    ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
+
+    ax[i].set_title(f"$\Delta$t = {time_delay} fs", fontsize = 16)
+    ax[i].tick_params(axis='both', labelsize=14)
+    ax[i].text(-1.85, 1.45,  f"E = {energy:.2f} eV", size=12)
+#    ax[i].set_ylabel("")  # Removes the y-axis label
+
+#ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+#ax[3].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+
+cbar_ax = fig.add_axes([1, 0.36, 0.025, 0.35])
+cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
+cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
+
+# fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
+# fig.text(.03, 0.5, "(d)", fontsize = 18, fontweight = 'regular')
+# fig.text(.36, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
+# fig.text(.36, 0.5, "(e)", fontsize = 18, fontweight = 'regular')
+# fig.text(.69, 0.975, "(c)", fontsize = 18, fontweight = 'regular')
+# fig.text(.69, 0.5, "(f)", fontsize = 18, fontweight = 'regular')
+
+plt.rcParams['svg.fonttype'] = 'none'
+fig.tight_layout()
+ 
+#fig = mpes_helper.plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot)
+
+#add_bz(fig, x, y)
+
+# y, x = np.pi/4.76, np.pi/3.52
+
+# for r in np.arange(1,2,2):
+    
+#     rect = (Rectangle((0-r*x, 0-y), 2*x, 2*y, linewidth=1.5,\
+#                          edgecolor='k', facecolor='None'))
+#     #rect2 = (Rectangle((0-r*x, 0+y), 2*x, 2*y, linewidth=1.5,\
+#                           #   edgecolor='k', facecolor='None'))
+#     fig.axes[0].add_patch(rect)
+
+# fig.axes[0].plot(0,0, 'ok', markersize = 4)
+# fig.axes[0].plot(0,2*y, 'ok', markersize = 4)
+# fig.axes[0].plot(0,-2*y, 'ok', markersize = 4)
+# fig.axes[0].plot(2*x, 0,  'ok', markersize = 4)
+# fig.axes[0].plot(-2*x, 0, 'ok', markersize = 4)
+
+# fig.axes[0].plot(x, 0, 'k', marker = '_', markersize = 6)
+# fig.axes[0].plot(0, y, 'k', marker = '|', markersize = 8)
+
+#fig.axes[0].set_xlim(-3,3)
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
 #%% Figure 2: kx Panel + Dynamics
 
@@ -29,16 +145,20 @@ figure_file_name = 'Figure 2'
 image_format = 'svg'
 
 E, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
+
 (kx, ky), (kx_int, ky_int) = (X, 0), (0.5, .5) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000 #kx frame
 
-Ein = .8 #Enhance excited states above this Energy, eV
-energy_limits = [0.75, 2.75] # Energy Y Limits for Plotting Panels 3 and 4
+E, E_int = [1.4, 2.25], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
+(kx, ky), (kx_int, ky_int) = (0, 0), (2, 2) # Central (kx, ky) point and k-integration
+
+Ein = .9 #Enhance excited states above this Energy, eV
+energy_limits = [0.9, 2.75] # Energy Y Limits for Plotting Panels 3 and 4
 plot_symmetry_points = True
 colors = ['black', 'red', 'purple'] #colors for plotting the traces
 
 subtract_neg, neg_delays = True, [-110,-70] #If you want to subtract negative time delay baseline
-norm_trace = True
+norm_trace = False
 
 #######################
 ### Do the Plotting ###
@@ -57,9 +177,13 @@ kx_norm_frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(1
 #kx_norm_frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
 
 kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+
+kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delay, delay_int)
+scale = [-1, 1]
+cmap_plot = cmocean.cm.balance
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(Ein,3)}])
 
-im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
 ax[0].set_aspect(1)
 ax[0].set_xticks(np.arange(-2,2.2,1))
 for label in ax[0].xaxis.get_ticklabels()[1::2]:
@@ -117,7 +241,13 @@ ax[1].set_ylabel('Norm. Int.', fontsize = 18)
 ax[1].set_xlabel('Delay, fs', fontsize = 18)
 ax[1].legend(frameon = False)
 ax[1].set_title('Delay Traces')
-
+ax[1].set_xticks(np.arange(-400,1400,200))
+for label in ax[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[1].set_yticks(np.arange(0,1.2,.25))
+for label in ax[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+ax[1].set_xlim(np.max([-200,I.delay.values[0]]),I.delay.values[-1])    
 fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
 fig.text(.44, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
 
