@@ -14,39 +14,22 @@ from matplotlib.widgets import Slider, CheckButtons, Button
 import mpes
 
 class DataHandler:
-    def __init__(self, value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets):
+    def __init__(self, value_manager, I):
         self.value_manager = value_manager
-        if offsets:
-            E_offset = offsets[0]
-            delay_offset = offsets[1]
-        else:
-            E_offset = 0
-            delay_offset = 0
-            
         self.I = I
-        self.ax_kx = ax_kx
-        self.ax_ky = ax_ky
-        self.ax_E = ax_E + E_offset
-        self.ax_delay = ax_delay + delay_offset  
-    
+
     def calculate_dt(self):
         if self.I.ndim > 3:
-            dt = self.ax_delay[1] - self.ax_delay[0]
+            dt = self.I.delay.values[1] - self.I.delay.values[0]
             return dt
         else:
             return 1
     
     def calculate_dk(self):
-        dk = self.ax_kx[2] - self.ax_kx[1]
+        dk = self.I.kx.values[2] - self.I.kx.values[1]
         
         return dk
-    
-    def get_t0(self):
-        if self.I.ndim > 3:
-            t0 = (np.abs(self.ax_delay - 0)).argmin()
-            return t0
-        else:
-            return 1
+
     
 class ValueHandler:
     def __init__(self):
@@ -98,7 +81,6 @@ class PlotHandler:
         self.cmap = self.custom_colormap(mpl.cm.viridis, 0.25)
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1 = None
-        self.t0 = self.data_handler.get_t0()
 
         # Initial setup for plots
         self.initialize_plots()
@@ -213,19 +195,15 @@ class PlotHandler:
     def plot_edc(self):
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
 
-        if self.data_handler.I.ndim > 3:
-            edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, :].sum(axis=(0,1,3))
-        else:
-            edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :].sum(axis=(0,1))
-
+        edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
         edc = edc/np.max(edc)
         
-        self.im_4, = self.ax[1].plot(self.data_handler.ax_E, edc, color = 'black')
+        self.im_4, = self.ax[1].plot(self.I.E.values, edc, color = 'black')
        # self.ax[1].set_xticks(np.arange(-400,1250,200))
         #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
          #   label.set_visible(False)
         self.ax[1].set_ylim([-0.1, 1.1])
-        self.ax[1].set_xlim([self.data_handler.ax_E[0], self.data_handler.ax_E[-1]])
+        self.ax[1].set_xlim([self.I.E.values[0], self.I.E.values[-1]])
         self.ax[1].set_title("EDC")
         self.ax[1].set_xlabel("Energy, eV")
         self.ax[1].set_ylabel("Intensity")

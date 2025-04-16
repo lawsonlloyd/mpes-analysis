@@ -30,7 +30,7 @@ def get_scan_info(data_path, filename, scan_info):
 def load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset):
     
     filename = f"Scan{scan}.h5"
-    data_loader = DataLoader(data_path + '//' + filename)
+    data_loader = DataLoader(data_path + '//' + filename, [energy_offset, delay_offset])
     
     if scan_info[str(scan)]['t0_offset'] == '':
         delay_offset = delay_offset 

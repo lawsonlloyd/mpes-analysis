@@ -51,16 +51,11 @@ filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 
 #%% Load the data and axes information
 
-data_loader = DataLoader(data_path + '//' + filename)
-value_manager =  ValueHandler()
+data_loader = DataLoader(data_path + '//' + filename, offsets)
 
 I = data_loader.load()
-#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
-
-I = I.assign_coords(E=(I.E-offsets[0]))
-I = I.assign_coords(delay=(I.delay-offsets[1]))
-
 I_res = I/np.max(I)
+
 I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
 I_diff = I_diff/np.max(I_diff)
 

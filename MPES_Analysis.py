@@ -25,24 +25,16 @@ filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_d
 #filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [0.05, 65]
 #filename, offsets = 'Scan803_binned.h5', [0.2, -102]
 
+filename, offsets = 'Scan186_binned_100x100x200_CrSBr_120K_Static.h5', [0,0]
 #filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 
 #filename, offsets = 'Scan383_binned_LTL.h5', [7.2,0]
 #%% Load the data and axes information
 
-data_loader = DataLoader(data_path + '//' + filename)
-
-#I, ax_kx, ax_ky, ax_E, ax_delay = data_loader.load()
-#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
+data_loader = DataLoader(data_path + '//' + filename, offsets)
 
 I = data_loader.load()
-#data_handler = DataHandler(value_manager, I, ax_kx, ax_ky, ax_E, ax_delay, *offsets)
-
-I = I.assign_coords(E=(I.E-offsets[0]))
-I = I.assign_coords(delay=(I.delay-offsets[1]))
 I_res = I/np.max(I)
-
-I, ax_kx, ax_ky, ax_E, ax_delay = I.values, I.kx.values, I.ky.values, I.E.values, I.delay.values
 
 #%% Run the Interactive GUI for Data Exploration and Plotting
 
@@ -51,7 +43,7 @@ I, ax_kx, ax_ky, ax_E, ax_delay = I.values, I.kx.values, I.ky.values, I.E.values
 #main(I, ax_kx, ax_ky, ax_E, ax_delay, *[E_offset, delay_offset])
 
 value_manager =  ValueHandler()
-data_handler = DataHandler(value_manager, I_res, ax_kx, ax_ky, ax_E, ax_delay)
+data_handler = DataHandler(value_manager, I_res)
 
 # Initialize plot manager and check and click button managers
 figure_handler = FigureHandler()
