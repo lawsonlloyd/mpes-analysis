@@ -240,7 +240,7 @@ kx, kx_int = (1*X+dkx), 2.1*X # 1.25*X
 kx, kx_int = (1.5*X+dkx), 1.1*X # 1.25*X
 kx, kx_int = (0.5*X+dkx), 1.1*X # 1.25*X
 
-ky, ky_int = 0, 1.5
+ky, ky_int = 0, 0.65
 delays, delay_int = 600, 800 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
@@ -324,7 +324,8 @@ test_frame = test_frame/np.max(test_frame)
 
 # Choose intrinsic function
 shape = 'lorentzian'
-shape = 'gaussian'
+#shape = 'gaussian'
+sigma_irf = 0.02675 
 
 intrinsic_fit = np.zeros(test_frame.shape)
 fitted_model = np.zeros(test_frame.shape)
@@ -351,10 +352,9 @@ for kx_i in ax_kx.loc[{"kx":slice(-2*X-.1, 2*X+.1)}]:
     
     #perr = np.sqrt(np.diag(pcov))
     #fit_errors[i,:] = perr
-    popt[0] = popt[0] - 0.05
     popts[i,:] = popt
-    popt_remove_offset = popt
-    popt_remove_offset[3] = 0
+    popt[0] = popt[0] - 0.05
+    #popt[3] = 0
     
     # Extract fitted intrinsic and convolved model
     if shape == 'gaussian':
@@ -370,11 +370,19 @@ fitted_model = fitted_model.T / np.max(fitted_model)
 intrinsic_fit = xr.DataArray(intrinsic_fit, coords = {"ky": ax_ky, "kx": ax_kx})
 fitted_model = xr.DataArray(fitted_model, coords = {"ky": ax_ky, "kx": ax_kx})
 
+#%% Re-process Using Deonvolved Data
+
+kspace_frame_fit = xr.DataArray(intrinsic_fit, coords = {"ky": ax_ky, "kx": ax_kx})
+kspace_frame_sym_fit, kspace_frame_win_fit, kspace_frame_sym_win_fit, kspace_window = window_MM(kspace_frame_fit, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
+
+MM_frame_fit = kspace_frame_win_fit # Choose which kspace frame to FFT
+r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame_fit, zeropad) # Do the 2D FFT and extract real-space map and cuts
+
 #%% Plot Results of Deconvolution
 hfont = {'fontname':'Helvetica'}
 
 save_figure = True
-figure_file_name = 'deconvolve' 
+figure_file_name = 'deconvolve_lor' 
 image_format = 'svg'
 
 fit_difference = test_frame/np.max(test_frame) - fitted_model/np.max(fitted_model)
@@ -382,30 +390,36 @@ fit_difference = fit_difference.loc[{"ky":slice(-.75,.75)}]
 difference_scale = np.max(np.abs(fit_difference))
 #fit_difference = fit_difference/np.max(np.abs(fit_difference.loc[{"kx":slice(-1.8,2*X)}]))
 
-fig, ax = plt.subplots(3, 2, sharey = False)
-fig.set_size_inches(8,10)
+fig, ax = plt.subplots(4,2, sharey = False)
+fig.set_size_inches(8,11)
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
 
 extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
-im1 = ax[0].imshow(test_frame, cmap = cmap_LTL, origin = 'lower', extent = extent)
+
+im0 = ax[0].imshow(kspace_frame, cmap = cmap_LTL, origin = 'lower', extent = extent)
+im1 = ax[1].imshow(test_frame, cmap = cmap_LTL, origin = 'lower', extent = extent)
 #ax[0].imshow(fit_difference, vmin = -1, vmax = 1, cmap = 'seismic_r', origin = 'lower', extent = [-2,2,-2,2])
-im2 = ax[1].imshow(fitted_model, cmap = cmap_LTL, vmin=0, vmax = 1, origin = 'lower', extent = extent)
+im2 = ax[2].imshow(fitted_model, cmap = cmap_LTL, vmin=0, vmax = 1, origin = 'lower', extent = extent)
 #ax[2].imshow(intrinsic_fit.T, cmap = cmap_LTL, origin = 'lower', extent = [-2,2,-2,2])
 im3 = ax[3].imshow(fit_difference, vmin = -1*difference_scale, vmax = 1*difference_scale, cmap = 'RdBu_r', origin = 'lower', extent = [ax_kx[0],ax_kx[-1],-0.75,0.75])
-im4 = ax[2].imshow(intrinsic_fit, cmap = cmap_LTL, origin = 'lower', extent = extent)
+im4 = ax[4].imshow(intrinsic_fit, cmap = cmap_LTL, origin = 'lower', extent = extent)
+im5 = ax[5].imshow(kspace_frame_win_fit, cmap = cmap_LTL, origin = 'lower', extent = extent)
 
 ax[0].set_title('Data', fontsize = 18)
-ax[1].set_title('Convolved Fit', fontsize = 18)
+ax[1].set_title('Symm. Data', fontsize = 18)
+ax[2].set_title('Convolved Fit', fontsize = 18)
 ax[3].set_title('Difference', fontsize = 18)
-ax[2].set_title('Retrieved Peak', fontsize = 18)
+ax[4].set_title('Retrieved Peak', fontsize = 18)
+ax[5].set_title('Windowed Peak', fontsize = 18)
 
-ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
-ax[2].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
+ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+ax[2].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
+ax[3].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 
-for a in [0, 1, 2, 3]:
+for a in [0, 1, 2, 3, 4, 5]:
     
-    ax[a].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
+    ax[a].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
     ax[a].set_ylim(-0.8,0.8)
     ax[a].set_aspect(1)
     ax[a].set_xticks(np.arange(-2,2.2,.5))
@@ -413,89 +427,88 @@ for a in [0, 1, 2, 3]:
         label.set_visible(False)
    # label.set_xticklabels(tick_labels.astype(int))
 
-ax[3].axvline(0, linestyle='dashed',color='black', linewidth = 1.5)
-ax[3].axvline(X, linestyle='dashed',color='black', linewidth = 1.5)
-ax[3].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
-ax[3].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
+ax[5].axvline(0, linestyle='dashed',color='black', linewidth = 1.5)
+ax[5].axvline(X, linestyle='dashed',color='black', linewidth = 1.5)
+ax[5].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
+ax[5].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
 
 #ax[1].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
 #ax[2].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
 
 # add space for colour bar
 fig.subplots_adjust(right=0.5)
-cbar_ax = fig.add_axes([.95, 0.46, 0.02, 0.1])
-fig.colorbar(im3, cax=cbar_ax)
-
-fig.subplots_adjust(right=0.5)
-cbar_ax = fig.add_axes([.95, 0.77, 0.02, 0.1])
+cbar_ax = fig.add_axes([.98, 0.77, 0.02, 0.1])
 fig.colorbar(im2, cax=cbar_ax)
 
-fig.text(.04, 0.9, "(a)", fontsize = 14, fontweight = 'regular')
-fig.text(.52, 0.9, "(b)", fontsize = 14, fontweight = 'regular')
-fig.text(.04, 0.58, "(c)", fontsize = 14, fontweight = 'regular')
-fig.text(.52, 0.58, "(d)", fontsize = 14, fontweight = 'regular')
-fig.text(.04, 0.35, "(e)", fontsize = 14, fontweight = 'regular')
-fig.text(.52, 0.35, "(f)", fontsize = 14, fontweight = 'regular')
+fig.subplots_adjust(right=0.5)
+cbar_ax = fig.add_axes([.98, 0.46, 0.02, 0.1])
+fig.colorbar(im3, cax=cbar_ax)
 
-im0 = ax[4].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', vmax = 1, cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
+fig.text(.04, 0.9, "(a)", fontsize = 18, fontweight = 'regular')
+fig.text(.52, 0.9, "(b)", fontsize = 18, fontweight = 'regular')
+fig.text(.04, 0.58, "(c)", fontsize = 18, fontweight = 'regular')
+fig.text(.52, 0.58, "(d)", fontsize = 18, fontweight = 'regular')
+fig.text(.04, 0.35, "(e)", fontsize = 18, fontweight = 'regular')
+fig.text(.52, 0.35, "(f)", fontsize = 18, fontweight = 'regular')
+
+im0 = ax[6].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', vmax = 1, cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
 #single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
 #ax[1].add_patch(single_k_circle)
-ax[4].set_aspect(1)
-ax[5].set_aspect(1)
+ax[6].set_aspect(1)
+ax[7].set_aspect(1)
 
-ax[4].set_xticks(np.arange(-2,2.2,.5))
-for label in ax[4].xaxis.get_ticklabels()[1::2]:
+ax[6].set_xticks(np.arange(-2,2.2,.5))
+for label in ax[6].xaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
    # label.set_xticklabels(tick_labels.astype(int))
     
-ax[4].set_yticks(np.arange(-2,2.2,.5))
-for label in ax[4].yaxis.get_ticklabels()[1::2]:
+ax[6].set_yticks(np.arange(-2,2.2,.5))
+for label in ax[6].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[5].set_xticks(np.arange(-2,2.2,.5))
-for label in ax[5].xaxis.get_ticklabels()[1::2]:
+ax[7].set_xticks(np.arange(-2,2.2,.5))
+for label in ax[7].xaxis.get_ticklabels()[1::2]:
     label.set_visible(True)
    # label.set_xticklabels(tick_labels.astype(int))
     
-ax[5].set_yticks(np.arange(-2,2.1,.5))
-for label in ax[5].yaxis.get_ticklabels()[1::2]:
+ax[7].set_yticks(np.arange(-2,2.1,.5))
+for label in ax[7].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[4].set_xlim(-2,2)
-ax[4].set_ylim(-2,2)
+ax[6].set_xlim(-2,2)
+ax[6].set_ylim(-2,2)
 #ax[0].set_box_aspect(1)
-ax[4].set_xlabel('$r_x$, nm', fontsize = 16)
-ax[4].set_ylabel('$r_y$, nm', fontsize = 16)
-ax[4].tick_params(axis='both', labelsize=16)
-ax[4].set_title('2D FFT', fontsize = 18)
+ax[6].set_xlabel('$r_x$, nm', fontsize = 18)
+ax[6].set_ylabel('$r_y$, nm', fontsize = 18)
+ax[6].tick_params(axis='both', labelsize=18)
+ax[6].set_title('2D FFT', fontsize = 18)
 
 #ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
-ax[5].plot(r_axis, x_cut/np.max(x_cut), color = 'royalblue', label = '$r_x$')
+ax[7].plot(r_axis, x_cut/np.max(x_cut), color = 'royalblue', label = '$r_x$')
 #ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
-ax[5].plot(r_axis, y_cut/np.max(y_cut), color = 'crimson', label = '$r_y$')
+ax[7].plot(r_axis, y_cut/np.max(y_cut), color = 'crimson', label = '$r_y$')
 #ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
 
-ax[5].axvline(x_brad, linestyle = 'dashed', color = 'navy', linewidth = 1.5)
-ax[5].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
-ax[5].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
-ax[5].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
+ax[7].axvline(x_brad, linestyle = 'dashed', color = 'navy', linewidth = 1.5)
+ax[7].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+ax[7].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
+ax[7].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
 
-ax[5].set_xlabel('$r$, nm', fontsize = 16)
-ax[5].set_ylabel('Norm. Int.', fontsize = 16)
-ax[5].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 18)
-ax[5].tick_params(axis='both', labelsize=18)
-ax[5].set_yticks(np.arange(-0,1.5,0.5))
-ax[5].set_xlim([0, 2])
-ax[5].set_ylim([-0.025, 1.025])
-ax[5].set_aspect(2/(1.025+0.025))
-ax[5].set_xlabel('$r$, nm', fontsize = 16)
-ax[5].legend(frameon=False, fontsize = 14)
-ax[5].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=14)
+ax[7].set_xlabel('$r$, nm', fontsize = 18)
+ax[7].set_ylabel('Norm. Int.', fontsize = 18)
+ax[7].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 18)
+ax[7].tick_params(axis='both', labelsize=18)
+ax[7].set_yticks(np.arange(-0,1.5,0.5))
+ax[7].set_xlim([0, 2])
+ax[7].set_ylim([-0.025, 1.025])
+ax[7].set_aspect(2/(1.025+0.025))
+ax[7].set_xlabel('$r$, nm', fontsize = 18)
+ax[7].legend(frameon=False, fontsize = 16)
+ax[7].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=14)
 
-new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
+new_rc_params = {'text.usetex': False, "svg.fonttype": 'none', "font.family":'helvetica'}
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
-plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 plt.rcParams.update(new_rc_params)
 
@@ -503,14 +516,6 @@ fig.tight_layout()
 
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
-
-#%% Re-process Using Deonvolved Data
-
-kspace_frame_fit = xr.DataArray(intrinsic_fit, coords = {"ky": ax_ky, "kx": ax_kx})
-kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame_fit, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
-
-MM_frame = kspace_frame_win # Choose which kspace frame to FFT
-r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
 #%% Plot Raw, Symm., and Windowed MMs
 
