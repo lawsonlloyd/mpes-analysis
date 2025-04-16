@@ -194,4 +194,4 @@ def create_custom_diverging_colormap():
     return custom_colormap
 
 cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
-cmap_LTL_2 = create_custom_diverging_colormap()
+cmap_LTL2 = create_custom_diverging_colormap()

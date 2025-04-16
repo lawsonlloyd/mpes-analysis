@@ -34,11 +34,11 @@ from mpes import cmap_LTL
 data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
-data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/'
+#data_path = 'R:\Lawson\Data\metis'
+data_path = '/Users/lawsonlloyd/Desktop/Data/metis/'
 
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 
 #%% Load the data and axes information
@@ -54,6 +54,9 @@ I = data_loader.load()
 
 I = I.assign_coords(E=(I.E-offsets[0]))
 I = I.assign_coords(delay=(I.delay-offsets[1]))
+if filename == 'Scan163_120K_120x120x115x75_binned.h5':    
+    I = I.assign_coords(ky=(I.ky-0.075))
+
 I_res = I/np.max(I)
 
 #%% Functions for Fourier Transform Analysis
@@ -133,7 +136,7 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha):
     kspace_frame_sym_win = kspace_frame_sym*kspace_window
     kspace_frame_win = kspace_frame*(kspace_window)
         
-    return kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window
+    return kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window/np.max(kspace_window)
 
 def FFT_MM(MM_frame, zeropad):
     
@@ -230,14 +233,14 @@ a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
 x, y = -2*X, 0*Y
 
-E, E_int  = 1.35, 0.200 #Energy and total width in eV
-#E, E_int  = 1.33, 0.200 #Energy and total width in eV
+E, E_int  = 1.35, 0.150 #Energy and total width in eV
+#E, E_int  = 1.35, 0.100 #Energy and total width in eV
 
 kx, kx_int = (1*X+dkx), 2.1*X # 1.25*X
 kx, kx_int = (1.5*X+dkx), 1.1*X # 1.25*X
-kx, kx_int = (0.0*X+dkx), 2.1*X # 1.25*X
+kx, kx_int = (0.5*X+dkx), 1.1*X # 1.25*X
 
-ky, ky_int = 0.0, .75
+ky, ky_int = 0, 1.5
 delays, delay_int = 600, 800 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
@@ -265,7 +268,7 @@ if testing == 1:
 
 elif testing == 0:
     kspace_frame = frame_pos/np.max(frame_pos) #Define MM of itnerested for FFT
-    ax_kx, ax_ky = I.kx, I.ky
+    ax_kx, ax_ky = I_res.kx, I_res.ky
     dkx = (ax_kx.values[1] - ax_kx.values[0])
 
 background = kspace_frame.loc[{"kx":slice(0.2,1.8), "ky":slice(0.5,0.6)}].mean(dim=("kx","ky"))
@@ -278,9 +281,235 @@ kspace_frame = kspace_frame/np.max(kspace_frame)
 kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
 
 MM_frame = kspace_frame_win # Choose which kspace frame to FFT
-#MM_frame = kspace_frame_sym_win
+r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
-#MM_frame = window_tukey_box
+#%% Setup k-space Deconvolution
+
+# ------------------ Peak Shapes ------------------ #
+
+def lorentzian_(x, x0, gamma, amp, offset):
+    return amp / (1 + ((x - x0) / gamma)**2) + offset
+
+def gaussian_(x, x0, sigma, amp, offset):
+    return amp * np.exp(-((x - x0)**2) / (2 * sigma**2)) + offset
+
+def gaussian_irf(x, sigma):
+    return np.exp(-(x**2) / (2 * sigma**2))
+
+# ------------------ Model and Fit ------------------ #
+
+def convolved_model(x, x0, width, amp, offset, sigma_irf, shape):
+    if shape == 'lorentzian':
+        peak = lorentzian_(x, x0, width, amp, offset)
+    elif shape == 'gaussian':
+        peak = gaussian_(x, x0, width, amp, offset)
+    else:
+        raise ValueError("Shape must be 'lorentzian' or 'gaussian'")
+    
+    irf = gaussian_irf(x - x0, sigma_irf)
+    irf /= np.trapz(irf, x)
+    return fftconvolve(peak, irf, mode='same')
+
+def fit_convolved_model(x, y, sigma_irf, p0, bnds, shape):
+    def fit_func(x, x0, width, amp, offset):
+        return convolved_model(x, x0, width, amp, offset, sigma_irf, shape)
+    popt, pcov = curve_fit(fit_func, x, y, p0=p0, bounds = bnds)
+    return popt, pcov
+
+#%% Fit to Deconvolve k-space: Choose Peak Shape
+
+# Define MM Map to Fit...
+test_frame = kspace_frame_sym #kspace_frame_sym
+test_frame = test_frame/np.max(test_frame)
+
+# Choose intrinsic function
+shape = 'lorentzian'
+shape = 'gaussian'
+
+intrinsic_fit = np.zeros(test_frame.shape)
+fitted_model = np.zeros(test_frame.shape)
+
+popts = np.zeros((test_frame.shape[1],4))
+fit_errors = np.zeros((test_frame.shape[1],4))
+
+i = 0
+for kx_i in ax_kx.loc[{"kx":slice(-2*X-.1, 2*X+.1)}]:
+    
+#    kx_i = ax_kx.values[i]
+    i = np.abs(ax_kx.values - kx_i.values).argmin()
+    data_cut = test_frame.loc[{"kx":slice(kx_i-.05,kx_i+.05)}].mean(dim="kx")
+    ylim = [-.35, .35]
+    initial_guess = (0.0, .1, 0.1, 0.00) #x0, gamma, amp, offset
+    
+    if kx_i > -0.25 and kx_i < 0.2:
+        ylim = [-.3, .3]
+        initial_guess = (0.0, .07, 0.1, 0.005) #x0, gamma, amp, offset
+        initial_guess = (0.0, .15, 0.1, 0.005) #x0, gamma, amp, offset
+
+    bnds = [ [-.1, 0, 0, 0], [0.2, 1, .1, .01] ] #x0, gamma, amp, offset
+    popt, pcov = fit_convolved_model(ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}].values, data_cut.loc[{"ky":slice(ylim[0],ylim[1])}], sigma_irf, initial_guess, bnds, shape)
+    
+    #perr = np.sqrt(np.diag(pcov))
+    #fit_errors[i,:] = perr
+    popt[0] = popt[0] - 0.05
+    popts[i,:] = popt
+    popt_remove_offset = popt
+    popt_remove_offset[3] = 0
+    
+    # Extract fitted intrinsic and convolved model
+    if shape == 'gaussian':
+        intrinsic_fit[i,:] = gaussian_(ax_ky.values, *popt)
+    else:
+        intrinsic_fit[i,:] = lorentzian_(ax_ky.values, *popt)
+
+    fitted_model[i,:] = convolved_model(ax_ky.values, *popt, sigma_irf, shape=shape)
+
+intrinsic_fit = intrinsic_fit.T / np.max(intrinsic_fit) 
+fitted_model = fitted_model.T / np.max(fitted_model)
+
+intrinsic_fit = xr.DataArray(intrinsic_fit, coords = {"ky": ax_ky, "kx": ax_kx})
+fitted_model = xr.DataArray(fitted_model, coords = {"ky": ax_ky, "kx": ax_kx})
+
+#%% Plot Results of Deconvolution
+hfont = {'fontname':'Helvetica'}
+
+save_figure = True
+figure_file_name = 'deconvolve' 
+image_format = 'svg'
+
+fit_difference = test_frame/np.max(test_frame) - fitted_model/np.max(fitted_model)
+fit_difference = fit_difference.loc[{"ky":slice(-.75,.75)}]
+difference_scale = np.max(np.abs(fit_difference))
+#fit_difference = fit_difference/np.max(np.abs(fit_difference.loc[{"kx":slice(-1.8,2*X)}]))
+
+fig, ax = plt.subplots(3, 2, sharey = False)
+fig.set_size_inches(8,10)
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+extent = [ax_kx[0],ax_kx[-1],ax_ky[0],ax_ky[-1]]
+im1 = ax[0].imshow(test_frame, cmap = cmap_LTL, origin = 'lower', extent = extent)
+#ax[0].imshow(fit_difference, vmin = -1, vmax = 1, cmap = 'seismic_r', origin = 'lower', extent = [-2,2,-2,2])
+im2 = ax[1].imshow(fitted_model, cmap = cmap_LTL, vmin=0, vmax = 1, origin = 'lower', extent = extent)
+#ax[2].imshow(intrinsic_fit.T, cmap = cmap_LTL, origin = 'lower', extent = [-2,2,-2,2])
+im3 = ax[3].imshow(fit_difference, vmin = -1*difference_scale, vmax = 1*difference_scale, cmap = 'RdBu_r', origin = 'lower', extent = [ax_kx[0],ax_kx[-1],-0.75,0.75])
+im4 = ax[2].imshow(intrinsic_fit, cmap = cmap_LTL, origin = 'lower', extent = extent)
+
+ax[0].set_title('Data', fontsize = 18)
+ax[1].set_title('Convolved Fit', fontsize = 18)
+ax[3].set_title('Difference', fontsize = 18)
+ax[2].set_title('Retrieved Peak', fontsize = 18)
+
+ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
+ax[2].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
+
+for a in [0, 1, 2, 3]:
+    
+    ax[a].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 16)
+    ax[a].set_ylim(-0.8,0.8)
+    ax[a].set_aspect(1)
+    ax[a].set_xticks(np.arange(-2,2.2,.5))
+    for label in ax[a].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+   # label.set_xticklabels(tick_labels.astype(int))
+
+ax[3].axvline(0, linestyle='dashed',color='black', linewidth = 1.5)
+ax[3].axvline(X, linestyle='dashed',color='black', linewidth = 1.5)
+ax[3].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
+ax[3].axvline(2*X, linestyle='dashed',color='black', linewidth = 1.5)
+
+#ax[1].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
+#ax[2].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 14)
+
+# add space for colour bar
+fig.subplots_adjust(right=0.5)
+cbar_ax = fig.add_axes([.95, 0.46, 0.02, 0.1])
+fig.colorbar(im3, cax=cbar_ax)
+
+fig.subplots_adjust(right=0.5)
+cbar_ax = fig.add_axes([.95, 0.77, 0.02, 0.1])
+fig.colorbar(im2, cax=cbar_ax)
+
+fig.text(.04, 0.9, "(a)", fontsize = 14, fontweight = 'regular')
+fig.text(.52, 0.9, "(b)", fontsize = 14, fontweight = 'regular')
+fig.text(.04, 0.58, "(c)", fontsize = 14, fontweight = 'regular')
+fig.text(.52, 0.58, "(d)", fontsize = 14, fontweight = 'regular')
+fig.text(.04, 0.35, "(e)", fontsize = 14, fontweight = 'regular')
+fig.text(.52, 0.35, "(f)", fontsize = 14, fontweight = 'regular')
+
+im0 = ax[4].imshow(rspace_frame/np.max(rspace_frame), clim = None, origin='lower', vmax = 1, cmap=cmap_LTL, interpolation='none', extent = [r_axis[0], r_axis[-1], r_axis[0], r_axis[-1]]) #kx, ky, t
+#single_k_circle = plt.Circle((single_ky, single_kx), single_rad, color='red', linestyle = 'dashed', linewidth = 1.5, clip_on=False, fill=False)
+#ax[1].add_patch(single_k_circle)
+ax[4].set_aspect(1)
+ax[5].set_aspect(1)
+
+ax[4].set_xticks(np.arange(-2,2.2,.5))
+for label in ax[4].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+   # label.set_xticklabels(tick_labels.astype(int))
+    
+ax[4].set_yticks(np.arange(-2,2.2,.5))
+for label in ax[4].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+ax[5].set_xticks(np.arange(-2,2.2,.5))
+for label in ax[5].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(True)
+   # label.set_xticklabels(tick_labels.astype(int))
+    
+ax[5].set_yticks(np.arange(-2,2.1,.5))
+for label in ax[5].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+ax[4].set_xlim(-2,2)
+ax[4].set_ylim(-2,2)
+#ax[0].set_box_aspect(1)
+ax[4].set_xlabel('$r_x$, nm', fontsize = 16)
+ax[4].set_ylabel('$r_y$, nm', fontsize = 16)
+ax[4].tick_params(axis='both', labelsize=16)
+ax[4].set_title('2D FFT', fontsize = 18)
+
+#ax[2].plot(r_axis, x_cut/np.max(1), color = 'black', label = '$r_b$')
+ax[5].plot(r_axis, x_cut/np.max(x_cut), color = 'royalblue', label = '$r_x$')
+#ax[3].plot(r_axis, r2_cut_x, color = 'black', linestyle = 'dashed')
+ax[5].plot(r_axis, y_cut/np.max(y_cut), color = 'crimson', label = '$r_y$')
+#ax[3].plot(r_axis, r2_cut_y, color = 'red', linestyle = 'dashed')
+
+ax[5].axvline(x_brad, linestyle = 'dashed', color = 'navy', linewidth = 1.5)
+ax[5].axvline(y_brad, linestyle = 'dashed', color = 'red', linewidth = 1.5)
+ax[5].axvline(rdist_brad_x, linestyle = 'dashed', color = 'black', linewidth = .5)
+ax[5].axvline(rdist_brad_y, linestyle = 'dashed', color = 'red', linewidth = .5)
+
+ax[5].set_xlabel('$r$, nm', fontsize = 16)
+ax[5].set_ylabel('Norm. Int.', fontsize = 16)
+ax[5].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 18)
+ax[5].tick_params(axis='both', labelsize=18)
+ax[5].set_yticks(np.arange(-0,1.5,0.5))
+ax[5].set_xlim([0, 2])
+ax[5].set_ylim([-0.025, 1.025])
+ax[5].set_aspect(2/(1.025+0.025))
+ax[5].set_xlabel('$r$, nm', fontsize = 16)
+ax[5].legend(frameon=False, fontsize = 14)
+ax[5].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=14)
+
+new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
+params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+plt.rcParams.update(new_rc_params)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+
+#%% Re-process Using Deonvolved Data
+
+kspace_frame_fit = xr.DataArray(intrinsic_fit, coords = {"ky": ax_ky, "kx": ax_kx})
+kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window = window_MM(kspace_frame_fit, kx, ky, kx_int, ky_int, win_type, alpha) # Window the MM
+
+MM_frame = kspace_frame_win # Choose which kspace frame to FFT
 r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad = FFT_MM(MM_frame, zeropad) # Do the 2D FFT and extract real-space map and cuts
 
 #%% Plot Raw, Symm., and Windowed MMs
@@ -345,8 +574,9 @@ if save_figure is True:
 
 ### PLOT ###
 
-save_figure = False
-figure_file_name = 'MM_FFT2' 
+save_figure = True
+figure_file_name = 'MM_FFT_120k_deconv' 
+image_format = 'svg'
 
 fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(6,4)
@@ -373,15 +603,15 @@ for label in ax[0].yaxis.get_ticklabels()[1::2]:
 
 ax[1].set_xticks(np.arange(-2,2.2,.5))
 for label in ax[1].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
+    label.set_visible(True)
    # label.set_xticklabels(tick_labels.astype(int))
     
 ax[1].set_yticks(np.arange(-2,2.1,.5))
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 
-ax[0].set_xlim(-1,1)
-ax[0].set_ylim(-1,1)
+ax[0].set_xlim(-2,2)
+ax[0].set_ylim(-2,2)
 #ax[0].set_box_aspect(1)
 ax[0].set_xlabel('$r_x$, nm', fontsize = 14)
 ax[0].set_ylabel('$r_y$, nm', fontsize = 14)
@@ -405,22 +635,22 @@ ax[1].set_ylabel('Norm. Int.', fontsize = 14)
 ax[1].set_title(f"$r^*_{{x,y}}$ = ({round(x_brad,2)}, {round(y_brad,2)}) nm", fontsize = 12)
 ax[1].tick_params(axis='both', labelsize=10)
 ax[1].set_yticks(np.arange(-0,1.5,0.5))
-ax[1].set_xlim([0, 1])
-ax[1].set_aspect(1)
+ax[1].set_xlim([0, 2])
+ax[1].set_aspect(2/(1.025+0.025))
 ax[1].set_xlabel('$r$, nm')
 ax[1].legend(frameon=False, fontsize = 12)
 ax[1].text(1.05, 0.55,  f"({np.round(rdist_brad_x,2)}, {np.round(rdist_brad_y,2)})", size=10)
 
-fig.subplots_adjust(right=0.58, top = 1.1)
+#fig.subplots_adjust(right=0.58, top = 1.1)
 fig.tight_layout()
 new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
 plt.rcParams.update(new_rc_params)
 
-fig.text(.03, 0.75, "(d)", fontsize = 14, fontweight = 'regular')
-fig.text(.45, 0.75, "(e)", fontsize = 14, fontweight = 'regular')
+fig.text(.03, 0.8, "(e)", fontsize = 14, fontweight = 'regular')
+fig.text(0.5, 0.8, "(f)", fontsize = 14, fontweight = 'regular')
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
     
 #print("x: " + str(round(rdist_brad_x,3)))
 #print("y: " + str(round(rdist_brad_y,3)))
@@ -559,6 +789,7 @@ if save_figure is True:
 # #print("x: " + str(round(rdist_brad_x,3)))
 # #print("y: " + str(round(rdist_brad_y,3)))
 
+
 #%% Do line fits analysis to cross check values
 
 test_frame = kspace_frame_sym
@@ -586,7 +817,7 @@ ky_win_cut = ky_win_cut/np.max(ky_win_cut)
 
 # Fit kx Cut
 xlim = [-0.1, 1]
-p0 = [0.5, 0.9, 0.5, 0.4]
+p0 = [0.5, 0.9, 0.5, 0.0]
 bnds = ((0.1, -0.5, .2, 0), (1.5, 1.5, 1.2, 0.8))
 popt_kx, pcov = curve_fit(gaussian, ax_kx.loc[{"kx":slice(xlim[0],xlim[1])}], kx_cut.loc[{"kx":slice(xlim[0],xlim[1])}], p0, method=None, bounds = bnds)
 g_fit_kx = gaussian(ax_kx, *popt_kx)
@@ -594,11 +825,17 @@ k_sig_fit_x = popt_kx[2]
 #plt.plot(ax_kx, kx_cut) ; plt.plot(ax_kx, g_fit_kx)
 
 # Fit ky Cut
-ylim = [-1, 1]
-p0 = [0.75, 0.0, .105, 0.25]
+ylim = [-.2, .2]
+p0 = [1, 0.0, .105, 0.0]
 bnds = ((0.5, -0.2, 0, 0), (1.5, 0.2, .2, .5)) #Amp, mean, std. offset
 popt_ky, pcov = curve_fit(gaussian, ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], p0, method=None, bounds = bnds)
 g_fit_ky = gaussian(ax_ky, *popt_ky)
+
+#initial_guess = (.1, .05, 1, 0)
+#popt_ky = fit_convolved_model(ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], sigma_irf, initial_guess)
+# Retrieve fit components
+#g_fit_ky = lorentzian_(ax_kx.values, *popt_ky)
+#fitted_model = convolved_model(ax_kx.values, *popt, sigma_irf)
 #popt_ky, pcov = curve_fit(lorentzian, ax_ky.loc[{"ky":slice(ylim[0],ylim[1])}], ky_cut.loc[{"ky":slice(ylim[0],ylim[1])}], p0, method=None, bounds = bnds)
 #popt_ky = [0.88, 0.0, .3, 0.12]
 #g_fit_ky = lorentzian(ax_ky, *popt_ky)
@@ -741,4 +978,6 @@ fig.tight_layout()
 plt.show()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+
+#%%

@@ -26,23 +26,27 @@ import mpes
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 E, E_int = [0, 1.4, 2.2], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 E, E_int = [0, 1.25, 2.05], 0.2
+E, E_int = [1.33, 2.14], 0.2
+titles = ['Exciton', 'CBM']
 
-delays, delay_int = [-250, 500, 500], 50 #Integration range for delays
+delays, delay_int = [500, 500], 1000 #Integration range for delays
 
 #######################
 
 %matplotlib inline
 
-figure_file_name = f'MMs_delayIntegrated_delta500fs_200mev' 
-save_figure = False
-image_format = 'pdf'
+figure_file_name = f'MMs_120K_posdelays' 
+save_figure = True
+image_format = 'svg'
 
 #cmap_plot = viridis_white
-cmap_plot = cmap_LTL_2
+I_frame, cmap_plot, scale = I_diff, cmap_LTL2, [-1, 1]
+I_frame, cmap_plot, scale = I_res, cmap_LTL, [0, 1]
+
 #cmap_plot = 'turbo'
 
-fig, ax = plt.subplots(1, 3, squeeze = False, sharey=False)
-fig.set_size_inches(8, 5, forward=False)
+fig, ax = plt.subplots(1, 2, squeeze = False, sharey=False)
+fig.set_size_inches(6, 5, forward=False)
 plt.gcf().set_dpi(400)
 ax = ax.flatten()
 
@@ -62,7 +66,7 @@ for i in np.arange(np.max([len(E), len(delays)])):
     else:
         energy = E[i]
         
-    frame = mpes.get_momentum_map(I_res, energy, E_int, time_delay, delay_int)
+    frame = mpes.get_momentum_map(I_frame, energy, E_int, time_delay, delay_int)
 #    frame = I_res.loc[{"E":slice(E[i]-E_int/2,E[i]+E_int/2), "delay":slice(100,140)}].mean(dim=("E","delay")).T
 
     if i in [0, 1, 2]:
@@ -73,7 +77,7 @@ for i in np.arange(np.max([len(E), len(delays)])):
     frame = frame/frame.max()
     frame_norms.append(np.max(frame.values))
     
-    im = frame.plot.imshow(ax = ax[i], vmin = -1, vmax = 1, cmap = cmap_plot, add_colorbar=False)
+    im = frame.plot.imshow(ax = ax[i], vmin = scale[0], vmax = scale[1], cmap = cmap_plot, add_colorbar=False)
     ax[i].set_aspect(1)
     ax[i].set_xlim(-2,2)
     ax[i].set_ylim(-2,2)
@@ -89,20 +93,24 @@ for i in np.arange(np.max([len(E), len(delays)])):
     ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 16)
 
     ax[i].set_title(f"$\Delta$t = {time_delay} fs", fontsize = 16)
+    ax[i].set_title(titles[i], fontsize = 16)
+
     ax[i].tick_params(axis='both', labelsize=14)
-    ax[i].text(-1.85, 1.45,  f"E = {energy:.2f} eV", size=12)
+    ax[i].text(-1.85, 1.55,  f"E = {energy:.2f} eV", size=12)
+    ax[i].text(-1.85, -1.85,  'T = 120 K', size=12)
+
 #    ax[i].set_ylabel("")  # Removes the y-axis label
 
 #ax[0].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 #ax[3].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
 
-cbar_ax = fig.add_axes([1, 0.36, 0.025, 0.35])
+cbar_ax = fig.add_axes([1, 0.33, 0.025, 0.35])
 cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
 
-# fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
+fig.text(.03, 0.75, "(a)", fontsize = 18, fontweight = 'regular')
 # fig.text(.03, 0.5, "(d)", fontsize = 18, fontweight = 'regular')
-# fig.text(.36, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
+fig.text(.525, 0.75, "(b)", fontsize = 18, fontweight = 'regular')
 # fig.text(.36, 0.5, "(e)", fontsize = 18, fontweight = 'regular')
 # fig.text(.69, 0.975, "(c)", fontsize = 18, fontweight = 'regular')
 # fig.text(.69, 0.5, "(f)", fontsize = 18, fontweight = 'regular')
@@ -372,4 +380,4 @@ if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
 
 #%%
-
+    
