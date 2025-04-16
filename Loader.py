@@ -11,13 +11,15 @@ import numpy as np
 import xarray as xr
 
 class DataLoader:
-    def __init__(self, filename):
+    def __init__(self, filename, offsets):
         self.filename = filename
         self.data = None
         self.ax_kx = None
         self.ax_ky = None
         self.ax_E = None
         self.ax_ADC = None
+        self.offsets = offsets
+        
     
     def load(self):
         with h5py.File(self.filename, 'r') as f:
@@ -63,8 +65,12 @@ class DataLoader:
             
             if i_data.ndim > 3:
                 res = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+                res = res.assign_coords(E=(res.E-self.offsets[0]))
+                res = res.assign_coords(delay=(res.delay-self.offsets[1]))
+
             elif i_data.ndim < 4:
                 res = xr.DataArray(i_data, dims = ("kx", "ky", "E"), coords = [self.ax_kx, self.ax_ky, self.ax_E])
+                res = res.assign_coords(E=(res.E-self.offsets[0]))
             
             return res
             #return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC

@@ -43,21 +43,32 @@ def get_data_chunks(I, neg_times, t0, ax_delay_offset):
 # Function for Creating MM Constant Energy kx, ky slice 
 def get_momentum_map(I_res, E, E_int, delays, delay_int):
     # Momentum Maps at specified Energies and Delays
-        
-    frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
-                             
+    
+    if I_res.ndim > 3:    
+        frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
+    
+    else:
+        frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2)}].mean(dim=("E")).T
+
     return frame
 
 def get_kx_E_frame(I_res, ky, ky_int, delay, delay_int):
     
-    frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="ky").mean(dim="delay")
+    if I_res.ndim > 3:    
+        frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="ky").mean(dim="delay")
     
+    else:
+        frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
+
     return frame
 
 def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
 
-    frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="kx").mean(dim="delay")
-    
+    if I_res.ndim > 3:    
+        frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="kx").mean(dim="delay")
+    else:
+        frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
+
     return frame
 
 def get_waterfall(I_res, kx, kx_int, ky, ky_int):
@@ -82,6 +93,18 @@ def get_time_trace(I_res, E, E_int, k , k_int, norm_trace, subtract_neg, neg_del
         trace = trace/np.max(trace)
     
     return trace
+
+def get_edc(I_res, kx, ky, k_int, delay, delay_int):
+    
+    (kx_int, ky_int) = k_int
+    
+    if I_res.ndim > 3:    
+
+        edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+    else:
+        edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+
+    return edc
 
 def enhance_features(I_res, Ein, factor, norm):
     
