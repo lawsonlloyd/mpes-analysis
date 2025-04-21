@@ -36,18 +36,16 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
+data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
 
-#filename, offsets = 'Scan682_binned.h5', [0,0]
-#filename, offsets = 'Scan162_binned_100x100x200x150_CrSBr_RT_750fs_New_2.h5', [0.2, -90] # Axis Offsets: [Energy (eV), delay (fs)]
-#filename, offsets = 'Scan163_binned_100x100x200x150_CrSBr_120K_1000fs_rebinned_distCorrected_New_2.h5', [.0085, -127.3]
-#filename, offsets = 'Scan188_binned_100x100x200x155_CrSBr_120K_1000fs_rebinned_ChargeingCorrected_DistCorrected.h5', [-0.0608, -102]
-#filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
+filename, offsets = 'Scan062_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
+filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0]
+filename, offsets = 'Scan138_binned_200x200x300_CrSBr_Integrated_XUV_Pol.h5', [0,0]
+#filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
-filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+#filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
+#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
-#filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 
 #%% Load the data and axes information
 
@@ -56,8 +54,8 @@ data_loader = DataLoader(data_path + '//' + filename, offsets)
 I = data_loader.load()
 I_res = I/np.max(I)
 
-I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
-I_diff = I_diff/np.max(I_diff)
+#I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
+#I_diff = I_diff/np.max(I_diff)
 
 #%% This sets the plots to plot in the IDE window
 
@@ -114,14 +112,19 @@ save_figure = False
 
 a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
-x, y = -2*X, 0*Y
+x, y = -2*X, 0
 
 (kx, ky), k_int = (x, y), 0.1
-edc_gamma = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2)}].sum(dim=("kx","ky"))
+delay, delay_int = 0, 1000
+
+edc_gamma = mpes.get_edc(I_res, kx, ky, (k_int, k_int), delay, delay_int)
 edc_gamma = edc_gamma/np.max(edc_gamma)
 
 E_MM = 0
-im = I_res.loc[{"E":slice(E_MM-0.05,E_MM+0.05), "delay":slice(-300,-100)}].mean(dim=("E","delay")).T.plot.imshow(ax = ax[0], cmap = cmap_LTL, add_colorbar = False)
+frame_mm = mpes.get_momentum_map(I_res, E_MM, 0.2, delays, delay_int)
+frame_mm = frame_mm / np.max(frame_mm)
+im = frame_mm.plot.imshow(ax = ax[0], vmin = scale[0], vmax = scale[1], cmap = cmap_plot, add_colorbar=False)
+
 # cbar_ax = fig.add_axes([.51, 0.275, 0.025, 0.5])
 cbar = fig.colorbar(im, ax = ax[0], ticks = [0,1])
 cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
@@ -144,7 +147,7 @@ colors = ['black']
 n = len(pts)
 colors = mpl.cm.inferno(np.linspace(0,.8,n))
                     
-edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(-120-20,-120+20)}].mean(dim=("kx","ky","delay"))
+edc = mpes.get_edc(I_res, kx, ky, (k_int, k_int), delay, delay_int)
 edc = edc/np.max(edc)
     
 e = edc.plot(ax = ax[1], color = 'k', label = f"{pts[0]} fs")

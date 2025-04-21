@@ -25,7 +25,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -718,7 +718,7 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
-#%% #Independent Fitting EX and CBM Signals to BiExponentials
+#%% #Independent Fitting EX and CBM Signals to Bi-Exponentials
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -786,7 +786,7 @@ for s in range(len(scans)):
     
     ### Extract time traces ###
     E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
-    delay_limit = [-200, 3050]
+    delay_limit = [-300, 3050]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
     # EXCITON
@@ -808,8 +808,8 @@ for s in range(len(scans)):
     init_guess_conduction = [6, 200, .5, 300, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
     
     # Bounds for fitting
-    bnds_exciton = [ [0,0,0,0], [2,1000,2,25000] ]
-    bnds_cbm =  [[0,0,0,0,0], [6, 1000, 10, 1000, 20000] ]
+    bnds_exciton = [ [0,0,0,0], [2,1000,2,30000] ]
+    bnds_cbm =  [[0,0,0,0,0], [6, 1000, 10, 2000, 30000] ]
     
     # Fit noisy exciton data
     popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
@@ -920,7 +920,6 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
-#%%
 #%% Fit EXCITON AND CBM Traces together
 
 import numpy as np
@@ -1059,7 +1058,7 @@ for s in range(len(scans)):
 fig.tight_layout()
 plt.show()
 
-#%%
+#%% Plot Fit Results: Combined
 
 # Plot results
 fig, ax = plt.subplots(2, 2, figsize=(8,6), sharex=False)
@@ -1110,3 +1109,59 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
+#%% Fit 400 nm hc Relaxtion
+
+scan = 9525
+res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
+
+res_neg = res.loc[{'Delay':slice(-1000,-300)}]
+
+res_diff = res - res_neg.mean(axis=2)
+res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
+res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
+res_diff_sum_Angle = phoibos.enhance_features(res_diff_sum_Angle, .8, _ , True)
+
+E_int = 0.05
+d1, d2 = -100, 500
+e1, e2 = 1.8, 3.075
+trace_max = np.zeros((res.Energy.loc[{"Energy":slice(e1,e2)}].values.shape))
+ei = 0
+for e in res.Energy.loc[{"Energy":slice(e1,e2)}].values:
+    
+    trace = res_diff_sum_Angle.loc[{"Energy":slice(e-E_int/2, e+E_int/2)}].mean(dim="Energy")
+    trace = trace / np.max(trace)
+    
+    p0 = [.9, 10, 100, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, -100, 0.0, 0), (1.5, 600, 300, .5))
+
+    popt, pcov = curve_fit(gaussian, trace.Delay.loc[{"Delay":slice(d1,d2)}].values, trace.loc[{"Delay":slice(d1,d2)}].values, p0, method=None, bounds = bnds)
+
+    tmax_i = (trace-np.max(trace)).argmax()   
+    trace_max[ei] = res.Delay.values[tmax_i]
+    
+    trace_max[ei] = popt[1]
+
+    ei += 1
+    
+plt.figure()
+plt.plot(trace_max, res.Energy.loc[{"Energy":slice(e1,e2)}].values)
+    
+# peak_centers = np.zeros((res.Delay.loc[{"Delay":slice(-10,500)}].values.shape))
+# di = 0    
+# for d in res.Delay.loc[{"Delay":slice(-10,500)}].values:
+
+#     edc = res_diff_sum_Angle.loc[{"Delay":slice(d-50/2, d+50/2)}].mean(dim="Delay")
+#     edc = edc/np.max(edc.loc[{"Energy":slice(1,3)}])
+#     e1 = 1.8
+#     e2 = 3
+    
+#     p0 = [.9, 2, .12, 0] # Fitting params initial guess [amp, center, width, offset]
+#     bnds = ((0.5, 1.9, 0.0, 0), (1.5, 3, 1, .5))
+#     popt, pcov = curve_fit(gaussian, edc.Energy.loc[{"Energy":slice(e1,e2)}].values, edc.Energy.loc[{"Energy":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+
+#     peak_centers[di] = popt[1]
+    
+#     di += 1
+    
+# plt.figure()
+# plt.plot(res.Delay.loc[{"Delay":slice(-10,500)}].values, peak_centers)    
