@@ -6,6 +6,18 @@ Created on Mon Apr 21 14:52:43 2025
 @author: lawsonlloyd
 """
 
+#%% Load Data Scan Info
+
+filename = '2024 Bulk CrSBr Phoibos.csv'
+
+scan_info = {}
+data_path = 'R:\Lawson\Data\phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+
+energy_offset, delay_offset, force_offset = 19.62,  0, False
+
+scan_info = phoibos.get_scan_info(data_path, filename, {})
+
 #%% Define Exponential Fitting Functions
 
 import numpy as np
@@ -50,7 +62,8 @@ def exciton_model(t, A, tau1):
     return convolved_signal(t, monoexp, sigma_IRF, A, tau1)  # IRF is fixed
 
 def cbm_model(t, C, tau_rise, tau_decay1):
-    return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
+    conv = convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
+    return conv[2:-2]
 
 ########
 
@@ -385,46 +398,22 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
-#%% Fit EXCITON AND CBM Traces Simultaneously (Shared Exp.)
-
-# Define the monoexponential decay function (Exciton)
-def monoexp(t, A, tau):
-    return A * np.exp(-t / tau) * (t >= 0)  # Ensure decay starts at t=0
-
-# Define the biexponnential decay function (Exciton)    
-def biexp(t, A, tau1, B, tau2):
-    return ( A * np.exp(-t / tau1) + B * np.exp(-t / tau2))  * (t >= 0)  # Ensure decay starts at t=0
-
-# Define the conduction band model: exponential rise + decay
-def exp_rise_decay(t, C, tau_rise, D, tau_decay1, tau_decay2):
-    return C * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
-
-# Define the Instrumental Response Function (IRF) as a Gaussian
-def IRF(t, sigma_IRF):
-    return np.exp(-t**2 / (2 * sigma_IRF**2)) / (sigma_IRF * np.sqrt(2 * np.pi))
-
-# Convolution of the signal with the IRF
-def convolved_signal(t, signal_function, sigma_IRF, *params):
-    dt = np.mean(np.diff(t))  # Time step
-    signal = signal_function(t, *params)  # Compute signal
-    irf = IRF(t - t[len(t)//2], sigma_IRF)  # Shift IRF to center
-    irf /= np.sum(irf) * dt  # Normalize IRF
-    convolved = fftconvolve(signal, irf, mode='same') * dt  # Convolve with IRF
-    return convolved
+#%% Fit EXCITON AND CBM Traces Simultaneously (Shared BiExp.)
 
 # Fitting functions (excluding IRF from fit)
 def exciton_model(t, A, tau1, B, tau2):
     return convolved_signal(t, biexp, sigma_IRF, A, tau1, B, tau2)  # IRF is fixed
 
 def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
-    return convolved_signal(t, exp_rise_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
+    return convolved_signal(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
 
 def combined_model(t, A, tau1, B, tau2, C, tau_rise, D):
     exciton = exciton_model(t, A, tau1, B, tau2)
     cb = cbm_model(t, C, tau_rise, D, tau1, tau2)
     return np.concatenate((exciton, cb))  # Stack both signals
 
-sigma_IRF = 80   # Fixed IRF width (fs)
+fwhm_IRF = 80
+sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
 
 #####
 
@@ -569,19 +558,41 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
-#%%
+#%% Do Explicit EEA Modelm for Excitons
+
+# Define the eea decay function (Exciton)    
+def eea_exp(t, N_0, gamma):
+    tau1 = 20000
+    return  ( (N_0 * np.exp(-t/tau1) ) / \
+             (1 + gamma * tau1 * N_0 * (1 - np.exp(-t/tau1))) ) * (t >= 0) # Ensure decay starts at t=0
+
+def exciton_model(t, N_0, gamma):
+    return convolved_signal(t, eea_exp, sigma_IRF, N_0, gamma)  # IRF is fixed
+
+########
+
 # Initialize figure
-fig, ax = plt.subplots(1, 2, figsize=(10, 6))
-plt.gcf().set_dpi(300)
+fig, ax = plt.subplots(6, 2, figsize=(12, 16))
 ax = ax.flatten()
 
 # Load Data
-scans = [9526]
+E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+power = [8.3, 20.9, 41.7, 65.6, 83.2, 104.7]
+fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
 
-popt_ex, popt_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
-perr_ex, perr_cbm = np.zeros((len(scans),4)), np.zeros((len(scans),5))
+# Load Data
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
+trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
+power = [500*0.01*t for t in trans_percent]
 
-sigma_IRF = 100   # Fixed IRF width (fs)
+
+#scans = [9241, 9237, 9240]
+popt_ex, popt_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),5))
+perr_ex, perr_cbm = np.zeros((len(scans),2)), np.zeros((len(scans),5))
+
+fwhm_IRF = 80
+sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
 
 for s in range(len(scans)):
 
@@ -589,10 +600,7 @@ for s in range(len(scans)):
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
-    E, E_int = [1.37, 2.125], 0.1
-    E, E_int = [2.125, 1.37], 0.1
-
-    delay_limit = [-300, 3050]
+    delay_limit = [-300, 2000]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
     # EXCITON
@@ -606,16 +614,149 @@ for s in range(len(scans)):
     trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-200)}].mean()
     trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
     
+    trace_1 = 1e13 * fluence[s]*trace_1/norm_factor
+    trace_2 = trace_2/norm_factor
+    
+    # Initial guesses for fitting
+    init_guess_exciton = [1e13* fluence[s], 0.05 * 1e-15]  # N0, tau1, eea
+    #init_guess_conduction = [6, 200, .5, 300, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
+    
+    # Bounds for fitting
+    bnds_exciton = [ [1e12,0], [1e14, 1e-16 ] ]
+    #bnds_cbm =  [[0,0,0,0,0], [6, 1000, 10, 2000, 30000] ]
+    
+    # Fit noisy exciton data
+    popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
+    perr_exciton = np.sqrt(np.diag(pcov))
+
+    # Fit noisy conduction band data
+    #popt_conduction, pcov = curve_fit(cbm_model, delay_axis, trace_2, p0=init_guess_conduction, bounds = bnds_cbm)
+    #perr_conduction = np.sqrt(np.diag(pcov))
+
+    # Save Parameters
+    popt_ex[s,:] = popt_exciton
+    #popt_cbm[s,:] = popt_conduction
+    
+    perr_ex[s,:] = perr_exciton
+    #perr_cbm[s,:] = perr_conduction
+
+    # Generate fitted curves
+    exciton_fitted = exciton_model(t, *popt_exciton)
+    #conduction_fitted = cbm_model(t, *popt_conduction)
+    
+    # Print best-fit parameters
+    print("Exciton Fit Parameters:")
+    print(f"N0 = {popt_exciton[0]:.3f}, tau_EEA = {popt_exciton[1]:.3f} fs")
+    
+    #print("\nConduction Band Fit Parameters:")
+    #print(f"tau_rise = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, tau1 = {popt_conduction[3]:.1f} fs, D = {popt_conduction[2]:.1f}, tau2 = {popt_conduction[4]:.1f} fs")
+    
+    ### Plot results ###
+    
+    # Exciton decay plot
+    ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
+    #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
+    ax[2*s].plot(t, exciton_fitted, label=f"tau_EEA = {popt_exciton[1]:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    ax[2*s].set_xlabel('Time (fs)')
+    ax[2*s].set_ylabel('Norm. Int., a.u.')
+    ax[2*s].set_title('Exciton')
+    ax[2*s].set_xlim(-250,3000)
+    ax[2*s].legend(frameon=False)
+    
+    # # Conduction band rise + decay plot
+    # ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
+    # #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
+    # ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {popt_conduction[1]:.0f} fs, tau_1 = {popt_conduction[3]:.0f} fs, tau_2 = {popt_conduction[4]:.0f} fs", color='red', linestyle='solid')
+    # ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    # ax[2*s+1].set_xlabel('Time (fs)')
+    # ax[2*s+1].set_ylabel('Norm. Int., a.u.')
+    # ax[2*s+1].set_title('CBM')
+    # ax[2*s+1].set_xlim(-250,3000)
+    # ax[2*s+1].legend(frameon=False)
+
+fig.tight_layout()
+plt.show()
+
+#%% Plot EEA Fits
+
+plt.figure()
+plt.errorbar(fluence, 1e15*popt_ex[:,1], yerr = 1e15*perr_ex[:,1], marker = 'o', color = 'k')
+#plt.plot(fluence, popt_ex[:,1], 'o', color = 'black')
+plt.ylim(0,5000)
+plt.xlabel(fr'$n_{{eh}}$, $ \times \: 10^{{13}} \: cm^{{-2}}$')
+plt.ylabel('EEA Time Constant, fs $cm^{{-2}}$')
+plt.ylabel('EEA Rate Constant, $cm^{{2}} \: s$')
+plt.ylim(0,0.1)
+
+eea = np.mean(popt_ex[0:,1])*1e15
+eea_err = 1e15*np.std(popt_ex[0:,1])/np.sqrt(len(scans))
+plt.title(f'tau_EEA = {eea:.3f} $\pm$ {eea_err:.3f} $cm^{2}$ / s')
+
+print(f'{(2e13*1e-15/eea):.5f}')
+#%% Fit 400 nm Excitation Results
+
+def exciton_model(t, C, tau_rise, tau_decay1):
+    return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
+
+def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
+    return convolved_signal(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
+
+# Load Data
+scans = [9517, 9137, 9526]
+E, E_int = [1.37, 2.125], 0.1
+
+fwhm_IRF = 100
+sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+
+popt_ex, popt_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
+perr_ex, perr_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
+
+# Initialize figure
+fig, ax = plt.subplots(3, 2, figsize=(10, 8))
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+for s in range(len(scans)):
+
+    res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
+    
+    ### Extract time traces ###
+    #E, E_int = [1.37, 2.125], 0.1
+    if s == 0:    
+        delay_limit = [-250, 3000]
+        
+    elif s == 1:
+        E, E_int = [1.32, 1.95], 0.1
+
+    else:
+        E, E_int = [1.37, 2.125], 0.1
+        delay_limit = [-225, 3000]
+
+    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
+    
+    # EXCITON
+    trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
+    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-250)}].mean()
+    trace_1 = trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    norm_factor = np.max(trace_1)
+    
+    # CBM
+    trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[1]-E_int/2, E[1]+E_int/2)}].sum(axis=(0,1))
+    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-250)}].mean()
+    trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    norm_factor = np.max(trace_2)
+
     trace_1 = trace_1/norm_factor
     trace_2 = trace_2/norm_factor
     
     # Initial guesses for fitting
-    init_guess_exciton = [0.8, 100, 0.2, 1000]  # A, tau1, B, tau2
-    init_guess_conduction = [6, 200, .5, 300, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
+    init_guess_exciton = [0.8, 100, 1000]  # A, taurise, tau2
+    init_guess_conduction = [1, 250, .5, 400, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
     
     # Bounds for fitting
-    bnds_exciton = [ [0,0,0,0], [2,1000,2,30000] ]
-    bnds_cbm =  [[0,0,0,0,0], [10, 3500, 10, 3000, 30000] ]
+    bnds_exciton = [ [0,0,0], [2,2000,30000] ]
+    bnds_cbm =  [[0,0,0,0,0], [3, 1000, 3, 3000, 30000] ]
     
     # Fit noisy exciton data
     popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
@@ -640,38 +781,39 @@ for s in range(len(scans)):
     
     # Print best-fit parameters
     print("Exciton Fit Parameters:")
-    print(f"A = {popt_exciton[0]:.3f}, tau1 = {popt_exciton[1]:.1f} fs, B = {popt_exciton[2]:.3f}, tau2 = {popt_exciton[3]:.1f} fs")
+    print(fr"A = {popt_exciton[0]:.3f}, taurise = {popt_exciton[1]:.1f} fs, tau_decay = {popt_exciton[2]:.1f} fs")
     
     print("\nConduction Band Fit Parameters:")
-    print(f"tau_rise = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, D = {popt_conduction[2]:.1f}, tau1 = {popt_conduction[3]:.1f} fs, tau2 = {popt_conduction[4]:.1f} fs")
-    
+    print(fr"$\tau_{{r}}$ = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, D = {popt_conduction[2]:.1f}, $\tau_{1}$ = {popt_conduction[3]:.1f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps")
+    print("")
     ### Plot results ###
     
     # Exciton decay plot
     ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
     #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
-    ax[2*s].plot(t, exciton_fitted, label=f"tau_1 = {popt_exciton[1]:.0f} fs, tau_2 = {popt_exciton[3]:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].plot(t, exciton_fitted, label=fr"$\tau_{{r}}$ = {popt_exciton[1]:.0f} fs, $\tau_{2}$ = {popt_exciton[2]/1000:.1f} ps", color='grey', linestyle='solid')
     ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s].set_xlabel('Time (fs)')
     ax[2*s].set_ylabel('Norm. Int., a.u.')
     ax[2*s].set_title('Exciton')
     ax[2*s].set_xlim(-250,3000)
-    ax[2*s].legend(frameon=False)
+    ax[2*s].legend(frameon=False, fontsize = 12)
     
     # Conduction band rise + decay plot
     ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
     #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
-    ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {popt_conduction[1]:.0f} fs, tau_1 = {popt_conduction[3]:.0f} fs, tau_2 = {popt_conduction[4]:.0f} fs", color='red', linestyle='solid')
+    ax[2*s+1].plot(t, conduction_fitted, label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.0f} fs, $\tau_{1}$ = {popt_conduction[3]:.0f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps", color='red', linestyle='solid')
     ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s+1].set_xlabel('Time (fs)')
     ax[2*s+1].set_ylabel('Norm. Int., a.u.')
     ax[2*s+1].set_title('CBM')
-    ax[2*s+1].set_xlim(-250,3000)
- #   ax[2*s+1].legend(frameon=False)
+    ax[2*s+1].set_xlim(-200,3000)
+    ax[2*s+1].legend(frameon=False, fontsize = 12)
 
 fig.tight_layout()
 plt.show()
-#%% Fit 400 nm hc Relaxtion
+
+#%% Fit 400 nm hc Relaxation
 
 scan = 9525
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)

@@ -29,7 +29,9 @@ scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
 #data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-scan = 9517
+scans = [9517, 9137, 9526]
+
+scan = 9137
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
@@ -72,6 +74,7 @@ def objective(params, x, data):
 
 E, E_int = [1.325, 2.075], 0.1
 E, E_int = [1.37, 2.125], 0.1
+E, E_int = [1.32, 1.95], 0.1
 
 k, k_int = 0, 20
 d1, d2 = -1000, -400
@@ -166,7 +169,8 @@ plt.xlim(-1,2)
 
 #%% Define t0 from Exciton Rise
 
-E, E_int = 2.1, 0.1
+#E, E_int = [1.37, 2.125], 0.1
+E, E_int = 1.95, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True

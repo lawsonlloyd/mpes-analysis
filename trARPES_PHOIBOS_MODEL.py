@@ -26,7 +26,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -112,8 +112,9 @@ for scan_i in scans:
 def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
     
     #G = np.exp(-(t-t_0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
-    G = np.exp(-(t-0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
-    f0 = 1
+    sigma = fwhm / 2.355
+    G = np.exp(-(t-0)**2/(2 * sigma**2)) / (sigma * np.sqrt(2*np.pi))
+    f0 = 8
     h0 = 20
     
     #f0 = 1e-10
@@ -121,8 +122,11 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
     
     #EEA Auger Model
     Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1]**2)/tau_ex_f
+    #Nex_prime = F*(fi/f0)*G - (N[0]**2)*(1/np.sqrt(1)) /(tau_EEA) #+ (N[1]**2)/tau_ex_f
 
     Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
+#    Ncb_prime = 0.5 * (N[0]**2)/(tau_EEA)
+
     #Ncb_prime = -N[1]**2/tau_ex_f + N[2]/(tau_hc) + N[0]**2/tau_EEA
 
     #Ncb_prime = H*G - N[1]**2/tau_ex_f + 0.5*N[0]**2/tau_EEA # + N[2]/tau_hc
@@ -134,23 +138,24 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 
 %matplotlib inline
 
-tau_ex_r = 50000000
-tau_EEA = 5000
-tau_ex_f = 50000000000
-tau_hc = 5000000
+tau_ex_r = 20000
+tau_EEA = 1000
+tau_ex_f = 200
+tau_hc = 50
 t_0 = 0
 fwhm = 50
 F = 1
 H = 0
-fi = 5e13
+fi = 5
+t_axis = np.linspace(-200, 3000, 300)
 
 params = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc)
 N0 = [0, 0, 0]
 #res = solve_ivp(fit_Excitons_and_CB_400nm, t_span=(-300, delay_limit[1]), t_eval=np.linspace(-300,  delay_limit[1], int((delay_limit[1]+300)/50)) , y0=N0, args = params)
-res_ALL_2 = solve_ivp(global_fit_Excitons_and_CB_ALL_WL, t_span=(-200, 3000), t_eval=np.linspace(-200, 3000, 100), y0=N0, args = params)
-
+res_ALL_2 = solve_ivp(global_fit_Excitons_and_CB_ALL_WL, t_span=(t_axis[0], t_axis[-1]), t_eval=t_axis, y0=N0, args = params)
 
 plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
+plt.axhline(0.5, linestyle = 'dashed', color = 'grey')
 #plt.plot(res_ALL_2.t, res_ALL_2.y.T, label = ('X', 'CB', 'hc'))
 
 plt.legend(frameon=False)
@@ -231,18 +236,18 @@ def objective_GLOBAL(params, delay_axes, data):
 
 %matplotlib inline
 
-t_values = np.arange(-500,3100,20)
+t_values = np.arange(-500,3100,10)
 
 tau_ex_r = 15000
-tau_EEA = 10000
-tau_ex_f = 150 #40
-tau_hc = 150 #258
+tau_EEA = 6500
+tau_ex_f = 250 #40
+tau_hc = 200 #258
 fwhm = 80
 F = 1
 H = 1
 
 a = [.9, .92, .94, .99, .93, .90, 0.88, .95, \
-     .1, .15, .2]
+     .15, .225, .25]
 b = [2.4, 2.5, 2.83, 3.91, 5, 5.1, 4.8, 6.4, \
      1, 1, 1]
     
@@ -260,8 +265,6 @@ for i in range(10+1):
 for i in range(10+1):
     params_GLOBAL.update({str("b"+str(i)): b[i]})
 
-#for i in range(10+1):
-#    params_GLOBAL.update({str("t0"+str(i)): t_0[i]})
     
 params_GLOBAL.update({"F": F, "H": H, "fwhm": fwhm, "tau_ex_r":tau_ex_r, "tau_EEA":tau_EEA, "tau_ex_f":tau_ex_f, "tau_hc":tau_hc})
     
