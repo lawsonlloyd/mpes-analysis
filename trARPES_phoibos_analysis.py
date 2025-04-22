@@ -241,11 +241,11 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
 
-#%% Plot Neg, Pos, and Difference Panels
+#%% Plot Neg, Pos, and Difference Angle-Energy Panels
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'ARPRES_Panels_diff'
 image_format = 'pdf'
 
@@ -307,8 +307,8 @@ if save_figure is True:
 
 #%% waterfall difference Panel
 
-save_figure = True
-figure_file_name = 'WaterFallDifference'
+save_figure = False
+figure_file_name = 'WaterFallDifference_phoibos'
 image_format = 'pdf'
 
 #E, E_int = [1.3, 2.0], 0.1
@@ -332,7 +332,7 @@ res_pos_mean = res_pos.mean(axis=2)
 
 #res_diff_E_Ang = res_pos_mean - res_neg_mean
 
-res_diff_E_Ang = res.loc[{'Delay':slice(delays[0],delays[1])}].mean(axis=2) - res_neg_mean
+res_diff_E_Ang = res_pos_mean - res_neg_mean
 #res_diff_E_Ang = res.loc[{'Delay':slice(-100,0)}].mean(axis=2) - res_neg_mean
 #res_diff_E_Ang = res.loc[{'Delay':slice(250,350)}].mean(axis=2) - res_neg_mean
 

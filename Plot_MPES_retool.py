@@ -44,7 +44,7 @@ filename, offsets = 'Scan138_binned_200x200x300_CrSBr_Integrated_XUV_Pol.h5', [0
 #filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
 #filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 
 #%% Load the data and axes information
@@ -54,8 +54,8 @@ data_loader = DataLoader(data_path + '//' + filename, offsets)
 I = data_loader.load()
 I_res = I/np.max(I)
 
-#I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
-#I_diff = I_diff/np.max(I_diff)
+I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
+I_diff = I_diff/np.max(I_diff)
 
 #%% This sets the plots to plot in the IDE window
 
@@ -1158,10 +1158,10 @@ if save_figure is True:
 
 #%% Extract k-Dispersion and Eb momentum-depenence
 
-save_figure = False
-figure_file_name = 'eb-dispersion'
+save_figure = True
+figure_file_name = 'eb-dispersion_120k'
 image_format = 'pdf'
-cmap_plot = cmap_LTL 
+cmap_plot = cmap_LTL2
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0.0, 0.0), (0.2, 0.2) # Central (kx, ky) point and k-integration
@@ -1170,9 +1170,13 @@ subtract_neg  = True
 
 if subtract_neg is True:
     I_ = I_diff
+    cmap_plot = cmap_LTL2
+    scale = [-1, 1]
+
 else:
     I_ = I_res
-
+    scale = [0, 1]
+    
 kx_frame = mpes.get_kx_E_frame(I_, ky, ky_int, delay, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
@@ -1233,7 +1237,7 @@ Eb = round(popt[3] - popt[2],3)
 Eb_err = np.sqrt(perr[3]**2+perr[2]**2) 
 print(f'The kx mean is {np.nanmean(1000*eb_kx)} +- {1000*np.nanstd(eb_kx)}')
 
-im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
+im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
 #ax[0].set_aspect(1)
 
 ax[0].set_xticks(np.arange(-2,2.2,1))
