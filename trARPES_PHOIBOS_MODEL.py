@@ -113,7 +113,7 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
     
     #G = np.exp(-(t-t_0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
     sigma = fwhm / 2.355
-    G = np.exp(-(t-0)**2/(2 * sigma**2)) / (sigma * np.sqrt(2*np.pi))
+    G = np.exp(-0.5*(t-0)**2/(sigma**2)) / (sigma * np.sqrt(2*np.pi))
     f0 = 8
     h0 = 20
     
@@ -124,7 +124,7 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
     Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1]**2)/tau_ex_f
     #Nex_prime = F*(fi/f0)*G - (N[0]**2)*(1/np.sqrt(1)) /(tau_EEA) #+ (N[1]**2)/tau_ex_f
 
-    Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
+    Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.25*(N[0]**2)/(tau_EEA)
 #    Ncb_prime = 0.5 * (N[0]**2)/(tau_EEA)
 
     #Ncb_prime = -N[1]**2/tau_ex_f + N[2]/(tau_hc) + N[0]**2/tau_EEA
@@ -138,15 +138,15 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 
 %matplotlib inline
 
-tau_ex_r = 20000
-tau_EEA = 1000
-tau_ex_f = 200
-tau_hc = 50
+tau_ex_r = 2000000
+tau_EEA = 250
+tau_ex_f = 200000
+tau_hc = 50000
 t_0 = 0
 fwhm = 50
-F = 1
+F = 100
 H = 0
-fi = 5
+fi = 1
 t_axis = np.linspace(-200, 3000, 300)
 
 params = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc)
