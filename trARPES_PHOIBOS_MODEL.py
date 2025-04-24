@@ -351,7 +351,7 @@ for i in range(10+1):
 #    fit_params.add(str("b"+str(i)), value=b[i], min=0.2, max=10, vary=False)
     
 fit_params.add("F", value=F, min=0.01, max=10, vary=False)
-fit_params.add("H", value=H, min=0.01, max=10, vary=True)
+fit_params.add("H", value=H, min=0.01, max=10, vary=False)
 fit_params.add("fwhm", value=fwhm, min=10, max=120, vary=False)
 
 fit_params.add("tau_ex_r", value=tau_ex_r, min=10, max=30000, vary=False)
