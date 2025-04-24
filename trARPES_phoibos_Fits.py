@@ -11,12 +11,14 @@ Created on Mon Apr 21 14:52:43 2025
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
+data_path_info = 'R:\Lawson\mpes-analysis'
 data_path = 'R:\Lawson\Data\phoibos'
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
-scan_info = phoibos.get_scan_info(data_path, filename, {})
+scan_info = phoibos.get_scan_info(data_path_info, filename, {})
 
 #%% Define Exponential Fitting Functions
 
