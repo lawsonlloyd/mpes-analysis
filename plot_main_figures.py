@@ -25,9 +25,10 @@ import mpes
 
 E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 E, E_int = [0, 1.4, 2.2], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-E, E_int = [0, 1.25, 2.05], 0.2
-E, E_int = [1.33, 2.14], 0.2
+E, E_int = [1.25, 2.05], 0.2
+#E, E_int = [1.33, 2.14], 0.2
 titles = ['Exciton', 'CBM']
+temp = 300 
 
 delays, delay_int = [500, 500], 1000 #Integration range for delays
 
@@ -35,9 +36,9 @@ delays, delay_int = [500, 500], 1000 #Integration range for delays
 
 %matplotlib inline
 
-figure_file_name = f'MMs_120K_posdelays' 
+figure_file_name = f'MMs_RT_posdelays' 
 save_figure = True
-image_format = 'svg'
+image_format = 'pdf'
 
 #cmap_plot = viridis_white
 I_frame, cmap_plot, scale = I_diff, cmap_LTL2, [-1, 1]
@@ -97,7 +98,7 @@ for i in np.arange(np.max([len(E), len(delays)])):
 
     ax[i].tick_params(axis='both', labelsize=14)
     ax[i].text(-1.85, 1.55,  f"E = {energy:.2f} eV", size=12)
-    ax[i].text(-1.85, -1.85,  'T = 120 K', size=12)
+    ax[i].text(-1.85, -1.85,  f'T = {temp} K', size=12)
 
 #    ax[i].set_ylabel("")  # Removes the y-axis label
 

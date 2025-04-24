@@ -12,7 +12,7 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -62,8 +62,7 @@ def exciton_model(t, A, tau1):
     return convolved_signal(t, monoexp, sigma_IRF, A, tau1)  # IRF is fixed
 
 def cbm_model(t, C, tau_rise, tau_decay1):
-    conv = convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
-    return conv[2:-2]
+    return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
 
 ########
 
@@ -108,7 +107,7 @@ for s in range(len(scans)):
     
     # Initial guesses for fitting
     init_guess_exciton = [0.8, 100]  # A, tau1
-    init_guess_conduction = [2, 1500, 5000]  # C, tau_rise, tau_decay
+    init_guess_conduction = [2, 200, 2]  # C, tau_rise, tau_decay
     
     # Bounds for fitting
     bnds_exciton = [ [0,0], [2,15000] ]
@@ -146,7 +145,7 @@ for s in range(len(scans)):
     # Exciton decay plot
     ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
     #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
-    ax[2*s].plot(t, exciton_fitted, label=f"tau_1 = {popt_exciton[1]:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].plot(t, exciton_fitted, label=fr"$\tau_{1}$ = {popt_exciton[1]/1000:.1f} ps", color='grey', linestyle='solid')
     ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s].set_xlabel('Time (fs)')
     ax[2*s].set_ylabel('Norm. Int., a.u.')
@@ -159,7 +158,7 @@ for s in range(len(scans)):
     # Conduction band rise + decay plot
     ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
     #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
-    ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {popt_conduction[1]:.0f} fs, tau_1 = {popt_conduction[2]:.0f} fs", color='red', linestyle='solid')
+    ax[2*s+1].plot(t, conduction_fitted, label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.1f} fs, $\tau_{1}$ = {popt_conduction[2]/1000:.1f} ps", color='red', linestyle='solid')
     ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s+1].set_xlabel('Time (fs)')
     ax[2*s+1].set_ylabel('Norm. Int., a.u.')
@@ -264,7 +263,7 @@ for s in range(len(scans)):
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
-    delay_limit = [-300, 3050]
+    delay_limit = [-250, 3050]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
     # EXCITON
@@ -320,7 +319,7 @@ for s in range(len(scans)):
     # Exciton decay plot
     ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
     #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
-    ax[2*s].plot(t, exciton_fitted, label=f"tau_1 = {popt_exciton[1]:.0f} fs, tau_2 = {popt_exciton[3]:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].plot(t, exciton_fitted, label=fr"$\tau_{1}$ = {popt_exciton[1]:.0f} fs, $\tau_{2}$ = {popt_exciton[3]/1000:.1f} ps", color='grey', linestyle='solid')
     ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s].set_xlabel('Time (fs)')
     ax[2*s].set_ylabel('Norm. Int., a.u.')
@@ -331,7 +330,7 @@ for s in range(len(scans)):
     # Conduction band rise + decay plot
     ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
     #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
-    ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {popt_conduction[1]:.0f} fs, tau_1 = {popt_conduction[3]:.0f} fs, tau_2 = {popt_conduction[4]:.0f} fs", color='red', linestyle='solid')
+    ax[2*s+1].plot(t, conduction_fitted, label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.0f} fs, $\tau_{1}$ = {popt_conduction[3]:.0f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps", color='red', linestyle='solid')
     ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s+1].set_xlabel('Time (fs)')
     ax[2*s+1].set_ylabel('Norm. Int., a.u.')
@@ -440,7 +439,7 @@ for s in range(len(scans)):
     
     ### Extract time traces ###
     E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
-    delay_limit = [-200, 3050]
+    delay_limit = [-100, 3050]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
     # EXCITON
@@ -485,7 +484,7 @@ for s in range(len(scans)):
     # Exciton decay plot
     ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
     #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
-    ax[2*s].plot(t, exciton_fitted, label=f"tau_1 = {tau1:.0f} fs, tau_2 = {tau2:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].plot(t, exciton_fitted, label=fr"$\tau_{1}$ = {tau1:.0f} fs, $\tau_{2}$ = {tau2/1000:.1f} ps", color='grey', linestyle='solid')
     ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s].set_xlabel('Time (fs)')
     ax[2*s].set_ylabel('Norm. Int., a.u.')
@@ -496,7 +495,7 @@ for s in range(len(scans)):
     # Conduction band rise + decay plot
     ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
     #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
-    ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {tau_rise:.0f} fs, tau_1 = {tau1:.0f} fs, tau_2 = {tau2:.0f} fs", color='red', linestyle='solid')
+    ax[2*s+1].plot(t, conduction_fitted, label= fr"$\tau_{{r}}$ = {tau_rise:.0f} fs", color='red', linestyle='solid')
     ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
     ax[2*s+1].set_xlabel('Time (fs)')
     ax[2*s+1].set_ylabel('Norm. Int., a.u.')
@@ -558,7 +557,7 @@ ax[3].legend(frameon=False, fontsize = 8)
 
 fig.tight_layout()
 
-#%% Do Explicit EEA Modelm for Excitons
+#%% Do Explicit EEA Model for Excitons
 
 # Define the eea decay function (Exciton)    
 def eea_exp(t, N_0, gamma):
@@ -694,6 +693,127 @@ eea_err = 1e15*np.std(popt_ex[0:,1])/np.sqrt(len(scans))
 plt.title(f'tau_EEA = {eea:.3f} $\pm$ {eea_err:.3f} $cm^{2}$ / s')
 
 print(f'{(2e13*1e-15/eea):.5f}')
+
+#%% Do Explicit EEA Model for 1D Excitons
+
+# Define the eea decay function (Exciton)    
+def eea_1d(t, a):
+    return a*t # a*np.sqrt(t)
+
+def exciton_model(t, a):
+    return convolved_signal(t, eea_1d, sigma_IRF, a)  # IRF is fixed
+
+########
+
+# Initialize figure
+fig, ax = plt.subplots(6, 2, figsize=(12, 16))
+ax = ax.flatten()
+
+# Load Data
+E, Eint = [1.35, 2.1], 0.1 # center energies, half of full E integration range
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+power = [8.3, 20.9, 41.7, 65.6, 83.2, 104.7]
+fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
+
+# Load Data
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
+trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
+power = [500*0.01*t for t in trans_percent]
+
+#scans = [9241, 9237, 9240]
+popt_ex, popt_cbm = np.zeros((len(scans),1)), np.zeros((len(scans),5))
+perr_ex, perr_cbm = np.zeros((len(scans),1)), np.zeros((len(scans),5))
+
+fwhm_IRF = 80
+sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+
+for s in range(len(scans)):
+
+    res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
+    delay_axis = res.Delay.values
+    
+    ### Extract time traces ###
+    delay_limit = [0, 3000]
+    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
+    
+    # EXCITON
+    trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
+    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-200)}].mean()
+    trace_1 = trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    norm_factor = np.max(trace_1)
+    
+    # CBM
+    trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[1]-E_int/2, E[1]+E_int/2)}].sum(axis=(0,1))
+    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-200)}].mean()
+    trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    
+    trace_1 = fluence[s]*trace_1/norm_factor
+    trace_2 = trace_2/norm_factor
+    
+    #Invert
+    trace_1 = (fluence[s]/trace_1) - 1
+    
+    # Initial guesses for fitting
+    init_guess_exciton = [.1]  # a
+    #init_guess_conduction = [6, 200, .5, 300, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
+    
+    # Bounds for fitting
+    bnds_exciton = [0, 2 ]
+    #bnds_cbm =  [[0,0,0,0,0], [6, 1000, 10, 2000, 30000] ]
+    
+    # Fit noisy exciton data
+    popt_exciton, pcov = curve_fit(eea_1d, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
+    perr_exciton = np.sqrt(np.diag(pcov))
+
+    # Fit noisy conduction band data
+    #popt_conduction, pcov = curve_fit(cbm_model, delay_axis, trace_2, p0=init_guess_conduction, bounds = bnds_cbm)
+    #perr_conduction = np.sqrt(np.diag(pcov))
+
+    # Save Parameters
+    popt_ex[s,:] = popt_exciton
+    #popt_cbm[s,:] = popt_conduction
+    
+    perr_ex[s,:] = perr_exciton
+    #perr_cbm[s,:] = perr_conduction
+
+    # Generate fitted curves
+    exciton_fitted = eea_1d(t, *popt_exciton)
+    #conduction_fitted = cbm_model(t, *popt_conduction)
+    
+    # Print best-fit parameters
+    print("Exciton Fit Parameters:")
+    print(f"a = {popt_exciton[0]:.3f} fs")
+    
+    #print("\nConduction Band Fit Parameters:")
+    #print(f"tau_rise = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, tau1 = {popt_conduction[3]:.1f} fs, D = {popt_conduction[2]:.1f}, tau2 = {popt_conduction[4]:.1f} fs")
+    
+    ### Plot results ###
+    
+    # Exciton decay plot
+    ax[2*s].plot(delay_axis, trace_1, label='Data', color='black', alpha=1)
+    #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
+    ax[2*s].plot(t, exciton_fitted, label=f"a = {popt_exciton[0]:.0f} fs", color='grey', linestyle='solid')
+    ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    ax[2*s].set_xlabel('Time (fs)')
+    ax[2*s].set_ylabel('Norm. Int., a.u.')
+    ax[2*s].set_title('Exciton')
+    ax[2*s].set_xlim(0,3000)
+    ax[2*s].legend(frameon=False)
+    ax[2*s].set_ylim(0,np.max(trace_1))
+    # # Conduction band rise + decay plot
+    # ax[2*s+1].plot(delay_axis, trace_2, label='Data', color='maroon', alpha=1)
+    # #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
+    # ax[2*s+1].plot(t, conduction_fitted, label= f"tau_r = {popt_conduction[1]:.0f} fs, tau_1 = {popt_conduction[3]:.0f} fs, tau_2 = {popt_conduction[4]:.0f} fs", color='red', linestyle='solid')
+    # ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    # ax[2*s+1].set_xlabel('Time (fs)')
+    # ax[2*s+1].set_ylabel('Norm. Int., a.u.')
+    # ax[2*s+1].set_title('CBM')
+    # ax[2*s+1].set_xlim(-250,3000)
+    # ax[2*s+1].legend(frameon=False)
+
+fig.tight_layout()
+plt.show()
+
 #%% Fit 400 nm Excitation Results
 
 def exciton_model(t, C, tau_rise, tau_decay1):
@@ -704,6 +824,8 @@ def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
 
 # Load Data
 scans = [9517, 9137, 9526]
+scans = [9525, 9517,  9526] #20%, 36%, 45%
+
 E, E_int = [1.37, 2.125], 0.1
 
 fwhm_IRF = 100
@@ -723,18 +845,18 @@ for s in range(len(scans)):
     
     ### Extract time traces ###
     #E, E_int = [1.37, 2.125], 0.1
-    if s == 0:    
+    if s == 1:    
         delay_limit = [-250, 3000]
         
-    elif s == 1:
-        E, E_int = [1.32, 1.95], 0.1
-
+    #elif s == 1:
+     #   E, E_int = [1.32, 1.95], 0.1        
     else:
         E, E_int = [1.37, 2.125], 0.1
-        delay_limit = [-225, 3000]
-
-    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
+        delay_limit = [-200, 3000]
     
+    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
+    delay_axis = delay_axis + 50
+
     # EXCITON
     trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
     trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-250)}].mean()
@@ -755,8 +877,8 @@ for s in range(len(scans)):
     init_guess_conduction = [1, 250, .5, 400, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
     
     # Bounds for fitting
-    bnds_exciton = [ [0,0,0], [2,2000,30000] ]
-    bnds_cbm =  [[0,0,0,0,0], [3, 1000, 3, 3000, 30000] ]
+    bnds_exciton = [ [0,100,0], [2,2000,50000] ]
+    bnds_cbm =  [[0,40,0,0,0], [3, 1000, 3, 3000, 60000] ]
     
     # Fit noisy exciton data
     popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
@@ -812,6 +934,206 @@ for s in range(len(scans)):
 
 fig.tight_layout()
 plt.show()
+
+#%%
+#%% Fit Above-Gap Excitation Dynamics
+
+def exciton_model(t, C, tau_rise, tau_decay1):
+    return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
+
+def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
+    return convolved_signal(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
+
+# Load Data
+scans = [9370, 9400, 9410, 9517]
+ex_energies = [1.77, 1.823, 1.937, 3.1]
+colors = ['brown', 'red', 'purple', 'blue']
+
+E, E_int = [1.37, 2.125], 0.1
+
+fwhm_IRF = 100
+sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+
+popt_ex, popt_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
+perr_ex, perr_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
+
+# Initialize figure
+save_figure = True
+figure_file_name = 'abovegapexc_dyn'
+image_format = 'svg'
+
+fig, ax = plt.subplots(4, 2, figsize=(10, 10))
+plt.gcf().set_dpi(300)
+ax = ax.flatten()
+
+for s in range(len(scans)):
+
+    res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
+    
+    ### Extract time traces ###
+        
+    if s == 3:
+        fwhm_IRF = 100
+        E, E_int = [1.3, 2.05], 0.1
+
+    else:
+        fwhm_IRF = 80
+        E, E_int = [1.3, 2.], 0.1
+        delay_limit = [-100,3050]
+        
+    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
+ #   delay_axis = delay_axis - 240
+    # EXCITON
+    trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
+    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-250)}].mean()
+    trace_1 = trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    norm_factor = np.max(trace_1)
+    
+    # CBM
+    trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[1]-E_int/2, E[1]+E_int/2)}].sum(axis=(0,1))
+    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-250)}].mean()
+    trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    norm_factor = np.max(trace_2)
+
+    trace_1 = trace_1/norm_factor
+    trace_2 = trace_2/norm_factor
+    
+    # Initial guesses for fitting
+    init_guess_exciton = [0.8, 50, 2000]  # A, taurise, tau2
+    init_guess_conduction = [1, 250, .5, 400, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
+    
+    # Bounds for fitting
+    bnds_exciton = [ [0,0,0], [2,2000,50000] ]
+    bnds_cbm =  [[0,0,0,0,0], [3, 1000, 3, 3000, 60000] ]
+    
+    # Fit noisy exciton data
+    popt_exciton, pcov = curve_fit(exp_rise_monoexp_decay, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
+    perr_exciton = np.sqrt(np.diag(pcov))
+
+    # Fit noisy conduction band data
+    popt_conduction, pcov = curve_fit(cbm_model, delay_axis, trace_2, p0=init_guess_conduction, bounds = bnds_cbm)
+    perr_conduction = np.sqrt(np.diag(pcov))
+
+    # Save Parameters
+    popt_ex[s,:] = popt_exciton
+    popt_cbm[s,:] = popt_conduction
+    
+    perr_ex[s,:] = perr_exciton
+    perr_cbm[s,:] = perr_conduction
+
+    # Generate fitted curves
+    exciton_fitted = exp_rise_monoexp_decay(t, *popt_exciton)
+    conduction_fitted = cbm_model(t, *popt_conduction)
+    
+ #   conduction_fitted = biexp(t-150, 3.5, 400, 1, 10000)
+    
+    # Print best-fit parameters
+    print("Exciton Fit Parameters:")
+    print(fr"A = {popt_exciton[0]:.3f}, taurise = {popt_exciton[1]:.1f} fs, tau_decay = {popt_exciton[2]:.1f} fs")
+    
+    print("\nConduction Band Fit Parameters:")
+    print(fr"$\tau_{{r}}$ = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, D = {popt_conduction[2]:.1f}, $\tau_{1}$ = {popt_conduction[3]:.1f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps")
+    print("")
+    ### Plot results ###
+    
+    # Exciton decay plot
+    ax[2*s].plot(delay_axis, trace_1, label='Data', color=colors[s], alpha=1)
+    #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
+    ax[2*s].plot(t, exciton_fitted, color='grey', label=fr"$\tau_{{r}}$ = {popt_exciton[1]:.0f} fs, $\tau_{1}$ = {popt_exciton[2]/1000:.1f} ps", linestyle='solid')
+    ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    ax[2*s].set_xlabel('Time (fs)')
+    ax[2*s].set_ylabel('Norm. Int., a.u.')
+    ax[2*s].set_title('Exciton')
+    ax[2*s].set_xlim(-200,3000)
+    ax[2*s].legend(frameon=False, fontsize = 12)
+    
+    # Conduction band rise + decay plot
+    ax[2*s+1].plot(delay_axis, trace_2, label='Data', color=colors[s], alpha=1)
+    #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
+    ax[2*s+1].plot(t, conduction_fitted, color='grey', label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.0f} fs, $\tau_{1}$ = {popt_conduction[3]:.0f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps", linestyle='solid')
+    ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
+    ax[2*s+1].set_xlabel('Time (fs)')
+    ax[2*s+1].set_ylabel('Norm. Int., a.u.')
+    ax[2*s+1].set_title('CBM')
+    ax[2*s+1].set_xlim(-200,3000)
+    ax[2*s+1].legend(frameon=False, fontsize = 12)
+
+fig.tight_layout()
+plt.show()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    
+#%% Plot Above-Gap Excitaiton Results
+
+save_figure = True
+figure_file_name = 'abovegapexc_curve'
+image_format = 'svg'
+
+colors = ['darkred', 'red', 'purple', 'blue']
+#plt.scatter(ex_energies, popt_ex[:,1], c = colors)
+
+fig, ax1 = plt.subplots()
+for i in np.arange(len(scans)):
+    ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 'o')
+
+colors = ['crimson', 'salmon', 'violet', 'teal']
+
+for i in np.arange(len(scans)):
+    ax1.errorbar(ex_energies[i], popt_cbm[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 's')
+
+#plt.plot(ex_energies, 50+50*np.sqrt(ex_energies), color='grey')
+
+# e = np.linspace(1.7, 3.2,100)
+# curve_fit = (e**.1)*5000
+# curve_fit = curve_fit - curve_fit.min()
+# curve_fit = curve_fit + 30
+# plt.plot(e, curve_fit)
+ax1.set_xlabel('Excitation Energy, eV')
+ax1.set_ylabel('Rise Time, fs')
+ax1.set_ylim(-10,310)
+
+#plt.xlim(1.65,3.2)
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+
+#%%
+# Create two subplots sharing the y-axis
+fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(8, 4), gridspec_kw={'wspace': 0.05})
+
+# Plot the data
+for i in np.arange(len(scans)-1):
+    ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, fmt = 'o')
+
+i = 3
+ax2.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, fmt = 'o')
+
+# Set x limits for each subplot
+ax1.set_xlim(1.75, 1.95)
+ax2.set_xlim(3.05, 3.15)
+
+# Hide the spines between the plots
+ax1.spines['right'].set_visible(False)
+ax2.spines['left'].set_visible(False)
+ax1.yaxis.tick_left()
+ax2.yaxis.tick_right()
+
+# Add diagonal break marks
+d = 0.02  # size of diagonal lines
+kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
+ax1.plot((1 - d, 1 + d), (-d, +d), **kwargs)        # bottom-right
+ax1.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # top-right
+
+kwargs.update(transform=ax2.transAxes)
+ax2.plot((-d, +d), (-d, +d), **kwargs)              # bottom-left
+ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)        # top-left
+
+plt.tight_layout()
+plt.show()
+
+#%% Plot Fluence Dependent Results
+
 
 #%% Fit 400 nm hc Relaxation
 

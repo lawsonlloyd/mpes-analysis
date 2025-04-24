@@ -43,8 +43,8 @@ filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0
 filename, offsets = 'Scan138_binned_200x200x300_CrSBr_Integrated_XUV_Pol.h5', [0,0]
 #filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
-#filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
+#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 
 #%% Load the data and axes information

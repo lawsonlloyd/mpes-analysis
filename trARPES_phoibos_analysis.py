@@ -19,7 +19,9 @@ import xarray as xr
 
 import phoibos
 
-#%% # PLOT Fluence Delay TRACES All Together
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+
+#%% PLOT Fluence Delay TRACES All Together: 915 nm
 
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
@@ -60,7 +62,6 @@ boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Le
                              (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
                              [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
 midpoints = (boundaries[:-1] + boundaries[1:]) / 2
-
 
 cmap = cm.get_cmap('inferno_r', len(scans))    # 11 discrete colors
 norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
@@ -142,15 +143,669 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
+#%% PLOT Fluence Delay TRACES All Together: 700 nm
 
-#%%
+save_figure = False
+figure_file_name = 'Combined'
+image_format = 'pdf'
+
+# Standard 700 nm Excitation
+scans = [9368, 9378, 9367, 9370, 9373]
+power = [2.8, 4, 6.3, 8, 12.6]
+fluence = [ 0.7*p/10 for p in power] #10% is 0.7mJ/cm2
+
+####
+E, E_int = [1.3, 2.0], 0.1
+k, k_int = (0), 24
+subtract_neg = True
+norm_trace = False
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+
+cmap = plt.colormaps['inferno_r']   # 11 discrete colors
+norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'firebrick'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_2)
+    trace_1 = trace_1/np.max(trace_1)
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+#cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.set_label("$mJ/cm^{2}$")
+
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+    
+#%% PLOT Fluence Delay TRACES All Together: 680 nm
+
+save_figure = False
+figure_file_name = 'Combined'
+image_format = 'pdf'
+
+# Standard 915 nm Excitation
+scans = [9399, 9400]
+fluence = [8, 10]
+
+####
+E, E_int = [1.3, 2.0], 0.1
+k, k_int = (0), 24
+subtract_neg = True
+norm_trace = False
+
+cn = 100
+p_min = .1
+p_max = 3.5
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+
+cmap = plt.colormaps['inferno_r']   # 11 discrete colors
+norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'indianred', 'firebrick'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_2)
+    trace_1 = trace_1/np.max(trace_1)
+
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+#%% PLOT Fluence Delay TRACES All Together: 640 nm
+
+save_figure = True
+figure_file_name = '640nm'
+image_format = 'pdf'
+
+# Standard 640 nm Excitation
+scans = [9411, 9409, 9412, 9410]
+power = [2, 4, 8, 12.5]
+fluence = [ 0.59*p/10 for p in power] #10% is 0.59mJ/cm2
+
+####
+E, E_int = [1.3, 2.0], 0.1
+k, k_int = (0), 24
+subtract_neg = True
+norm_trace = False
+
+cn = 100
+p_min = .1
+p_max = 3.5
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+
+cmap = plt.colormaps['inferno_r']   # 11 discrete colors
+norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+custom_colors = ['lightsteelblue', 'royalblue', 'salmon', 'firebrick'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_2)
+    trace_1 = trace_1/np.max(trace_1)
+
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3, label = f'{fluence[i]:.2f} mJ / cm$^{{2}}$')
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+axx[1].legend(frameon=False)
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+#cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.set_label("$mJ/cm^{2}$")
+
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+#%% PLOT Fluence Delay TRACES All Together: 640 nm
+
+save_figure = False
+figure_file_name = 'Combined'
+image_format = 'pdf'
+
+# Standard 915 nm Excitation
+scans = [9411, 9409, 9412, 9410
+fluence = [.35, .8, 1.74, 2.4]
+
+####
+E, E_int = [1.3, 2.0], 0.1
+k, k_int = (0), 24
+subtract_neg = True
+norm_trace = False
+
+cn = 100
+p_min = .1
+p_max = 3.5
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+
+cmap = plt.colormaps['inferno_r']   # 11 discrete colors
+norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'indianred', 'firebrick'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_2)
+    trace_1 = trace_1/np.max(trace_1)
+
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.4,1.25,0.2))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+    
+#%% PLOT Fluence Delay TRACES All Together: 400 nm
+
+save_figure = True
+figure_file_name = '400nm'
+image_format = 'pdf'
+
+# Standard 400 nm Excitation
+scans = [9525, 9517, 9526]
+power = [20, 36.3, 45]
+fluence = [0.3, 0.54, 0.68]
+
+####
+E, E_int = [1.3, 2.0], 0.1
+k, k_int = (0), 24
+subtract_neg = True
+norm_trace = False
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue'] #colors for plotting the traces
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = trace_2/np.max(trace_2)
+    trace_1 = trace_1/np.max(trace_1)
+
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+axx[1].legend(frameon=False)
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+#cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+#cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.set_label("$mJ/cm^{2}$")
+
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
+
+#%% PLOT Fluences and Wavelengths Together
+
+save_figure = False
+figure_file_name = 'Combined'
+image_format = 'pdf'
+
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+
+power = 1.05*np.asarray([153, 111, 91, 66, 47, 32, 15, 10, 8, 5])
+fluence = [1, 2, 3, 4]
+
+scans = [9373, 9400, 9412, 9526]
+custom_colors = ['lightsteelblue', 'royalblue', 'salmon', 'firebrick'] #colors for plotting the traces
+custom_colors = ['brown', 'red', 'purple', 'blue']
+
+# Expanded 915 nm Excitation
+#scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231] # Scans to analyze and fit below: 910 nm + 400 nm
+#offsets_t0 = [-191.7, -162.4, -152.7, -183.1, -118.5, -113.7, -125.2, -147.6]
+#fluence = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151]
+
+####
+k, k_int = (0), 24
+E[0], E[1], E_int = 1.3, 2.05, 0.1
+subtract_neg = True
+norm_trace = False
+
+fig, axx = plt.subplots(1, 2)
+fig.set_size_inches(10, 4, forward=False)
+axx = axx.flatten()
+
+fluence = np.array(fluence)
+boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
+                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
+                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
+midpoints = (boundaries[:-1] + boundaries[1:]) / 2
+
+cmap = cm.get_cmap('inferno_r', len(scans))    # 11 discrete colors
+norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
+
+cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
+norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
+
+i = 0
+for scan_i in scans:
+    
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
+    trace_1 = trace_1/np.max(trace_2)
+    trace_2 = trace_2/np.max(trace_2)
+
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
+    
+    i += 1
+
+axx[0].set_xticks(np.arange(-1000,3500,500))
+for label in axx[0].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[0].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[1].set_xticks(np.arange(-1000,3500,500))
+for label in axx[1].xaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+
+axx[1].set_yticks(np.arange(-0.5,1.25,0.25))
+for label in axx[1].yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
+    
+axx[0].set_xlim([-500,3000])
+axx[1].set_xlim([-500,3000])
+axx[0].set_ylim([-0.1,1.1])
+axx[1].set_ylim([-0.1,1.1])
+
+axx[0].set_xlabel('Delay, fs')
+axx[1].set_xlabel('Delay, fs')
+axx[0].set_ylabel('Norm. Int.')
+axx[1].set_ylabel('Norm. Int.')
+
+axx[0].set_title('Exciton')
+axx[1].set_title('CBM')
+
+fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
+fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
+
+# Add colorbar for the discrete color mapping
+sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+sm.set_array([])  # Required for colorbar to work
+cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
+cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
+cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
+
+params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
+              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams.update(params)
+
+# cbar = plt.colorbar(cm, ax=axx[1])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+# cbar = plt.colorbar(cm2, ax=axx[0])
+# cbar.set_label('Fluence', rotation=90, fontsize=22)
+# cbar.ax.tick_params(labelsize=20)
+
+fig.tight_layout()
+
+if save_figure is True:
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
+
+#%% Plot Cold Data Scans
 
 %matplotlib inline
 
-save_figure = True
+save_figure = False
 figure_file_name = 'Cold_Data_phoibos'
 image_format = 'pdf'
-data_path = 'R:\Lawson\Data\phoibos'
 
 # Scans to plot
 # Standard 915 nm Excitation
@@ -305,7 +960,7 @@ plt.show()
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
 
-#%% waterfall difference Panel
+#%% Waterfall difference Panel
 
 save_figure = False
 figure_file_name = 'WaterFallDifference_phoibos'

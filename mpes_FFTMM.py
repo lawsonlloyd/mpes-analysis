@@ -240,7 +240,7 @@ kx, kx_int = (1*X+dkx), 2.1*X # 1.25*X
 kx, kx_int = (1.5*X+dkx), 1.1*X # 1.25*X
 kx, kx_int = (0.5*X+dkx), 1.1*X # 1.25*X
 
-ky, ky_int = 0, 0.65
+ky, ky_int = 0, 1
 delays, delay_int = 600, 800 
 
 win_type = 1 #0, 1 = 2D Tukey, 2, 3
@@ -323,9 +323,10 @@ test_frame = kspace_frame_sym #kspace_frame_sym
 test_frame = test_frame/np.max(test_frame)
 
 # Choose intrinsic function
-shape = 'lorentzian'
-#shape = 'gaussian'
-sigma_irf = 0.02675 
+#shape = 'lorentzian'
+shape = 'gaussian'
+fwhm_irf = 0.063
+sigma_irf = fwhm_irf/2.355
 
 intrinsic_fit = np.zeros(test_frame.shape)
 fitted_model = np.zeros(test_frame.shape)
@@ -353,8 +354,8 @@ for kx_i in ax_kx.loc[{"kx":slice(-2*X-.1, 2*X+.1)}]:
     #perr = np.sqrt(np.diag(pcov))
     #fit_errors[i,:] = perr
     popts[i,:] = popt
-    popt[0] = popt[0] - 0.05
-    #popt[3] = 0
+    #popt[0] = popt[0] - 0.05 # If Scan 163
+    popt[3] = 0
     
     # Extract fitted intrinsic and convolved model
     if shape == 'gaussian':
@@ -382,7 +383,7 @@ r_axis, rspace_frame, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad =
 hfont = {'fontname':'Helvetica'}
 
 save_figure = True
-figure_file_name = 'deconvolve_lor' 
+figure_file_name = 'deconvolve_RT' 
 image_format = 'svg'
 
 fit_difference = test_frame/np.max(test_frame) - fitted_model/np.max(fitted_model)

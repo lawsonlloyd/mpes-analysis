@@ -25,8 +25,8 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -39,6 +39,7 @@ scans = [9227, 9219, 9217, 9218, 9216, 9220, 9228, 9231, 9525, 9517, 9526] # Sca
 
 trans_percent = [float(scan_info[str(s)].get("Percent")) for s in scans] # Retrieve the percentage
 power = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151, 20, 36.3, 45]
+fluences = [0.11, .2, .35, .8, 1.74, 2.4, 2.9, 4.2, 3, 4.5, 6]
 
 #%% Load the Exciton and CBM Traces
 
@@ -114,23 +115,22 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
     #G = np.exp(-(t-t_0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
     sigma = fwhm / 2.355
     G = np.exp(-0.5*(t-0)**2/(sigma**2)) / (sigma * np.sqrt(2*np.pi))
-    f0 = 8
+    f0 = 4.7
     h0 = 20
     
-    #f0 = 1e-10
-    #h0 = 1e-10
+    f0 = 1
+    h0 = 1
     
     #EEA Auger Model
-    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1]**2)/tau_ex_f
-    #Nex_prime = F*(fi/f0)*G - (N[0]**2)*(1/np.sqrt(1)) /(tau_EEA) #+ (N[1]**2)/tau_ex_f
+    #Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f
+    #Nex_prime = F*(fi/f0)*G - (N[0]**2)/(tau_EEA) #+ (N[1]**2)/tau_ex_f
 
-    Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.25*(N[0]**2)/(tau_EEA)
-#    Ncb_prime = 0.5 * (N[0]**2)/(tau_EEA)
+    #Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
 
-    #Ncb_prime = -N[1]**2/tau_ex_f + N[2]/(tau_hc) + N[0]**2/tau_EEA
+    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f + (N[2])/tau_ex_f
+    Ncb_prime = -1*(N[1])/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
 
-    #Ncb_prime = H*G - N[1]**2/tau_ex_f + 0.5*N[0]**2/tau_EEA # + N[2]/tau_hc
-    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc #+ 0.5*N[0]**2/tau_EEA)
+    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc -1*(N[2])/tau_ex_f 
 
     return [Nex_prime, Ncb_prime, Nhc_prime]
 
@@ -138,24 +138,29 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 
 %matplotlib inline
 
-tau_ex_r = 2000000
-tau_EEA = 250
-tau_ex_f = 200000
-tau_hc = 50000
+tau_ex_r = 20000
+tau_EEA = 500 * 1e13
+tau_ex_f = 250
+tau_hc = 300
 t_0 = 0
-fwhm = 50
-F = 100
-H = 0
-fi = 1
-t_axis = np.linspace(-200, 3000, 300)
+fwhm = 45
+F = 0
+H = 1
+fi =  1e13
+t_axis = np.linspace(-200, 3000, 250)
 
 params = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc)
 N0 = [0, 0, 0]
 #res = solve_ivp(fit_Excitons_and_CB_400nm, t_span=(-300, delay_limit[1]), t_eval=np.linspace(-300,  delay_limit[1], int((delay_limit[1]+300)/50)) , y0=N0, args = params)
 res_ALL_2 = solve_ivp(global_fit_Excitons_and_CB_ALL_WL, t_span=(t_axis[0], t_axis[-1]), t_eval=t_axis, y0=N0, args = params)
 
-plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
+#plt.plot(res_ALL_2.t, res_ALL_2.y.T/np.max(res_ALL_2.y[0,:]), label = ('X', 'CB', 'hc'))
+plt.plot(res_ALL_2.t, res_ALL_2.y.T, label = ('X', 'CB', 'hc'))
+#plt.plot(res_ALL_2.t, (res_ALL_2.y[0,:].T + res_ALL_2.y[1,:].T), label = ('sum'))
+
+#plt.axhline(0.5e13, linestyle = 'dashed', color = 'grey')
 plt.axhline(0.5, linestyle = 'dashed', color = 'grey')
+
 #plt.plot(res_ALL_2.t, res_ALL_2.y.T, label = ('X', 'CB', 'hc'))
 
 plt.legend(frameon=False)
@@ -222,13 +227,15 @@ def objective_GLOBAL(params, delay_axes, data):
     resid = []
     for i in range(len(delay_axes)):        
 
-        fi = power[i]  
+        fi = power[i] 
+        fi =  fluences[i] * 1e13
         t = delay_axes[i]
         res_GLOBAL_model = ode_resolution_GLOBAL(t, fi, i, **params)
 #        res_GLOBAL_model = ode_resolution_GLOBAL(t, fi, i, **params)    
         # make residual per data set
-        resid.extend((data[2*i:2*i+2] - res_GLOBAL_model)**2) #/sigma
-    
+        #resid.extend((data[2*i:2*i+2] - res_GLOBAL_model)**2) #/sigma
+        resid.extend((data[2*i:2*i+1] - res_GLOBAL_model[0,:])**2) #/sigma
+
     # now flatten this to a 1D array, as minimize() needs
     return np.concatenate(resid)
 
@@ -238,17 +245,17 @@ def objective_GLOBAL(params, delay_axes, data):
 
 t_values = np.arange(-500,3100,10)
 
-tau_ex_r = 15000
-tau_EEA = 6500
-tau_ex_f = 250 #40
-tau_hc = 200 #258
+tau_ex_r = 20000
+tau_EEA = 1.1993 * 1e16
+tau_ex_f = 250
+tau_hc = 150 #258
 fwhm = 80
 F = 1
 H = 1
 
 a = [.9, .92, .94, .99, .93, .90, 0.88, .95, \
-     .15, .225, .25]
-b = [2.4, 2.5, 2.83, 3.91, 5, 5.1, 4.8, 6.4, \
+     .15, .35, .36]
+b = [2.4, 2.5, 2.83, 3.91, 3, 2.5, 2.5, 2.5, \
      1, 1, 1]
     
 #b = np.ones(11)
@@ -264,7 +271,6 @@ for i in range(10+1):
     params_GLOBAL.update({str("a"+str(i)): a[i]})
 for i in range(10+1):
     params_GLOBAL.update({str("b"+str(i)): b[i]})
-
     
 params_GLOBAL.update({"F": F, "H": H, "fwhm": fwhm, "tau_ex_r":tau_ex_r, "tau_EEA":tau_EEA, "tau_ex_f":tau_ex_f, "tau_hc":tau_hc})
     
@@ -272,6 +278,7 @@ res_ALL_TEST = np.zeros((11,2,len(t_values)))
 
 for i in range(10+1):
     fi = power[i]
+    fi = fluences[i]*1e13
     res_ALL_TEST[i,:,:] = ode_resolution_GLOBAL(t_values, fi, i, **params_GLOBAL)
 
 fig, ax = plt.subplots(3,4)
@@ -303,85 +310,17 @@ for s in range(11):
 #ax[s].plot(t, test/np.max(test), 'b*')    
 fig.tight_layout()
 
-#%% Testing NORMED TRACES
-
-%matplotlib inline
-
-t_values = np.arange(-500,3100,20)
-
-tau_ex_r = 15000
-tau_EEA = 10000
-tau_ex_f = 150 #40
-tau_hc = 150 #258
-fwhm = 80
-F = 1
-H = 1
-
-a = [.9, .92, .94, .99, .93, .90, 0.88, .95, \
-     .12, .2, .2]
-b = [2.4, 2.5, 2.83, 3.91, 5, 5.1, 4.8, 6.4, \
-     1, 1, 1.1]
-B = .1
-C = .33
-#t_0 = np.zeros(11)
-#a = [1.0*x for x in a]
-#b = [4.2*x for x in b]
-#b = np.ones((8))
-#b = [4, 4, 4, 4, 4 ,4]
-#params_GLOBAL = {"F": F, "t_0": t_0, "fwhm": fwhm, "tau_ex_r":tau_ex_r, "tau_EEA":tau_EEA, "tau_ex_f":tau_ex_f, "tau_hc":tau_hc}
-
-params_GLOBAL = {}
-params_GLOBAL.update({str("B"): B})
-params_GLOBAL.update({str("C"): C})
-params_GLOBAL.update({"F": F, "H": H, "fwhm": fwhm, "tau_ex_r":tau_ex_r, "tau_EEA":tau_EEA, "tau_ex_f":tau_ex_f, "tau_hc":tau_hc})
-    
-res_ALL_TEST = np.zeros((11,2,len(t_values)))
-
-for i in range(10+1):
-    fi = power[i]
-    res_ALL_TEST[i,:,:] = ode_resolution_GLOBAL_NORM(t_values, fi, i, **params_GLOBAL)
-
-fig, ax = plt.subplots(3,4)
-fig.set_size_inches(12, 8, forward=False)
-ax = ax.flatten()
-
-for s in range(11):
-    
-    d1, d2 = data_traces[2*s], data_traces[2*s+1]
-    #d1, d2 = d1/np.max(d1), d2/np.max(d2)
-    
-    r1, r2 = res_ALL_TEST[s,0,:], res_ALL_TEST[s,0,:]
-    #r1, r2 = r1/np.max(r1), 0.8*r2/np.max(r2)
-    #    gaussian_pulse = gaussian(t_values, 1, 0, fwhm/2.355, 0)
-
-    ax[s].set_title(str(round(power[s],1)) + ' mW')
-    ax[s].plot(delay_axes[s], d1, 'ko')
-    ax[s].plot(delay_axes[s], d2, 'ro')
-    ax[s].plot(t_values, r1, 'blue')
-    ax[s].plot(t_values, r2, 'green')
-    #    ax[s].plot(t_values, gaussian_pulse, linestyle = 'dashed', color='green')
-    #ax[s].axvline(0, linestyle = 'dashed', color='green')
-    ax[s].set_xlabel('Delay, fs')
-    ax[s].set_ylabel('Norm. Int., a.u.')
-    ax[s].set_xlim([-700,3000])
-
-#test = np.exp(-t/800)+ np.exp(-t/15000)
-
-#ax[s].plot(t, test/np.max(test), 'b*')    
-fig.tight_layout()
-
 #%% Define Global Fit Paramters
 
 from lmfit import Parameters, minimize, report_fit
 
-tau_ex_r = 15000
-tau_EEA = 5000
-tau_ex_f = 50 #40
-tau_hc = 200 #258
+tau_ex_r = 20000
+tau_EEA = 1000 * 1e13
+tau_ex_f = 500#40
+tau_hc = 150 #258
 fwhm = 80
 F = 1
 H = 1
-
 t_0 = 0
 a = [.9, .92, .94, .99, .93, .90, 0.88, .9, .5, 0.4, .3]
 b = [2.4, 2.5, 2.83, 3.91, 4.57, 5.22, 5.4, 5.17, 1, 1, 1]
@@ -405,9 +344,9 @@ fit_params.add("fwhm", value=fwhm, min=10, max=120, vary=False)
 
 fit_params.add("tau_ex_r", value=tau_ex_r, min=10, max=30000, vary=False)
 
-fit_params.add("tau_EEA", value=tau_EEA, min=2000, max=15000, vary=True)
-fit_params.add("tau_ex_f", value=tau_ex_f, min=20, max=600, vary=True)
-fit_params.add("tau_hc", value=tau_hc, min=20, max=500, vary=True)
+fit_params.add("tau_EEA", value=tau_EEA, min=200*1e13, max=15000*1e13, vary=True)
+fit_params.add("tau_ex_f", value=tau_ex_f, min=20, max=750, vary=False)
+fit_params.add("tau_hc", value=tau_hc, min=20, max=500, vary=False)
 
 fit_params
 
@@ -434,6 +373,7 @@ res_ALL = np.zeros((11,2,len(t_values)))
 for i in range(0,11):
 
     fi = power[i]
+    fi = fluences[i]*1e13
     res_ALL[i,:,:] = ode_resolution_GLOBAL(t_values, fi, i, **out.params)
     #res_ALL[i,:,:] = ode_resolution_GLOBAL(t, **out.params)
 

@@ -26,13 +26,11 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-scans = [9517, 9137, 9526]
-
-scan = 9137
-energy_offset, delay_offset, force_offset = 19.62,  0, False
+scan = 9526
+energy_offset, delay_offset, force_offset = 19.72, 0, False
 
 scan_info = phoibos.get_scan_info(data_path, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
@@ -73,8 +71,8 @@ def objective(params, x, data):
 %matplotlib inline
 
 E, E_int = [1.325, 2.075], 0.1
-E, E_int = [1.37, 2.125], 0.1
-E, E_int = [1.32, 1.95], 0.1
+E, E_int = [1.37, 2.1], 0.1
+E, E_int = [1.3, 2.0], 0.1
 
 k, k_int = 0, 20
 d1, d2 = -1000, -400
@@ -170,7 +168,7 @@ plt.xlim(-1,2)
 #%% Define t0 from Exciton Rise
 
 #E, E_int = [1.37, 2.125], 0.1
-E, E_int = 1.95, 0.1
+E, E_int = 1.937, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True
@@ -213,7 +211,7 @@ figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [10, 100000]
 E, E_int = [1.3, 2], 0.1
-E, E_int = [1.37, 2.125], 0.1
+E, E_int = [1.77, 2.125], 0.1
 
 #E, E_int = [1.3, 2.0], 0.1
 
@@ -268,7 +266,7 @@ axx = axx.flatten()
 
 im1 = res_diff_sum_Angle_Normed.T.plot.imshow(ax = axx[0], cmap = 'seismic', vmin = -1, vmax = 1)
 
-im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'seismic', vmin = -.5, vmax = .5)
+im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'seismic', vmin = -1, vmax = 1)
 
 im3 = trace_1.plot(ax = axx[2], color = 'black')
 im3 = trace_2.plot(ax = axx[2], color = 'red')
@@ -278,6 +276,7 @@ im3 = trace_2.plot(ax = axx[2], color = 'red')
   #                 0.3*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/2000))
 axx[0].axhline(E[0],  color = 'black')
 axx[0].axhline(E[1],  color = 'red')
+
 axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 axx[0].set_title(f"I({delays[0]}:{delays[1]} fs) - I(<-300 fs)")
 axx[0].set_ylim(-1,3)
