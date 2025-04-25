@@ -32,7 +32,7 @@ data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 scan = 9526
 energy_offset, delay_offset, force_offset = 19.72, 0, False
 
-scan_info = phoibos.get_scan_info(data_path, filename, {})
+scan_info = phoibos.get_scan_info(data_path_info, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 #%% Fitting Functions etc
@@ -72,7 +72,7 @@ def objective(params, x, data):
 
 E, E_int = [1.325, 2.075], 0.1
 E, E_int = [1.37, 2.1], 0.1
-E, E_int = [1.3, 2.0], 0.1
+E, E_int = [1.27, 2.0], 0.1
 
 k, k_int = 0, 20
 d1, d2 = -1000, -400
