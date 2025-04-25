@@ -959,7 +959,7 @@ perr_ex, perr_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
 
 # Initialize figure
 save_figure = True
-figure_file_name = 'abovegapexc_dyn'
+figure_file_name = 'abovegapcbm_dyn'
 image_format = 'svg'
 
 fig, ax = plt.subplots(4, 2, figsize=(10, 10))
@@ -1067,17 +1067,17 @@ if save_figure is True:
 #%% Plot Above-Gap Excitaiton Results
 
 save_figure = True
-figure_file_name = 'abovegapexc_curve'
+figure_file_name = 'abovegapexc_cbm_curve'
 image_format = 'svg'
 
 colors = ['darkred', 'red', 'purple', 'blue']
 #plt.scatter(ex_energies, popt_ex[:,1], c = colors)
 
 fig, ax1 = plt.subplots()
-for i in np.arange(len(scans)):
-    ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 'o')
+#for i in np.arange(len(scans)):
+ #   ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 'o')
 
-colors = ['crimson', 'salmon', 'violet', 'teal']
+#colors = ['crimson', 'salmon', 'violet', 'teal']
 
 for i in np.arange(len(scans)):
     ax1.errorbar(ex_energies[i], popt_cbm[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 's')
@@ -1089,9 +1089,13 @@ for i in np.arange(len(scans)):
 # curve_fit = curve_fit - curve_fit.min()
 # curve_fit = curve_fit + 30
 # plt.plot(e, curve_fit)
+ax1.set_yticks(np.arange(-25,310,25))
+for label in ax1.yaxis.get_ticklabels()[1::2]:
+    label.set_visible(False)
 ax1.set_xlabel('Excitation Energy, eV')
 ax1.set_ylabel('Rise Time, fs')
 ax1.set_ylim(-10,310)
+ax1.set_ylim(-10,275)
 
 #plt.xlim(1.65,3.2)
 

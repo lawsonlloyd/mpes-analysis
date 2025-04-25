@@ -145,8 +145,8 @@ if save_figure is True:
 
 #%% PLOT Fluence Delay TRACES All Together: 700 nm
 
-save_figure = False
-figure_file_name = 'Combined'
+save_figure = True
+figure_file_name = '700nm'
 image_format = 'pdf'
 
 # Standard 700 nm Excitation
@@ -187,7 +187,7 @@ for scan_i in scans:
     trace_2 = trace_2/np.max(trace_2)
     trace_1 = trace_1/np.max(trace_1)
 
-    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
+    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3, label = f'{fluence[i]:.2f} mJ / cm$^{{2}}$')
     t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
     
     i += 1
@@ -220,6 +220,7 @@ axx[1].set_ylabel('Norm. Int.')
 
 axx[0].set_title('Exciton')
 axx[1].set_title('CBM')
+axx[0].legend(frameon=False, fontsize = 14)
 
 fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
@@ -227,7 +228,7 @@ fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
 # Add colorbar for the discrete color mapping
 sm = cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])  # Required for colorbar to work
-cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
+#cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
 cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
 #cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
 cbar.set_label("$mJ/cm^{2}$")
@@ -589,17 +590,18 @@ if save_figure is True:
     
 #%% PLOT Fluence Delay TRACES All Together: 400 nm
 
-save_figure = True
+save_figure = False
 figure_file_name = '400nm'
 image_format = 'pdf'
 
 # Standard 400 nm Excitation
 scans = [9525, 9517, 9526]
+#scans = [9526]
 power = [20, 36.3, 45]
 fluence = [0.3, 0.54, 0.68]
 
 ####
-E, E_int = [1.3, 2.0], 0.1
+E, E_int = [1.3, 2.05], 0.1
 k, k_int = (0), 24
 subtract_neg = True
 norm_trace = False
@@ -627,10 +629,12 @@ for scan_i in scans:
     trace_2 = trace_2/np.max(trace_2)
     trace_1 = trace_1/np.max(trace_1)
 
-
     t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
     t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
     
+    #t1 = trace_1.plot(ax = axx[1], color = 'royalblue', linewidth = 3)
+    #t2 = trace_2.plot(ax = axx[1], color = 'blue', linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
+
     i += 1
 
 axx[0].set_xticks(np.arange(-1000,3500,500))
@@ -962,15 +966,18 @@ if save_figure is True:
 
 #%% Waterfall difference Panel
 
-save_figure = False
-figure_file_name = 'WaterFallDifference_phoibos'
+save_figure = True
+figure_file_name = 'WaterFallDifference_phoibos400nm'
 image_format = 'pdf'
 
 #E, E_int = [1.3, 2.0], 0.1
+scan = 9526
+res = phoibos.load_data(data_path, scan, scan_info, _, _, False)
 
 A, A_int = 0, 20
+E_inset = 0.9
 
-colormap = cmap_LTL #'bone_r'
+colormap, scale = cmap_LTL2, [-1,1] #'bone_r'
 subtract_neg = True
 norm_trace = False
 
@@ -993,9 +1000,9 @@ res_diff_E_Ang = res_pos_mean - res_neg_mean
 
 res_diff_E_Ang = res_diff_E_Ang/np.max(np.abs(res_diff_E_Ang))
 
-E_inset = 0.9
-
 res_sum_Angle = res.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
+res_sum_Angle = res_sum_Angle/np.max(res_sum_Angle)
+
 res_diff = res - res_neg.mean(axis=2)
 res_diff_sum_Angle = res_diff.loc[{'Angle':slice(-A-A_int/2,A+A_int/2)}].sum(axis=0)
 res_diff_sum_Angle = res_diff_sum_Angle/np.max(res_diff_sum_Angle)
@@ -1020,10 +1027,13 @@ fig.set_size_inches(12, 4, forward=False)
 plt.gcf().set_dpi(300)
 axx = axx.flatten()
 
-im1 = res_sum_Angle.plot.imshow(ax = axx[0], cmap = colormap, vmin = 0, vmax = 1)
+im1 = res_sum_Angle.plot.imshow(ax = axx[0], cmap = cmap_LTL, vmin = 0, vmax = scale[1])
+#plt.colorbar(im1, ax=axx[0], extend='neither')
 
 im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'RdBu_r', vmin = -1, vmax = 1)
+#plt.colorbar(im2, ax=axx[1], extend='neither')
 
+#fig.colorbar(im2, ax=axx[1])
 #im_dyn = axx[2].plot(trace_1.Delay.loc[{"Delay":slice(0,50000)}].values, \
  #                  0.6*np.exp(-trace_1.Delay.loc[{"Delay":slice(0,50000)}].values/18000) +
 
@@ -1033,10 +1043,11 @@ im2 = res_diff_sum_Angle.plot.imshow(ax = axx[1], cmap = 'RdBu_r', vmin = -1, vm
 axx[0].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 axx[0].set_title('Integrated')
 axx[1].set_title('Difference')
-axx[0].set_xlim(-300,3000)
-axx[0].set_ylim(0.5,2.65)
-axx[1].set_xlim(-300,3000)
-axx[1].set_ylim(.5,2.65)
+axx[0].set_xlim(-750,3000)
+axx[0].set_ylim(E_inset-0.25,res.Energy.values.max())
+axx[1].set_xlim(-750,3000)
+axx[1].set_ylim(E_inset-0.25,res.Energy.values.max())
+axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 
 axx[0].set_xlabel('Delay, fs')
 axx[1].set_xlabel('Delay, fs')
@@ -1045,15 +1056,8 @@ axx[1].set_ylabel('$E - E_{VBM}, eV$')
 
 fig.text(.01, .95, "(d)", fontsize = 18, fontweight = 'regular')
 fig.text(.5, .95, "(e)", fontsize = 18, fontweight = 'regular')
-#axx[1].axhline(E[0],  color = 'black')
-#axx[1].axhline(E[1],  color = 'red')
-
-#axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
-axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
-#axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
 
 fig.tight_layout()
-#plt.show()
 
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
