@@ -26,10 +26,10 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path_info = 'R:\Lawson\mpes-analysis'
-#data_path = 'R:\Lawson\Data\phoibos'
+data_path = 'R:\Lawson\Data\phoibos'
 
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
-data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -101,6 +101,10 @@ for scan_i in scans:
     trace_1 = trace_1/norm_factor
     trace_2 = trace_2/norm_factor
     
+#    trace_1 = trace_1/np.max(trace_1)
+ #   trace_2 = trace_2/np.max(trace_2)
+    
+    
     #trace_1 = trace_1 * power[s]
     #trace_2 = trace_2 * power[s]
 
@@ -118,22 +122,20 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
     #G = np.exp(-(t-t_0)**2/(np.sqrt(2)*fwhm/2.3548200)**2)/(fwhm/2.3548200*np.sqrt(2*np.pi))
     sigma = fwhm / 2.355
     G = np.exp(-0.5*(t-0)**2/(sigma**2)) / (sigma * np.sqrt(2*np.pi))
-    f0 = 4.7
-    h0 = 20
+    #f0 = 4.7
+    #h0 = 20
     
     f0 = 1
     h0 = 6
     
+    #CBM and Exciton Formation/Relaxation
+    #Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - 0*(N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f + (N[2])/tau_ex_f
+
     #EEA Auger Model
-    #Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f
-    #Nex_prime = F*(fi/f0)*G - (N[0]**2)/(tau_EEA) #+ (N[1]**2)/tau_ex_f
+    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f #+ (N[2])/tau_ex_f
+    Ncb_prime = N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA) - (N[1])/tau_ex_f
 
-    #Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
-
-    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f + (N[2])/tau_ex_f
-    Ncb_prime = +N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA) - (N[1])/tau_ex_f
-
-    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc -(N[2])/tau_ex_f 
+    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc #- (N[2])/tau_ex_f 
 
     return [Nex_prime, Ncb_prime, Nhc_prime]
 
@@ -143,13 +145,13 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 
 tau_ex_r = 20000
 tau_EEA = 1000 * 1e13
-tau_ex_f = 130
-tau_hc = 330
+tau_ex_f = 450
+tau_hc = 104
 t_0 = 0
 fwhm = 80
 F = 0
 H = 1
-fi =  .1e13
+fi =  1e13
 t_axis = np.linspace(-200, 3000, 250)
 
 params = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc)
@@ -199,38 +201,12 @@ def ode_resolution_GLOBAL(t, fi, i, a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10, b0,b1,b2,
     
     if i > 7: #FOR HC EXCITATION
         ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[1].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
-        #ret = np.asarray([res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
-        #ret = np.asarray([res_model.y[0], res_model.y[1]])
+        #ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
 
     else: #FOR EXCITON EXCITATION
         ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[0].max()])
-        #ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), res_model.y[1]/ res_model.y[0].max()])
-        #ret = np.asarray([res_model.y[0], res_model.y[1]])
+        #ret = np.asarray([A[i]*res_model.y[0]/ res_model.y[0].max(), B[i]*res_model.y[1]/ res_model.y[1].max()])
 
-    return ret
-
-def ode_resolution_GLOBAL_NORM(t, fi, i, B, C, F, H, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc):
-    N0 = [0, 0, 0]
-    t_0 = 0
-    
-    t = t - t_0
-    if i > 7:
-        F = 0
-    else:
-        H = 0
-        
-    res_model = solve_ivp(global_fit_Excitons_and_CB_ALL_WL,  t_span = (t[0], t[-1]), t_eval=t, y0=N0, \
-                          args = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc))
-    
-    if i > 7: #FOR HC EXCITATION
-        ret = np.asarray([C*res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
-        #ret = np.asarray([res_model.y[0]/ res_model.y[1].max(), res_model.y[1]/ res_model.y[1].max()])
-        #ret = np.asarray([res_model.y[0], res_model.y[1]])
-
-    else: #FOR EXCITON EXCITATION
-        ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), B*res_model.y[1]/ res_model.y[0].max()])
-        #ret = np.asarray([res_model.y[0]/ res_model.y[0].max(), res_model.y[1]/ res_model.y[0].max()])
-        #ret = np.asarray([res_model.y[0], res_model.y[1]])
     return ret
 
 def objective_GLOBAL(params, delay_axes, data):
@@ -238,13 +214,22 @@ def objective_GLOBAL(params, delay_axes, data):
     
     resid = []
     for i in range(len(delay_axes)):        
+    #for i in [9, 10]:        
 
         fi = power[i] 
         fi =  fluences[i] * 1e13
         t = delay_axes[i]
         res_GLOBAL_model = ode_resolution_GLOBAL(t, fi, i, **params)
         # make residual per data set
+        
+        #Normal
         resid.extend((data[2*i:2*i+2] - res_GLOBAL_model)**2) #/sigma
+
+        #Exciton Only
+        #resid.extend((data[2*i:2*i+1] - res_GLOBAL_model[0,:])**2) #/sigma
+        
+        #CBM Only
+        #resid.extend((data[2*i+1:2*i+2] - res_GLOBAL_model[1,:])**2) #/sigma
 
     # now flatten this to a 1D array, as minimize() needs
     return np.concatenate(resid)
@@ -255,16 +240,16 @@ def objective_GLOBAL(params, delay_axes, data):
 
 t_values = np.arange(-500,3100,10)
 
-tau_ex_r = 20000
+tau_ex_r = 7000
 tau_EEA = 1.1993 * 1e16
-tau_ex_f = 134
-tau_hc = 330 #258
+tau_ex_f = 260
+tau_hc = 220 #258
 fwhm = 80
 F = 1
 H = 1
 
 a = [.9, .92, .94, .99, .93, .90, 0.88, .95, \
-     .05, .12, .12]
+     .05, .12, .2]
 b = [2.4, 2.5, 2.83, 3.91, 3, 2.5, 2.5, 2.5, \
      1, 1, 1]
     
@@ -327,25 +312,26 @@ fig.tight_layout()
 from lmfit import Parameters, minimize, report_fit
 
 tau_ex_r = 20000
-tau_EEA = 1.1993 * 1e16
-tau_ex_f = 250
-tau_hc = 150 #258
+tau_EEA = 0.9* 1e15
+tau_ex_f = 450
+tau_hc = 100 #258
 fwhm = 80
 F = 1
 H = 1
 t_0 = 0
-a = [.9, .92, .94, .99, .93, .90, 0.88, .9, .5, 0.4, .3]
-b = [2.4, 2.5, 2.83, 3.91, 4.57, 5.22, 5.4, 5.17, 1, 1, 1]
+a = [.9, .92, .94, .99, .93, .90, 0.88, .95, \
+     .05, .12, .2]
+b = [2.4, 2.5, 2.83, 3.91, 3, 2.5, 2.5, 2.5, \
+     1, 1, 1]
 
-#a = 0.98*np.ones((11))
-#b = 4.4*np.ones((11))
-
-no_fit = [8, 9, 10]
+#no_fit = [8, 9, 10]
 fit_params = Parameters()
 for i in range(10+1):
-    fit_params.add(str("a"+str(i)), value=a[i], min=0.05, max=12, vary=True)
+    fit_params.add(str("a"+str(i)), value=a[i], min=0.05, max=30, vary=True)
     fit_params.add(str("b"+str(i)), value=b[i], min=0.1, max=50, vary=True)
-
+    # if i in [9, 10]:
+    #     fit_params.add(str("a"+str(i)), value=a[i], min=0.05, max=12, vary=True)
+    #     fit_params.add(str("b"+str(i)), value=b[i], min=0.1, max=50, vary=True)
 #for i in no_fit:
 #    fit_params.add(str("a"+str(i)), value=a[i], min=0.2, max=5, vary=False)
 #    fit_params.add(str("b"+str(i)), value=b[i], min=0.2, max=10, vary=False)
@@ -354,11 +340,11 @@ fit_params.add("F", value=F, min=0.01, max=10, vary=False)
 fit_params.add("H", value=H, min=0.01, max=10, vary=False)
 fit_params.add("fwhm", value=fwhm, min=10, max=120, vary=False)
 
-fit_params.add("tau_ex_r", value=tau_ex_r, min=10, max=30000, vary=False)
+fit_params.add("tau_ex_r", value=tau_ex_r, min=500, max=35000, vary=False)
 
 fit_params.add("tau_EEA", value=tau_EEA, min=200*1e13, max=15000*1e13, vary=True)
-fit_params.add("tau_ex_f", value=tau_ex_f, min=20, max=800, vary=True)
-fit_params.add("tau_hc", value=tau_hc, min=10, max=800, vary=True)
+fit_params.add("tau_ex_f", value=tau_ex_f, min=20, max=1000, vary=True)
+fit_params.add("tau_hc", value=tau_hc, min=10, max=1000, vary=True)
 
 fit_params
 
@@ -417,7 +403,13 @@ for s in range(10+1):
     #if s > 7:
      #   ax[s].set_ylim(-.1, 3.5)
     #ax[s].plot(t_values_offset-t_0[s], gaussian_pulse, linestyle = 'dashed', color='green')
-    
+
+fig.delaxes(ax[11])
+fig.text(0.77, 0.25, fr"$\tau_{{hc}} = {out.params['tau_hc'].value:.0f} \:fs$", fontsize=20)
+fig.text(0.77, 0.2, fr"$\tau_{{f}} = {out.params['tau_ex_f'].value:.0f} \: fs$", fontsize=20)
+fig.text(0.77, 0.15, fr"$\tau_{{EEA}} = {out.params['tau_EEA'].value/1e13:.0f} \: fs$", fontsize=20)
+fig.text(0.77, 0.1, fr"$\tau_{{r}} = {out.params['tau_ex_r'].value:.0f} \: fs$", fontsize=20)
+
 fig.tight_layout()
 plt.show()
 

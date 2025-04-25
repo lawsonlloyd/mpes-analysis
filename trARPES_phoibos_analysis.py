@@ -611,14 +611,8 @@ fig.set_size_inches(10, 4, forward=False)
 axx = axx.flatten()
 
 fluence = np.array(fluence)
-boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
-                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
-                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
-midpoints = (boundaries[:-1] + boundaries[1:]) / 2
 
 custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue'] #colors for plotting the traces
-cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
-norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 
 i = 0
 for scan_i in scans:
@@ -629,15 +623,15 @@ for scan_i in scans:
     trace_2 = trace_2/np.max(trace_2)
     trace_1 = trace_1/np.max(trace_1)
 
-    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
-    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
+    t1 = trace_1.plot(ax = axx[0], color = custom_colors[i], linewidth = 3)
+    t2 = trace_2.plot(ax = axx[1], color = custom_colors[i], linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
     
     test = exp_rise_monoexp_decay(trace_1.Delay.values, 1.02, 258, 6700)
     axx[0].plot(trace_1.Delay.values, test, color = 'maroon')
 
-    test2 = exp_rise_monoexp_decay(trace_1.Delay.values, 1., 134, 8000)
-    test2 = exciton_model(trace_1.Delay.values, 1., 134, 8000)
-    axx[0].plot(trace_1.Delay.values, 0.9*test2/np.max(test2), color = 'green')
+    test2 = exp_rise_monoexp_decay(trace_1.Delay.values, .8, 400, 6000)
+#    test2 = exciton_model(trace_1.Delay.values, 1., 450, 8000)
+    axx[0].plot(trace_1.Delay.values, 0.85*test2/np.max(test2), color = 'green', linestyle = 'dashed')
     
     test3 = exp_rise_biexp_decay(trace_1.Delay.values, 1, 350, .92, 240, 2500)
     test4= exp_rise_biexp_decay(trace_1.Delay.values, 1, 250, .9, 300, 4000)
@@ -683,16 +677,6 @@ axx[1].set_title('CBM')
 axx[1].legend(frameon=False)
 fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
-
-# Add colorbar for the discrete color mapping
-sm = cm.ScalarMappable(cmap=cmap, norm=norm)
-sm.set_array([])  # Required for colorbar to work
-#cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
-cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
-#cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
-cbar.set_label("$mJ/cm^{2}$")
-
-cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
 
 params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
