@@ -636,10 +636,16 @@ for scan_i in scans:
     axx[0].plot(trace_1.Delay.values, test, color = 'maroon')
 
     test2 = exp_rise_monoexp_decay(trace_1.Delay.values, 1., 134, 8000)
+    test2 = exciton_model(trace_1.Delay.values, 1., 134, 8000)
     axx[0].plot(trace_1.Delay.values, 0.9*test2/np.max(test2), color = 'green')
     
-    test3 = exp_rise_biexp_decay(trace_1.Delay.values, 3, 200, .9, 280, 4000)
+    test3 = exp_rise_biexp_decay(trace_1.Delay.values, 1, 350, .92, 240, 2500)
+    test4= exp_rise_biexp_decay(trace_1.Delay.values, 1, 250, .9, 300, 4000)
+    test5 = (np.exp(-trace_1.Delay.values/400))*(1-np.exp(-trace_1.Delay.values/300))
+    
     axx[1].plot(trace_1.Delay.values, test3/np.max(test3), color = 'pink')
+    axx[1].plot(trace_1.Delay.values, test4/np.max(test4), color = 'red', linestyle= 'dashed')
+    axx[1].plot(trace_1.Delay.values, test5/np.max(test5), color = 'green', linestyle= 'dashed')
 
     #t1 = trace_1.plot(ax = axx[1], color = 'royalblue', linewidth = 3)
     #t2 = trace_2.plot(ax = axx[1], color = 'blue', linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')

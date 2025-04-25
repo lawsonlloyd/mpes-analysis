@@ -26,8 +26,10 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
 data_path_info = 'R:\Lawson\mpes-analysis'
-data_path = 'R:\Lawson\Data\phoibos'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
+
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -43,8 +45,6 @@ power = [4.7, 8.3, 20.9, 41.7, 65.6, 83.2, 104.7, 151, 20, 36.3, 45]
 fluences = [0.11, .2, .35, .8, 1.74, 2.4, 2.9, 4.2, 3, 4.5, 6]
 
 #%% Load the Exciton and CBM Traces
-
-data_path = 'R:\Lawson\Data\phoibos'
 
 # Give the data points for Exciton and CB signal...for all Fluences...
 
@@ -130,10 +130,10 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 
     #Ncb_prime = -1*(N[1]**2)/tau_ex_f + N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA)
 
-    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f #+ *(N[2])/tau_ex_f
+    Nex_prime = F*(fi/f0)*G - N[0]/tau_ex_r - (N[0]**2)/(tau_EEA) + (N[1])/tau_ex_f + (N[2])/tau_ex_f
     Ncb_prime = +N[2]/(tau_hc) + 0.5*(N[0]**2)/(tau_EEA) - (N[1])/tau_ex_f
 
-    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc #- 0*(N[2])/tau_ex_f 
+    Nhc_prime = H*(fi/h0)*G - N[2]/tau_hc -(N[2])/tau_ex_f 
 
     return [Nex_prime, Ncb_prime, Nhc_prime]
 
@@ -142,14 +142,14 @@ def global_fit_Excitons_and_CB_ALL_WL(t, N, fi, F, H, t_0, fwhm, tau_ex_r, tau_E
 %matplotlib inline
 
 tau_ex_r = 20000
-tau_EEA = 1800 * 1e13
-tau_ex_f = 260
-tau_hc = 220
+tau_EEA = 1000 * 1e13
+tau_ex_f = 130
+tau_hc = 330
 t_0 = 0
 fwhm = 80
 F = 0
 H = 1
-fi =  1e13
+fi =  .1e13
 t_axis = np.linspace(-200, 3000, 250)
 
 params = (fi, F, H, t_0, fwhm, tau_ex_r, tau_EEA, tau_ex_f, tau_hc)
@@ -165,10 +165,10 @@ fwhm_IRF = 80
 sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
 def exciton_model(t, N_0, gamma):
     return convolved_signal(t, eea_exp, sigma_IRF, N_0, gamma)  # IRF is fixed
-test = exp_rise_monoexp_decay(res_ALL_2.t, 1.45*np.max(res_ALL_2.y[0,:]), 400, 3500)
+test = exp_rise_monoexp_decay(res_ALL_2.t, 1*np.max(res_ALL_2.y[0,:]), 400, 3500)
 test = exciton_model(res_ALL_2.t, fi, 0.055e-15)
 
-plt.plot(res_ALL_2.t, test, color = 'grey')
+#plt.plot(res_ALL_2.t, test, color = 'grey')
 #plt.axhline(0.5e13, linestyle = 'dashed', color = 'grey')
 plt.axhline(0.5, linestyle = 'dashed', color = 'grey')
 #plt.plot(res_ALL_2.t, res_ALL_2.y.T, label = ('X', 'CB', 'hc'))
@@ -258,7 +258,7 @@ t_values = np.arange(-500,3100,10)
 tau_ex_r = 20000
 tau_EEA = 1.1993 * 1e16
 tau_ex_f = 134
-tau_hc = 329 #258
+tau_hc = 330 #258
 fwhm = 80
 F = 1
 H = 1
