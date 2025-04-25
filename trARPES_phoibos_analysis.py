@@ -632,6 +632,15 @@ for scan_i in scans:
     t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
     t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
     
+    test = exp_rise_monoexp_decay(trace_1.Delay.values, 1.02, 258, 6700)
+    axx[0].plot(trace_1.Delay.values, test, color = 'maroon')
+
+    test2 = exp_rise_monoexp_decay(trace_1.Delay.values, 1., 134, 8000)
+    axx[0].plot(trace_1.Delay.values, 0.9*test2/np.max(test2), color = 'green')
+    
+    test3 = exp_rise_biexp_decay(trace_1.Delay.values, 3, 200, .9, 280, 4000)
+    axx[1].plot(trace_1.Delay.values, test3/np.max(test3), color = 'pink')
+
     #t1 = trace_1.plot(ax = axx[1], color = 'royalblue', linewidth = 3)
     #t2 = trace_2.plot(ax = axx[1], color = 'blue', linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
 

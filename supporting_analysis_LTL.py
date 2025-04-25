@@ -87,8 +87,8 @@ fig = plt.figure()
 plt.plot(percentage, power, 'o')
 plt.title('915nm')
 
-percentage = np.asarray([12.58, 10, 6.31, 2.88, 1])
-power = 1.05*np.asarray([98, 71, 38, 20, 7])
+percentage = np.asarray([12.58,  10, 6.31, 2.88, 1])
+power = 1.05*np.asarray([98,     71,  38,   20,   7])
 
 fig = plt.figure()
 plt.plot(percentage, power, 'o')
@@ -110,7 +110,7 @@ plt.title('640nm')
 # CALCULATING ABSORBED EXCITATION FLUENCE.
 
 thickness =  1 * 0.57e-9 #2e-9 # m, thickness of first layer (?)
-AOI = 65
+AOI = 40
 
 ### Load Dielectric Constant
 
@@ -165,9 +165,9 @@ plt.legend(frameon=False)
 #%%
 
 ### Define experimental pump parameters
-lam = 800
-average_power = 120 #116.6 #mW
-fwhm = 0.100 #mm #110
+lam = 640
+average_power = 63 #116.6 #mW
+fwhm = 0.120 #mm #110
 pump_pol = 's'
 rep_rate = 500000 # 475000
 
@@ -178,6 +178,8 @@ elif lam == 915:
     laserspectrum = np.loadtxt('OPA_pump_spectrum_910nm_DATA_2.txt',skiprows=1)
 elif lam == 700:
     laserspectrum = np.loadtxt('700nm_opa_pumpspectrum_24042024.txt',skiprows=1)
+elif lam == 640:
+    laserspectrum = np.loadtxt('',skiprows=1)
 
 ### Account for s- and p-pol Reflection
 e_i = np.abs(energy - 4.1357e-15*c*1e9/lam).argmin()

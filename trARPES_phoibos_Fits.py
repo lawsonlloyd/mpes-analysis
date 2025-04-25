@@ -11,14 +11,12 @@ Created on Mon Apr 21 14:52:43 2025
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path_info = 'R:\Lawson\mpes-analysis'
 data_path = 'R:\Lawson\Data\phoibos'
-
-#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
-scan_info = phoibos.get_scan_info(data_path_info, filename, {})
+scan_info = phoibos.get_scan_info(data_path, filename, {})
 
 #%% Define Exponential Fitting Functions
 
@@ -1082,7 +1080,8 @@ fig, ax1 = plt.subplots()
 #colors = ['crimson', 'salmon', 'violet', 'teal']
 
 for i in np.arange(len(scans)):
-    ax1.errorbar(ex_energies[i], popt_cbm[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 's')
+    ax1.errorbar(ex_energies[i], popt_cbm[i,1], yerr = perr_ex[i,1], \
+                 color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 1, ms = 7, marker = 's')
 
 #plt.plot(ex_energies, 50+50*np.sqrt(ex_energies), color='grey')
 
