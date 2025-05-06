@@ -26,13 +26,14 @@ import phoibos
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-#data_path = 'R:\Lawson\Data\phoibos'
-data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path_info = 'R:\Lawson\mpes-analysis'
+data_path = 'R:\Lawson\Data\phoibos'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 
-scan = 9526
-energy_offset, delay_offset, force_offset = 19.72, 0, False
+scan = 13069
+energy_offset, delay_offset, force_offset = 19.72, -45, True
 
-scan_info = phoibos.get_scan_info(data_path, filename, {})
+scan_info = phoibos.get_scan_info(data_path_info, filename, {})
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 #%% Fitting Functions etc
@@ -72,7 +73,7 @@ def objective(params, x, data):
 
 E, E_int = [1.325, 2.075], 0.1
 E, E_int = [1.37, 2.1], 0.1
-E, E_int = [1.3, 2.0], 0.1
+E, E_int = [1.3, 2.05], 0.1
 
 k, k_int = 0, 20
 d1, d2 = -1000, -400
@@ -81,9 +82,9 @@ d3, d4 = 500, 3000
 colormap = 'terrain_r'
 E_inset = 0.9
 
-WL = scan_info[str(scan)].get("Wavelength")
-per = (scan_info[str(scan)].get("Percent"))
-Temp = float(scan_info[str(scan)].get("Temperature"))
+#WL = scan_info[str(scan)].get("Wavelength")
+#per = (scan_info[str(scan)].get("Percent"))
+#Temp = float(scan_info[str(scan)].get("Temperature"))
 
 ### Plot ###
 colors = ('black','red')
@@ -168,7 +169,7 @@ plt.xlim(-1,2)
 #%% Define t0 from Exciton Rise
 
 #E, E_int = [1.37, 2.125], 0.1
-E, E_int = 1.937, 0.1
+E, E_int = 1.3, 0.1
 A, A_int = 0, 24
 subtract_neg = True
 norm_trace = True
@@ -210,8 +211,8 @@ save_figure = False
 figure_file_name = 'DIFFERENCE_PANELS3'
 
 delays = [10, 100000]
-E, E_int = [1.3, 2], 0.1
-E, E_int = [1.77, 2.125], 0.1
+E, E_int = [1.3, 2.05], 0.1
+#E, E_int = [1.77, 2.125], 0.1
 
 #E, E_int = [1.3, 2.0], 0.1
 
@@ -222,9 +223,9 @@ subtract_neg = True
 norm_trace = False
 
 ###
-WL = scan_info[str(scan)].get("Wavelength")
-per = (scan_info[str(scan)].get("Percent"))
-Temp = float(scan_info[str(scan)].get("Temperature"))
+#WL = scan_info[str(scan)].get("Wavelength")
+#per = (scan_info[str(scan)].get("Percent"))
+#Temp = float(scan_info[str(scan)].get("Temperature"))
 
 res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
@@ -284,7 +285,7 @@ axx[0].set_ylim(-1,3)
 axx[1].axhline(E[0],  color = 'black')
 axx[1].axhline(E[1],  color = 'red')
 axx[1].set_ylim(-0,3.1)
-axx[1].set_xlim(-200, 3000)
+axx[1].set_xlim(-200, 20000)
 #axx[1].axvline(-50,  color = 'grey', linestyle = 'dashed')
 axx[1].axhline(E_inset,  color = 'grey', linestyle = 'dashed')
 #axx[2].axvline(-400,  color = 'grey', linestyle = 'dashed')
@@ -292,7 +293,7 @@ axx[1].set_title(f"Scan{scan}. Angle-Integr.")
 
 axx[2].set_xlim(res.Delay[0], res.Delay[-1])
 axx[2].set_title(f"{WL} nm, {per}%, T = {Temp}")
-axx[2].set_xlim(-500,3000)
+axx[2].set_xlim(-500,20000)
 
 fig.tight_layout()
 #plt.show()
