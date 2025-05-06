@@ -73,7 +73,11 @@ def objective(params, x, data):
 
 E, E_int = [1.325, 2.075], 0.1
 E, E_int = [1.37, 2.1], 0.1
+<<<<<<< HEAD
 E, E_int = [1.3, 2.05], 0.1
+=======
+E, E_int = [1.27, 2.0], 0.1
+>>>>>>> a38650bd1f52a19cd63dc0e6efcf247c2b4793ff
 
 k, k_int = 0, 20
 d1, d2 = -1000, -400
