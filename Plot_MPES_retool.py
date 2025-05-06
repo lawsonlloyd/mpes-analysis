@@ -43,8 +43,8 @@ filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0
 filename, offsets = 'Scan138_binned_200x200x300_CrSBr_Integrated_XUV_Pol.h5', [0,0]
 #filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
-filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
-#filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+#filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
+filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 
 #%% Load the data and axes information
@@ -1158,7 +1158,7 @@ if save_figure is True:
 
 #%% Extract k-Dispersion and Eb momentum-depenence
 
-save_figure = True
+save_figure = False
 figure_file_name = 'eb-dispersion_120k'
 image_format = 'pdf'
 cmap_plot = cmap_LTL2
@@ -1439,7 +1439,7 @@ for t in range(n):
 #%% Plot Excited State EDC Fits and Binding Energy
 
 figure_file_name = 'Eb_delays_allkx'
-save_figure = True
+save_figure = False
 image_format = 'pdf'
 
 fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'height_ratios':[1]})
@@ -1546,9 +1546,12 @@ if save_figure is True:
 #%% Fourier Transform Analaysis
 
 figure_file_name = 'FFT_PEAKS'
-save_figure = True
+save_figure = False
 image_format = 'pdf'
 
+def monoexp(t, A, tau):
+   return A * np.exp(-t/tau) * (t >= 0)
+    
 i_start = np.abs(I.delay.values-200).argmin()
 waitingfreq = (1/2.99793E10)*np.fft.fftshift(np.fft.fftfreq(len(I.delay.values[i_start:]), d=20E-15));
 delay_trunc = I.delay.values[i_start:]
@@ -1579,7 +1582,14 @@ phonons = [110, 240, 350]
 for i in [0,1,2]:
     
     pk = peaks[i]
-    trace = pk[i_start:] - np.mean(pk[i_start:])
+    
+    p0 = [1, 200]
+    #popt, pcov = curve_fit(monoexp, I.delay.values[i_start], pk[i_start], p0, method=None)
+    popt, pcov = curve_fit(monoexp, I.delay.values[i_start:], pk[i_start:], p0, method=None)
+
+    pk_fit = monoexp(I.delay.values, *popt)
+    trace = pk - pk_fit#- np.mean(pk[i_start:])
+    trace = trace[i_start:]
     fft_trace = np.abs(np.fft.fftshift(np.fft.fft(trace)))
 
     ax[i].plot(waitingfreq, fft_trace, color = colors[i]) 

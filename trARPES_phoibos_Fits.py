@@ -6,24 +6,35 @@ Created on Mon Apr 21 14:52:43 2025
 @author: lawsonlloyd
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from scipy.signal import fftconvolve
+import matplotlib.colors as col
+from matplotlib.patches import Rectangle
+from matplotlib.ticker import FormatStrFormatter
+from skimage.draw import disk
+from scipy.optimize import curve_fit
+from scipy.integrate import solve_ivp
+import csv
+from Loader import DataLoader
+import xarray as xr
+import phoibos
+
 #%% Load Data Scan Info
 
 filename = '2024 Bulk CrSBr Phoibos.csv'
 
 scan_info = {}
-data_path = 'R:\Lawson\Data\phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
 data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
-scan_info = phoibos.get_scan_info(data_path, filename, {})
+scan_info = phoibos.get_scan_info(data_path_info, filename, {})
 
 #%% Define Exponential Fitting Functions
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
-from scipy.signal import fftconvolve
 
 %matplotlib inline
 
@@ -53,6 +64,28 @@ def convolved_signal(t, signal_function, sigma_IRF, *params):
     irf = IRF(t - t[len(t)//2], sigma_IRF)  # Shift IRF to center
     irf /= np.sum(irf) * dt  # Normalize IRF
     convolved = fftconvolve(signal, irf, mode='same') * dt  # Convolve with IRF
+    return convolved
+
+def convolved_signal_2(t, signal_function, sigma_IRF, *params):
+    dt = np.mean(np.diff(t))
+
+    # Extend the time axis on both sides to avoid edge effects
+    pad_width = int(5 * sigma_IRF / dt)  # enough padding for Gaussian tail
+    t_pad = np.linspace(t[0] - pad_width * dt, t[-1] + pad_width * dt, len(t) + 2 * pad_width)
+
+    # Evaluate signal on the extended time axis
+    signal_ext = signal_function(t_pad, *params)
+
+    # Create centered Gaussian IRF
+    irf = np.exp(-((t_pad - np.median(t_pad)) ** 2) / (2 * sigma_IRF ** 2))
+    irf /= np.sum(irf) * dt  # Normalize area under the IRF to 1
+
+    # Convolve using FFT
+    conv_ext = fftconvolve(signal_ext, irf, mode='same') * dt
+
+    # Trim back to original t range
+    convolved = conv_ext[pad_width : -pad_width]
+    
     return convolved
 
 #%% Independent Fitting EX and CBM Signals to Single Exponentials
@@ -128,7 +161,7 @@ for s in range(len(scans)):
     perr_ex[s,:] = perr_exciton
     perr_cbm[s,:] = perr_conduction
 
-    # Generate fitted curves\
+    # Generate fitted curves
     t = np.linspace(-500,5000,550)
     exciton_fitted = exciton_model(t, *popt_exciton)
     conduction_fitted = cbm_model(t, *popt_conduction)
@@ -733,7 +766,7 @@ for s in range(len(scans)):
     delay_axis = res.Delay.values
     
     ### Extract time traces ###
-    delay_limit = [0, 3000]
+    delay_limit = [-500, 3000]
     delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     
     # EXCITON
@@ -814,7 +847,7 @@ for s in range(len(scans)):
 fig.tight_layout()
 plt.show()
 
-#%% Fit 400 nm Excitation Results
+#%% Fit 400 nm Excitation Results (3 Scans)
 
 def exciton_model(t, C, tau_rise, tau_decay1):
     return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
@@ -823,12 +856,12 @@ def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
     return convolved_signal(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
 
 # Load Data
-scans = [9517, 9137, 9526]
-scans = [9525, 9517,  9526] #20%, 36%, 45%
+scans = [9525, 9517, 9526] #20%, 36%, 45%
 
-E, E_int = [1.37, 2.125], 0.1
+E, E_int = [1.35, 2], 0.1
+delay_limit = [-150, 3050]
 
-fwhm_IRF = 100
+fwhm_IRF = 150
 sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
 
 popt_ex, popt_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
@@ -844,29 +877,18 @@ for s in range(len(scans)):
     res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
     
     ### Extract time traces ###
-    #E, E_int = [1.37, 2.125], 0.1
-    if s == 1:    
-        delay_limit = [-250, 3000]
-        
-    #elif s == 1:
-     #   E, E_int = [1.32, 1.95], 0.1        
-    else:
-        E, E_int = [1.37, 2.125], 0.1
-        delay_limit = [-200, 3000]
     
-    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
-    delay_axis = delay_axis + 50
+    delay_axis = res.Delay
+    #delay_axis = delay_axis
 
     # EXCITON
     trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
-    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-250)}].mean()
-    trace_1 = trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-700,-200)}].mean()
     norm_factor = np.max(trace_1)
     
     # CBM
     trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[1]-E_int/2, E[1]+E_int/2)}].sum(axis=(0,1))
-    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-250)}].mean()
-    trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-700,-200)}].mean()
     norm_factor = np.max(trace_2)
 
     trace_1 = trace_1/norm_factor
@@ -881,11 +903,11 @@ for s in range(len(scans)):
     bnds_cbm =  [[0,40,0,0,0], [3, 1000, 3, 3000, 60000] ]
     
     # Fit noisy exciton data
-    popt_exciton, pcov = curve_fit(exciton_model, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
+    popt_exciton, pcov = curve_fit(exciton_model, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_exciton, bounds = bnds_exciton)
     perr_exciton = np.sqrt(np.diag(pcov))
 
     # Fit noisy conduction band data
-    popt_conduction, pcov = curve_fit(cbm_model, delay_axis, trace_2, p0=init_guess_conduction, bounds = bnds_cbm)
+    popt_conduction, pcov = curve_fit(cbm_model, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_conduction, bounds = bnds_cbm)
     perr_conduction = np.sqrt(np.diag(pcov))
 
     # Save Parameters
@@ -896,6 +918,8 @@ for s in range(len(scans)):
     perr_cbm[s,:] = perr_conduction
 
     # Generate fitted curves
+    t = np.linspace(-300,3000,350)
+    t = trace_1.Delay.values
     exciton_fitted = exciton_model(t, *popt_exciton)
     conduction_fitted = cbm_model(t, *popt_conduction)
     
@@ -918,7 +942,7 @@ for s in range(len(scans)):
     ax[2*s].set_xlabel('Time (fs)')
     ax[2*s].set_ylabel('Norm. Int., a.u.')
     ax[2*s].set_title('Exciton')
-    ax[2*s].set_xlim(-250,3000)
+    ax[2*s].set_xlim(-500,3000)
     ax[2*s].legend(frameon=False, fontsize = 12)
     
     # Conduction band rise + decay plot
@@ -929,30 +953,55 @@ for s in range(len(scans)):
     ax[2*s+1].set_xlabel('Time (fs)')
     ax[2*s+1].set_ylabel('Norm. Int., a.u.')
     ax[2*s+1].set_title('CBM')
-    ax[2*s+1].set_xlim(-200,3000)
+    ax[2*s+1].set_xlim(-500,3000)
     ax[2*s+1].legend(frameon=False, fontsize = 12)
 
 fig.tight_layout()
 plt.show()
 
-#%%
 #%% Fit Above-Gap Excitation Dynamics
 
-def exciton_model(t, C, tau_rise, tau_decay1):
-    return convolved_signal(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed
+def convolved_signal(t, signal_function, sigma_IRF, *params):
+    dt = np.mean(np.diff(t))  # Time step
+    signal = signal_function(t, *params)  # Compute signal
+    irf = IRF(t - t[len(t)//2], sigma_IRF)  # Shift IRF to center
+    irf /= np.sum(irf) * dt  # Normalize IRF
+    convolved = fftconvolve(signal, irf, mode='same') * dt  # Convolve with IRF
+    return convolved
 
+def convolved_signal_2(t, signal_function, sigma_IRF, *params):
+    dt = np.mean(np.diff(t))
+    pad_width = int(np.ceil(10 * sigma_IRF / dt))
+    
+    # Time axis extension
+    t_pad = np.linspace(t[0] - pad_width * dt, t[-1] + pad_width * dt, len(t) + 2 * pad_width)
+    
+    # Evaluate signal on padded axis
+    signal_ext = signal_function(t_pad, *params)
+
+    # IRF centered at zero
+    t_irf = np.linspace(-pad_width * dt, pad_width * dt, 2 * pad_width + 1)
+    irf = np.exp(-t_irf**2 / (2 * sigma_IRF**2))
+    irf /= np.sum(irf) * dt
+
+    # Convolve in 'full' mode and trim
+    conv = fftconvolve(signal_ext, irf, mode='same') * dt
+    start = len(irf) // 2
+    convolved = conv[start : start + len(t)]
+
+    return convolved
+
+def exciton_model(t, C, tau_rise, tau_decay1):
+    return convolved_signal_2(t, exp_rise_monoexp_decay, sigma_IRF, C, tau_rise, tau_decay1)  # IRF is fixed    
+    
 def cbm_model(t, C, tau_rise, D, tau_decay1, tau_decay2):
-    return convolved_signal(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
+    return convolved_signal_2(t, exp_rise_biexp_decay, sigma_IRF, C, tau_rise, D, tau_decay1, tau_decay2)  # IRF is fixed
 
 # Load Data
-scans = [9370, 9400, 9410, 9517]
+scans = [9370, 9400, 9410, 9526]
 ex_energies = [1.77, 1.823, 1.937, 3.1]
 colors = ['brown', 'red', 'purple', 'blue']
-
-E, E_int = [1.37, 2.125], 0.1
-
-fwhm_IRF = 100
-sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+E, E_int = [1.27, 2.0], 0.1
 
 popt_ex, popt_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
 perr_ex, perr_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
@@ -960,11 +1009,14 @@ perr_ex, perr_cbm = np.zeros((len(scans),3)), np.zeros((len(scans),5))
 # Initialize figure
 save_figure = True
 figure_file_name = 'abovegapcbm_dyn'
-image_format = 'svg'
+image_format = 'pdf'
 
 fig, ax = plt.subplots(4, 2, figsize=(10, 10))
 plt.gcf().set_dpi(300)
 ax = ax.flatten()
+
+left_list = ['a', 'c', 'e', 'g']
+right_list = ['b', 'd', 'f', 'h']
 
 for s in range(len(scans)):
 
@@ -973,45 +1025,51 @@ for s in range(len(scans)):
     ### Extract time traces ###
         
     if s == 3:
-        fwhm_IRF = 100
-        E, E_int = [1.3, 2.05], 0.1
+        fwhm_IRF = 150
+        sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+        delay_limit = [-200,3050]
 
     else:
         fwhm_IRF = 80
-        E, E_int = [1.3, 2.], 0.1
-        delay_limit = [-100,3050]
+        sigma_IRF = fwhm_IRF/2.355   # Fixed IRF width (fs)
+        delay_limit = [-200,3050]
         
-    delay_axis = res.Delay.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
- #   delay_axis = delay_axis - 240
+    ### Extract time traces ###
+    
+    delay_axis = res.Delay
+    #delay_axis = delay_axis
+
     # EXCITON
     trace_1 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[0]-E_int/2, E[0]+E_int/2)}].sum(axis=(0,1))
-    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-600,-250)}].mean()
-    trace_1 = trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    trace_1 = trace_1-trace_1.loc[{"Delay":slice(-700,-200)}].mean()
     norm_factor = np.max(trace_1)
     
     # CBM
     trace_2 = res.loc[{'Angle':slice(-12,12), 'Energy':slice(E[1]-E_int/2, E[1]+E_int/2)}].sum(axis=(0,1))
-    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-600,-250)}].mean()
-    trace_2 = trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}]
+    trace_2 = trace_2-trace_2.loc[{"Delay":slice(-700,-200)}].mean()
     norm_factor = np.max(trace_2)
 
     trace_1 = trace_1/norm_factor
     trace_2 = trace_2/norm_factor
     
     # Initial guesses for fitting
-    init_guess_exciton = [0.8, 50, 2000]  # A, taurise, tau2
+    init_guess_exciton = [0.8, 200, 1000]  # A, taurise, tau2
     init_guess_conduction = [1, 250, .5, 400, 5000]  # C, tau_rise, D, tau_decay1, tau_decay2
     
     # Bounds for fitting
-    bnds_exciton = [ [0,0,0], [2,2000,50000] ]
-    bnds_cbm =  [[0,0,0,0,0], [3, 1000, 3, 3000, 60000] ]
+    bnds_exciton = [ [0,0,0],     [2,2000,50000]            ]
+    bnds_cbm =     [ [0,0,0,0,0], [3, 1000, 3, 3000, 60000] ]
     
     # Fit noisy exciton data
-    popt_exciton, pcov = curve_fit(exp_rise_monoexp_decay, delay_axis, trace_1, p0=init_guess_exciton, bounds = bnds_exciton)
+    #popt_exciton, pcov = curve_fit(exciton_model, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_exciton, bounds = bnds_exciton)
+    popt_exciton, pcov = curve_fit(exp_rise_monoexp_decay, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_1.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_exciton, bounds = bnds_exciton)
+
     perr_exciton = np.sqrt(np.diag(pcov))
 
     # Fit noisy conduction band data
-    popt_conduction, pcov = curve_fit(cbm_model, delay_axis, trace_2, p0=init_guess_conduction, bounds = bnds_cbm)
+#    popt_conduction, pcov = curve_fit(cbm_model, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_conduction, bounds = bnds_cbm)
+    popt_conduction, pcov = curve_fit(exp_rise_biexp_decay, delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values, trace_2.loc[{"Delay":slice(delay_limit[0],delay_limit[1])}], p0=init_guess_conduction, bounds = bnds_cbm)
+
     perr_conduction = np.sqrt(np.diag(pcov))
 
     # Save Parameters
@@ -1022,41 +1080,67 @@ for s in range(len(scans)):
     perr_cbm[s,:] = perr_conduction
 
     # Generate fitted curves
+    #t = np.linspace(-300,3000,3300)
+    t = trace_1.Delay.values
+    t = delay_axis.loc[{"Delay":slice(delay_limit[0], delay_limit[1])}].values
     exciton_fitted = exp_rise_monoexp_decay(t, *popt_exciton)
-    conduction_fitted = cbm_model(t, *popt_conduction)
-    
- #   conduction_fitted = biexp(t-150, 3.5, 400, 1, 10000)
-    
+    conduction_fitted = exp_rise_biexp_decay(t, *popt_conduction)
+        
     # Print best-fit parameters
-    print("Exciton Fit Parameters:")
-    print(fr"A = {popt_exciton[0]:.3f}, taurise = {popt_exciton[1]:.1f} fs, tau_decay = {popt_exciton[2]:.1f} fs")
+    # print("Exciton Fit Parameters:")
+    # print(fr"A = {popt_exciton[0]:.3f}, taurise = {popt_exciton[1]:.1f} fs, tau_decay = {popt_exciton[2]:.1f} fs")
     
-    print("\nConduction Band Fit Parameters:")
-    print(fr"$\tau_{{r}}$ = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, D = {popt_conduction[2]:.1f}, $\tau_{1}$ = {popt_conduction[3]:.1f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps")
-    print("")
+    # print("\nConduction Band Fit Parameters:")
+    # print(fr"$\tau_{{r}}$ = {popt_conduction[1]:.1f} fs, C = {popt_conduction[0]:.1f}, D = {popt_conduction[2]:.1f}, $\tau_{1}$ = {popt_conduction[3]:.1f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps")
+    # print("")
     ### Plot results ###
     
     # Exciton decay plot
-    ax[2*s].plot(delay_axis, trace_1, label='Data', color=colors[s], alpha=1)
+    ax[2*s].plot(delay_axis, trace_1, label='Data', color=colors[s], alpha=1, linewidth = 3)
     #ax[0].plot(t, exciton_signal, label='True Exciton Model', color='red', linestyle='dashed')
-    ax[2*s].plot(t, exciton_fitted, color='grey', label=fr"$\tau_{{r}}$ = {popt_exciton[1]:.0f} fs, $\tau_{1}$ = {popt_exciton[2]/1000:.1f} ps", linestyle='solid')
-    ax[2*s].axvline(0, linestyle='--', color='gray', alpha=0.5)
-    ax[2*s].set_xlabel('Time (fs)')
-    ax[2*s].set_ylabel('Norm. Int., a.u.')
-    ax[2*s].set_title('Exciton')
-    ax[2*s].set_xlim(-200,3000)
+    ax[2*s].plot(t, exciton_fitted, color='grey', linewidth = 3, label=fr"$\tau_{{r}}$ = {popt_exciton[1]:.0f} fs, $\tau_{1}$ = {popt_exciton[2]/1000:.1f} ps", linestyle='solid')
+    ax[2*s].axvline(0, linestyle='--', color='gray', alpha=1)
+    ax[2*s].set_xlabel('Delay, fs')
+    ax[2*s].set_ylabel('Norm. Int.')
+    ax[2*s].set_title(f"hv = {ex_energies[s]} eV")
     ax[2*s].legend(frameon=False, fontsize = 12)
     
     # Conduction band rise + decay plot
-    ax[2*s+1].plot(delay_axis, trace_2, label='Data', color=colors[s], alpha=1)
+    ax[2*s+1].plot(delay_axis, trace_2, label='Data', color=colors[s], alpha=1, linewidth = 3)
     #ax[1].plot(t, conduction_band_signal, label='True Conduction Model', color='red', linestyle='dashed')
-    ax[2*s+1].plot(t, conduction_fitted, color='grey', label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.0f} fs, $\tau_{1}$ = {popt_conduction[3]:.0f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps", linestyle='solid')
-    ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=0.5)
-    ax[2*s+1].set_xlabel('Time (fs)')
-    ax[2*s+1].set_ylabel('Norm. Int., a.u.')
-    ax[2*s+1].set_title('CBM')
-    ax[2*s+1].set_xlim(-200,3000)
+    ax[2*s+1].plot(t, conduction_fitted, linewidth = 3, color='grey', label= fr"$\tau_{{r}}$ = {popt_conduction[1]:.0f} fs, $\tau_{1}$ = {popt_conduction[3]:.0f} fs, $\tau_{2}$ = {popt_conduction[4]/1000:.1f} ps", linestyle='solid')
+    ax[2*s+1].axvline(0, linestyle='--', color='gray', alpha=1)
+    ax[2*s+1].set_xlabel('Delay, fs')
+    ax[2*s+1].set_ylabel('Norm. Int.')
+    ax[2*s+1].set_title(f"hv = {ex_energies[s]} eV")
     ax[2*s+1].legend(frameon=False, fontsize = 12)
+
+    ax[2*s].set_xticks(np.arange(-1000,3500,500))
+    for label in ax[2*s].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[2*s].set_yticks(np.arange(-0.5,1.5,0.25))
+    # for label in ax[2*s].yaxis.get_ticklabels()[1::2]:
+    #     label.set_visible(False)
+    ax[2*s].set_xlim(-500,3000)
+    ax[2*s].set_ylim(-0.1, 1.1*np.max(trace_1))
+        
+    ax[2*s+1].set_xticks(np.arange(-1000,3500,500))
+    for label in ax[2*s+1].xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[2*s+1].set_yticks(np.arange(-0.5,1.5,0.25))
+    for label in ax[2*s+1].yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+        
+    ax[2*s+1].set_xlim(-500,3000)
+    ax[2*s+1].set_ylim(-0.1, 1.1)
+
+    fig.text(.005, 0.975-s*0.25, f"({left_list[s]})", fontsize = 20, fontweight = 'regular')
+    fig.text(.5, 0.975-s*0.25,  f"({right_list[s]})", fontsize = 20, fontweight = 'regular')
+
+fig.text(0.21, 1.005, 'Exciton', fontsize = 28, fontweight = 'regular')
+fig.text(0.725, 1.005, 'CBM', fontsize = 28, fontweight = 'regular')
 
 fig.tight_layout()
 plt.show()
@@ -1068,20 +1152,22 @@ if save_figure is True:
 
 save_figure = True
 figure_file_name = 'abovegapexc_cbm_curve'
-image_format = 'svg'
+image_format = 'pdf'
 
 colors = ['darkred', 'red', 'purple', 'blue']
 #plt.scatter(ex_energies, popt_ex[:,1], c = colors)
 
 fig, ax1 = plt.subplots()
-#for i in np.arange(len(scans)):
- #   ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 0.75, ms = 7, marker = 'o')
+for i in np.arange(len(scans)):
+     ax1.errorbar(ex_energies[i], popt_ex[i,1], yerr = perr_ex[i,1], color = colors[i], \
+     linewidth=2, capsize=5, zorder=1, alpha = 1, ms = 7, marker = 'o', label = 'Exciton')
 
-#colors = ['crimson', 'salmon', 'violet', 'teal']
+colors = ['crimson', 'salmon', 'violet', 'teal']
 
 for i in np.arange(len(scans)):
     ax1.errorbar(ex_energies[i], popt_cbm[i,1], yerr = perr_ex[i,1], \
-                 color = colors[i], elinewidth=2, capsize=5, zorder=1, alpha = 1, ms = 7, marker = 's')
+                 color = colors[i], elinewidth=2, capsize=5, zorder=1, \
+                     alpha = 1, ms = 7, marker = 's', label = 'CBM')
 
 #plt.plot(ex_energies, 50+50*np.sqrt(ex_energies), color='grey')
 
@@ -1090,14 +1176,14 @@ for i in np.arange(len(scans)):
 # curve_fit = curve_fit - curve_fit.min()
 # curve_fit = curve_fit + 30
 # plt.plot(e, curve_fit)
-ax1.set_yticks(np.arange(-25,310,25))
+ax1.set_yticks(np.arange(-50,375,25))
 for label in ax1.yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
 ax1.set_xlabel('Excitation Energy, eV')
 ax1.set_ylabel('Rise Time, fs')
 ax1.set_ylim(-10,310)
-ax1.set_ylim(-10,275)
-
+ax1.set_ylim(-10,350)
+#ax1.legend(frameon=False)
 #plt.xlim(1.65,3.2)
 
 if save_figure is True:
