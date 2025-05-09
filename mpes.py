@@ -78,7 +78,7 @@ def get_waterfall(I_res, kx, kx_int, ky, ky_int):
     return frame
 
 # Fucntion for Extracting time Traces
-def get_time_trace(I_res, E, E_int, k , k_int, norm_trace, subtract_neg, neg_delays):
+def get_time_trace(I_res, E, E_int, k, k_int, norm_trace, subtract_neg, neg_delays):
     
     (kx, ky) = k
     (kx_int, ky_int) = k_int
@@ -124,52 +124,281 @@ def enhance_features(I_res, Ein, factor, norm):
 
 #%% Useful Functions and Definitions for Plotting Data
 
-def plot_momentum_maps(I, E, E_int, delays, delay_int, cmap_plot):
-            
-    fig, ax = plt.subplots(1, len(E), squeeze = False)
-    ax = ax.flatten()
-    fig.set_size_inches(8, 5, forward=False)
-    plt.gcf().set_dpi(300)
+def save_figure(fig, name, image_format):
     
-    for i in np.arange(len(E)):
-            
+    fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
+
+def plot_momentum_maps(I, E, E_int, delays, delay_int, fig=None, ax=None, **kwargs):
+    """
+    Plot momentum maps at specified energies and delays with optional layout and styling.
+    
+    Parameters:
+    - I: xarray dataset (e.g., I_diff or I_res).
+    - E: list of energies.
+    - E_int: total energy integration width (float).
+    - delays: list of delays (same length as E).
+    - delay_int: integration window for delays (float).
+    
+    Optional kwargs:
+    - fig: matplotlib figure object (optional).
+    - ax: array of axes (optional). If not provided, subplots are created.
+    - cmap: colormap (default 'viridis').
+    - scale: list [vmin, vmax] (default [0, 1]).
+    - panel_labels: list of text labels (e.g., ['(a)', '(b)', ...]) (optional).
+    - label_positions: tuple (x, y) in axes fraction coords for labels (default: (0.03, 0.9)).
+    - fontsize: int for all text (default: 14).
+    - figsize: tuple for fig size (only used if fig is created here).
+    - nrows, ncols: layout for auto subplot creation (optional).
+    - colorbar
+    
+    Returns:
+    - fig, ax, im (image handle for colorbar)
+    """
+    delays = np.atleast_1d(delays)
+    E = np.atleast_1d(E)
+    
+    if len(delays) != len(E):
+        delays = np.resize(delays, len(E))
+        
+    cmap = kwargs.get("cmap", "viridis")
+    scale = kwargs.get("scale", [0, 1])
+    panel_labels = kwargs.get("panel_labels", False)
+    label_positions = kwargs.get("label_positions", (0.0, 1.1))
+    fontsize = kwargs.get("fontsize", 14)
+    figsize = kwargs.get("figsize", (8, 5))
+    nrows = kwargs.get("nrows", 2)
+    ncols = kwargs.get("ncols", int(np.ceil(len(E) / nrows)))
+    colorbar = kwargs.get("colorbar", False)
+
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
+        ax = np.ravel(ax)
+    else:
+        ax = [ax]
+        
+    for i in range(len(E)):
         frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
-        frame_neg = get_momentum_map(I, E[i], E_int, -140, 50)
-        #frame = frame - frame_neg
-        
-        f_norm = np.max(frame)
-        frame = frame/f_norm
-        
-        im = frame.plot.imshow(ax = ax[i], clim = None, vmin = 0, vmax = 1, cmap = cmap_plot, add_colorbar=False)
-        ax[i].set_aspect(1)        
-        ax[i].set_xlim(-2,2)
-        ax[i].set_ylim(-2,2)
-        
-        ax[i].set_xticks(np.arange(-2,2.2,1))
+        frame = frame / frame.max()
+
+        im = frame.plot.imshow(
+            ax=ax[i],
+            vmin=scale[0],
+            vmax=scale[1],
+            cmap=cmap,
+            add_colorbar=False
+        )
+
+        # Consistent formatting for all axes
+        ax[i].set_aspect(1)
+        ax[i].set_xlim(-2, 2)
+        ax[i].set_ylim(-2, 2)
+        ax[i].set_xticks(np.arange(-2, 2.2, 1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-            
-        ax[i].set_yticks(np.arange(-2,2.1,1))
+
+        ax[i].set_yticks(np.arange(-2, 2.1, 1))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
+
+        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize=fontsize)
+        ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize=fontsize)
+        ax[i].set_title(f"$E$ = {E[i]:.2f} eV", fontsize=fontsize)
+
+        # Optional panel label
+        if panel_labels is True:
+            labels = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
+            ax[i].text(
+                label_positions[0], label_positions[1],
+                labels[i],
+                transform=ax[i].transAxes,
+                fontsize=fontsize,
+                fontweight='regular'
+            )
+    
+    if colorbar == True:
+        # Add colorbar
+        cbar_ax = fig.add_axes([1.02, 0.36, 0.025, 0.35])
+        cbar = fig.colorbar(im, cax=cbar_ax, ticks=[0, 1])
+        cbar.ax.set_yticklabels(['min', 'max'])
+
+    fig.tight_layout()
+
+    return fig, ax, im
+
+def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwargs):
+    """
+    Plot time traces of momentum frame at specified kx for multiple energies.
+    
+    Parameters:
+    - I_res: xarray dataset (e.g., I_diff or I_res).
+    - E_list: list of energies for which to plot time traces.
+    - E_int: energy integration width (float).
+    - kx: the specific kx value to plot.
+    - kx_int: kx integration window (float).
+    - delays: list of delay values.
+    - delay_int: delay integration window (float).
+    
+    Optional kwargs:
+    - fig: matplotlib figure object (optional).
+    - ax: axis (optional). If not provided, a new axis is created.
+    - cmap: colormap (default 'viridis').
+    - norm_trace: whether to normalize the trace (default: True).
+    - subtract_neg: whether to subtract the negative delays (default: True).
+    - neg_delays: the range of negative delays to subtract (default: (-3, 0)).
+    - fontsize: int for all text (default: 14).
+    """
+    
+    fontsize = kwargs.get("fontsize", 14)
+    cmap = kwargs.get("cmap", "viridis")
+    scale = kwargs.get("scale", [0, 1])
+    
+    delays = np.atleast_1d(delays)
+    
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Loop over the energy list to plot time traces at each energy
+    for i, delay in enumerate(delays):
+        # Get the frame for the given energy, kx, and delay
+        kx_frame = get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+        kx_frame = enhance_features(kx_frame, 0.9, factor = 0, norm = True)
+        kx_frame.T.plot.imshow(ax=ax, cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
-        #ax[0].set_box_aspect(1)
-        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_title('$E$ = ' + str((E[i])) + ' eV', fontsize = 18)
-        ax[i].tick_params(axis='both', labelsize=16)
-        #ax[i].annotate(('E = '+ str(round(tMaps[i],2)) + ' eV'), xy = (-1.85, 1.6), fontsize = 14, weight = 'bold')
-        ax[i].text(-1.9, 1.5,  f"$\Delta$t = {delays[i]} fs", size=14)
-
-    cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.35])
-    cbar = fig.colorbar(im, cax=cbar_ax, ticks = [0,frame.max()])
-    cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
-
-    plt.rcParams['svg.fonttype'] = 'none'
+        #ax[2].set_aspect(1)
+        ax.set_xticks(np.arange(-2,2.2,1))
+        for label in ax.xaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+        ax.set_yticks(np.arange(-2,4.1,.25))
+        for label in ax.yaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+        ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax.set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+        ax.set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
+        ax.set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
+        ax.tick_params(axis='both', labelsize=16)
+        ax.set_xlim(-2,2)
+        ax.set_ylim(0.9, 3)
+        ax.text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        ax.axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+    
+    # Adjust layout
     fig.tight_layout()
     
-    return fig
-                
+    return fig, ax
+
+def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=True, neg_delays=(-500, -150), fig=None, ax=None, **kwargs):
+    """
+    Plot time traces at a specific energy and momentum coordinates with optional styling.
+    
+    Parameters:
+    - I_res: xarray dataset (e.g., I_diff or I_res).
+    - E: list of energies for the time trace plot.
+    - kx, ky: momentum coordinates at which to extract the time trace.
+    - kx_int, ky_int: momentum integration widths for the time trace.
+    - E_int: energy integration width.
+    - norm_trace: whether to normalize the trace (default: True).
+    - subtract_neg: whether to subtract the mean of the negative delays (default: True).
+    - neg_delays: range for background subtraction (default: (-200, -50)).
+    - fig: matplotlib figure object (optional).
+    - ax: axes object (optional).
+    - panel_labels: list of panel labels (e.g., ['(a)', '(b)', ...]).
+    - label_positions: position for panel labels (default: (0.03, 0.9)).
+    - fontsize: font size for all text (default: 14).
+    
+    Returns:
+    - fig, ax (figure and axis objects).
+    """
+    fontsize = kwargs.get("fontsize", 14)
+    colors = kwargs.get("colors", ['Black', 'Maroon', 'Blue', 'Purple', 'Green', 'Grey'])
+    legend = kwargs.get("legend", True)
+
+    E = np.atleast_1d(E)
+    (kx, ky), (kx_int, ky_int) = k, k_int
+
+    if len(E) > len(kx):
+        kx = np.resize(kx, len(E))
+    
+    if len(E) < len(kx):
+        E = np.resize(E, len(kx))        
+        
+    
+    if fig is None or ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    for i, (E, kx) in enumerate(zip(E, kx)):
+        trace = get_time_trace(I_res, E, E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
+        
+        ax.plot(trace.coords['delay'].values, trace.values, label=f'E = {E:.2f} eV', color = colors[i], linewidth=2)
+    
+    # Formatting
+    ax.set_xlabel('Delay, fs', fontsize=fontsize)
+    ax.set_ylabel('Intensity' , fontsize=fontsize)
+    if legend is True:
+        ax.legend(fontsize=fontsize, frameon=False)
+    
+    fig.tight_layout()
+
+    return fig, ax
+
+def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
+    """
+    Plot the waterfall of intensity across both kx and ky slices.
+
+    Parameters:
+    - I_res: xarray dataset with intensity data.
+    - kx: kx value around which to extract the data (in 1/Å).
+    - kx_int: integration window for kx (in 1/Å).
+    - ky: ky value around which to extract the data (in 1/Å).
+    - ky_int: integration window for ky (in 1/Å).
+
+    Optional kwargs:
+    - cmap: colormap for the waterfall plot (default 'viridis').
+    - scale: [vmin, vmax] for normalization (default [0, 1]).
+    - xlabel: label for the x-axis (default 'Delay, ps').
+    - ylabel: label for the y-axis (default 'Intensity').
+    - fontsize: font size for the labels (default: 14).
+    - figsize: figure size (default (10, 6)).
+
+    Returns:
+    - fig, ax: figure and axis handles for the plot.
+    """
+
+    cmap = kwargs.get("cmap", "viridis")
+    scale = kwargs.get("scale", [0, 1])
+    xlabel = kwargs.get("xlabel", 'Delay, ps')
+    ylabel = kwargs.get("ylabel", 'Intensity')
+    fontsize = kwargs.get("fontsize", 14)
+    figsize = kwargs.get("figsize", (10, 6))
+
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
+    waterfall = enhance_features(waterfall, 0.9, factor = 0, norm = True)
+    
+    waterfall.plot(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+    
+    ax.set_xlabel('Delay, fs', fontsize = 18)
+    ax.set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
+    ax.set_yticks(np.arange(-1,3.5,0.25))
+    ax.set_xlim(I.delay[1],I.delay[-1])
+    ax.set_ylim(energy_limits)
+    ax.set_title('$k$-Integrated')
+    ax.axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+    
+    for label in ax.yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    hor = I.delay[-1] - I.delay[1]
+    ver =  energy_limits[1] - energy_limits[0]
+    aspra = hor/ver 
+    #ax[1].set_aspect(aspra)
+    ax.set_aspect("auto")
+
+    # Adjust layout to avoid overlap
+    fig.tight_layout()
+
+    return fig, ax
+
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
 def custom_colormap(CMAP, lower_portion_percentage):
     # create a colormap that consists of
