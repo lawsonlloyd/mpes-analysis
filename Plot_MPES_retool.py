@@ -676,7 +676,6 @@ cmap_plot = cmocean.cm.balance
 scale = 1
 
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
-
 delays, delay_int = [-120, 0, 50, 100, 200, 500], 50 #kx frame
 
 Ein = .8 #Enhance excited states above this Energy, eV
@@ -687,44 +686,13 @@ plot_symmetry_points = False
 ### Do the Plotting ###
 #######################
 
-fig, ax = plt.subplots(2, 3)
-fig.set_size_inches(9, 5, forward=False)
-ax = ax.flatten()
-
-for i in np.arange(len(delays)):
-    
-    kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, delays[i], delay_int)
-    kx_frame = mpes.enhance_features(kx_frame, Ein, factor = 0, norm = True)
-    kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(Ein,3)}])
-
-    im_kx = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap_plot, add_colorbar=False, vmin=-1*scale, vmax=scale) #kx, ky, t
-
-    ax[i].set_aspect(1)
-    ax[i].set_xticks(np.arange(-2,2.2,1))
-    for label in ax[i].xaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    ax[i].set_yticks(np.arange(-2,4.1,.25))
-    for label in ax[i].yaxis.get_ticklabels()[1::2]:
-        label.set_visible(False)
-    ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-    ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-    ax[i].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-#    ax[i].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
-    ax[i].set_title( f"$\Delta$t = {delays[i]} fs", fontsize = 18)
-    ax[i].tick_params(axis='both', labelsize=16)
-    ax[i].set_xlim(-2,2)
-    ax[i].set_ylim(energy_limits[0],energy_limits[1])
-#    ax[i].text(-1.9, energy_limits[1]-0.3,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
-    ax[i].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1)
-    
-    if plot_symmetry_points is True:
-        ax[2].axvline(0, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
-        ax[2].axvline(X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
-        ax[2].axvline(-X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
-        ax[2].axvline(2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
-        ax[2].axvline(-2*X, linestyle = 'dashed', color = 'pink', linewidth = 1.5)
-    #ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
-    ax[i].set_aspect("auto")
+# Plot kx frame
+plot_kx_frame(
+    I_res, 0, 0.5, delays, delay_int=100,
+    subtract_neg=subtract_neg, neg_delays=neg_delays,
+    nrows = 2, ncols = 3,
+    cmap = 'BuPu'
+)
 
 fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
 fig.text(.03, 0.5, "(d)", fontsize = 18, fontweight = 'regular')
@@ -733,9 +701,6 @@ fig.text(.355, 0.5, "(e)", fontsize = 18, fontweight = 'regular')
 fig.text(.68, 0.975, "(c)", fontsize = 18, fontweight = 'regular')
 fig.text(.68, 0.5, "(f)", fontsize = 18, fontweight = 'regular')
 
-cbar_ax = fig.add_axes([1, 0.325, 0.025, 0.5])
-cbar = fig.colorbar(im_kx, cax=cbar_ax, ticks = [-1, 0, 1])
-cbar.ax.set_yticklabels(['-1', 0, '1'])  # vertically oriented colorbar
 
 params = {'lines.linewidth' : 2.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
               'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}

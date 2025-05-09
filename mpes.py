@@ -246,40 +246,47 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     - subtract_neg: whether to subtract the negative delays (default: True).
     - neg_delays: the range of negative delays to subtract (default: (-3, 0)).
     - fontsize: int for all text (default: 14).
+    - nrows, ncols: layout for auto subplot creation (optional).
+    - colorbar
     """
-    
+    nrows = kwargs.get("nrows", 1)
+    ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
+    figsize = kwargs.get("figsize", (8, 5))
     fontsize = kwargs.get("fontsize", 14)
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
     
     delays = np.atleast_1d(delays)
     
-    if fig is None or ax is None:
-        fig, ax = plt.subplots(figsize=(8, 6))
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
+        ax = np.ravel(ax)
+    else:
+        ax = [ax]
     
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
         kx_frame = get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
         kx_frame = enhance_features(kx_frame, 0.9, factor = 0, norm = True)
-        kx_frame.T.plot.imshow(ax=ax, cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
+        kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
         #ax[2].set_aspect(1)
-        ax.set_xticks(np.arange(-2,2.2,1))
-        for label in ax.xaxis.get_ticklabels()[1::2]:
+        ax[i].set_xticks(np.arange(-2,2.2,1))
+        for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax.set_yticks(np.arange(-2,4.1,.25))
-        for label in ax.yaxis.get_ticklabels()[1::2]:
+        ax[i].set_yticks(np.arange(-2,4.1,.25))
+        for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax.set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-        ax.set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-        ax.set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
-        ax.tick_params(axis='both', labelsize=16)
-        ax.set_xlim(-2,2)
-        ax.set_ylim(0.9, 3)
-        ax.text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
-        ax.axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+        ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
+        ax[i].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
+        ax[i].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
+        ax[i].tick_params(axis='both', labelsize=16)
+        ax[i].set_xlim(-2,2)
+        ax[i].set_ylim(0.9, 3)
+        ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
     
     # Adjust layout
     fig.tight_layout()
