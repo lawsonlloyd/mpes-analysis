@@ -340,6 +340,15 @@ mpes.plot_kx_frame(
     cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
 )
 
+# # Plot ky-E frame
+# (kx, ky), (kx_int, ky_int) = (0, 0), (0.5, 0.5) # Central (kx, ky) point and k-integration
+# mpes.plot_ky_frame(
+#     I_res, ky, ky_int, delays=[500], delay_int=1000,
+#     subtract_neg=subtract_neg, neg_delays=neg_delays,
+#     fig = fig, ax = axs[2],
+#     cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
+# )
+
 # Plot waterfall
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
 mpes.plot_waterfall(
