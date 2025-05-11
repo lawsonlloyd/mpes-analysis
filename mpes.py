@@ -255,7 +255,8 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     fontsize = kwargs.get("fontsize", 14)
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
-    
+    energy_limits=kwargs.get("energy_limits", (1,3))
+
     delays = np.atleast_1d(delays)
     
     if ax is None or fig is None:
@@ -284,7 +285,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
         ax[i].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
-        ax[i].set_ylim(0.9, 3)
+        ax[i].set_ylim(energy_limits[0], energy_limits[1])
         ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
         ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
     
@@ -319,15 +320,16 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     colors = kwargs.get("colors", ['Black', 'Maroon', 'Blue', 'Purple', 'Green', 'Grey'])
     legend = kwargs.get("legend", True)
 
-    E = np.atleast_1d(E)
     (kx, ky), (kx_int, ky_int) = k, k_int
+
+    E = np.atleast_1d(E)
+    kx = np.atleast_1d(kx)
 
     if len(E) > len(kx):
         kx = np.resize(kx, len(E))
     
     if len(E) < len(kx):
         E = np.resize(E, len(kx))        
-        
     
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -340,6 +342,8 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     # Formatting
     ax.set_xlabel('Delay, fs', fontsize=fontsize)
     ax.set_ylabel('Intensity' , fontsize=fontsize)
+    ax.set_xlim(I_res.delay[1], I_res.delay[-1])
+
     if legend is True:
         ax.legend(fontsize=fontsize, frameon=False)
     
@@ -376,7 +380,8 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
     ylabel = kwargs.get("ylabel", 'Intensity')
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (10, 6))
-
+    energy_limits=kwargs.get("energy_limits", (1,3))
+    
     if ax is None or fig is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
@@ -388,14 +393,14 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
     ax.set_xlabel('Delay, fs', fontsize = 18)
     ax.set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
     ax.set_yticks(np.arange(-1,3.5,0.25))
-    ax.set_xlim(I.delay[1],I.delay[-1])
-    ax.set_ylim(energy_limits)
+    ax.set_xlim(I_res.delay[1], I_res.delay[-1])
+    ax.set_ylim(energy_limits[0], energy_limits[1])
     ax.set_title('$k$-Integrated')
     ax.axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
     
     for label in ax.yaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
-    hor = I.delay[-1] - I.delay[1]
+    hor = I_res.delay[-1] - I_res.delay[1]
     ver =  energy_limits[1] - energy_limits[0]
     aspra = hor/ver 
     #ax[1].set_aspect(aspra)

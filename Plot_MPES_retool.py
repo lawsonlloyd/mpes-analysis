@@ -24,7 +24,7 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from Main import main
+from main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import mpes
 from mpes import cmap_LTL, cmap_LTL2
@@ -36,7 +36,7 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-#data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
+data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
 
 filename, offsets = 'Scan062_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0]
@@ -301,7 +301,7 @@ fig, ax, im = mpes.plot_momentum_maps(
 )
      
 mpes.save_figure(fig, name = f'test', image_format = 'pdf')
-#%% Plot Dynamics Overview: Extract Traces At Different Energies with Waterfall Panel
+#%% Plot Overview: Extract MM, Delay Traces, k-cut, and Waterfall Panel
 
 fig, axs = plt.subplots(2, 2, gridspec_kw={'width_ratios': [1, 1.5], 'height_ratios':[1, 1]})
 fig.set_size_inches(8, 6, forward=False)
@@ -319,6 +319,9 @@ mpes.plot_momentum_maps(
 # Plot time traces
 E, E_int = [1.35, 2.05], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
+norm_trace = True
+subtract_neg = True
+neg_delays = [-300, -50]
 
 mpes.plot_time_traces(
     I, E, E_int, (kx, ky), (kx_int, ky_int),
@@ -328,24 +331,25 @@ mpes.plot_time_traces(
     fontsize=16
 )
 
-# Plot kx frame
+# Plot kx-E frame
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.5) # Central (kx, ky) point and k-integration
-plot_kx_frame(
+mpes.plot_kx_frame(
     I_res, ky, ky_int, delays=[500], delay_int=1000,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     fig = fig, ax = axs[2],
-    cmap = 'BuPu'
+    cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
 )
 
 # Plot waterfall
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
-plot_waterfall(
+mpes.plot_waterfall(
     I_res, kx, kx_int, ky, ky_int,
     fig = fig, ax = axs[3],
-    cmap= cmocean.cm.balance, scale=[0,1]
+    cmap=cmap_LTL, scale=[0,1], energy_limits=[1,3]
 )
 
 #%% Plot Dynamics Overview: Extract Traces At Different Energies with Waterfall Panel
+
 save_figure = False
 figure_file_name = 'k-integrated 4Panel_'
 image_format = 'pdf'
