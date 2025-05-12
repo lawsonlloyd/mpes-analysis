@@ -12,6 +12,8 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
 import xarray as xr
+from scipy.special import erf
+from scipy.optimize import curve_fit
 
 #%% Useful Functions and Definitions for Manipulating Data
 
@@ -121,6 +123,74 @@ def enhance_features(I_res, Ein, factor, norm):
     I3 = xr.concat([I1, I2], dim = "E")
     
     return I3
+
+def find_E0(edc, fig, ax):
+    
+    def gaussian(x, amp_1, mean_1, stddev_1, offset):
+        
+        g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
+        
+        return g1
+    #plt.legend(frameon = False)
+    ax[1].set_xlim([-1, 1]) 
+    #ax[1].set_ylim([0, 1.1])
+    ax[1].set_xlabel('E - E$_{VBM}$, eV')
+    ax[1].set_ylabel('Norm. Int.')
+    #ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
+    #ax[1].set_yscale('log')
+    #plt.ax[1].gca().set_aspect(2)
+    
+    ##### VBM #########
+    e1 = -.15
+    e2 = 0.6
+    p0 = [1, .02, 0.17, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, -.5, 0.0, 0), (1.5, 0.5, 1, .5))
+        
+    try:
+        popt, pcov = curve_fit(gaussian, edc.loc[{"E":slice(e1,e2)}].E.values, edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+    except ValueError:
+        popt = p0
+        print('oops!')
+        
+    perr = np.sqrt(np.diag(pcov))
+            
+    vb_fit = gaussian(edc.E, *popt)
+    ax[1].plot(edc.E, edc, color = 'black', label = 'Data')
+    ax[1].plot(edc.E, vb_fit, linestyle = 'dashed', color = 'red', label = 'Fit')
+    ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
+    print(f'E_VBM = {popt[1]:.3f} +- {perr[1]:.3f} eV')
+    
+def find_t0(trace_ex, fig, ax):
+
+    def rise_erf(t, t0, tau):
+        r = 0.5 * (1 + erf((t - t0) / (tau)))
+        return r
+            
+    p0 = [-30, 45]
+    delay_limits = [-200,60]
+    popt, pcov = curve_fit(rise_erf, trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].delay.values ,
+                           trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].values,
+                           p0, method="lm")
+    
+    perr = np.sqrt(np.diag(pcov))
+    
+    rise_fit = rise_erf(np.linspace(delay_limits[0],delay_limits[1],50), *popt)
+    
+    ax[1].plot(trace_ex.delay, trace_ex, 'ko',label='Data')
+    ax[1].plot(np.linspace(delay_limits[0],delay_limits[1],50), rise_fit, 'red',label='Fit')
+    #ax[1].plot(I_res.delay, rise, 'red')
+    ax[1].set_xlabel('Delay, fs')
+    ax[1].set_ylabel('Norm. Int.')
+    ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
+    
+    ax[1].set_xlim([-150, 150]) 
+    ax[1].set_ylim(-.1,1.05)
+    #ax[1].axvline(30)
+    ax[1].legend(frameon=False)
+    print(fr't0 = {popt[0]:.1f} +/- {perr[0]:.1f} fs')
+    print(fr'width = {popt[1]:.1f} +/- {perr[1]:.1f} fs')
+    
+    return rise_fit
 
 #%% Useful Functions and Definitions for Plotting Data
 
@@ -249,6 +319,8 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     - nrows, ncols: layout for auto subplot creation (optional).
     - colorbar
     """
+    delays = np.atleast_1d(delays)
+
     nrows = kwargs.get("nrows", 1)
     ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
     figsize = kwargs.get("figsize", (8, 5))
@@ -256,8 +328,6 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
-
-    delays = np.atleast_1d(delays)
     
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
