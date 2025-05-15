@@ -550,6 +550,17 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
 
     return fig, ax
 
+def add_rect(dim1, dim1_int, dim2, dim2_int, ax, **kwargs):
+        edgecolor = kwargs.get("edgecolor", None)
+        facecolor = kwargs.get("facecolor", 'grey')
+        alpha = kwargs.get("alpha", 0.5)
+
+        rect = (Rectangle((dim1-dim1_int/2, dim2-dim2_int/2), dim1_int, dim2_int , linewidth=.5,\
+                             edgecolor=edgecolor, facecolor=facecolor, alpha = alpha))
+        ax.add_patch(rect) #Add rectangle to plot
+        
+        return rect
+    
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
 def custom_colormap(CMAP, lower_portion_percentage):
     # create a colormap that consists of

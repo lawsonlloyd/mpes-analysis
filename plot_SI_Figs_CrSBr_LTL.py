@@ -41,7 +41,7 @@ mpes.plot_momentum_maps(
 )
 
 # Plot kx frame
-plot_kx_frame(
+mpes.plot_kx_frame(
     I_res, 0, 0.5, delays=[500], delay_int=1000,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     fig = fig, ax = ax[2],
@@ -72,18 +72,10 @@ ax[1].set_title(f"Exciton")
 ax[3].set_title(f"CBM")
 
 for i in np.arange(len(kx)):
-    
-    rect1 = (Rectangle((kx[i]-kx_int/2, E_ex-E_int/2), kx_int, E_int , linewidth=.5,\
-                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.75))
-    ax[2].add_patch(rect1) #Add rectangle to plot
 
-    rect2 = (Rectangle((kx[i]-kx_int/2, E_cbm-E_int/2), kx_int, E_int , linewidth=.5,\
-                         edgecolor=colors[i], facecolor=colors[i], alpha = 0.75))
-    ax[2].add_patch(rect2) #Add rectangle to plot
-    rect = (Rectangle((kx[i]-kx_int/2, ky-ky_int/2), kx_int, ky_int, linewidth=.5,\
-                             edgecolor='grey', facecolor='grey', alpha = 0.7))
-    if kx_int < 4:
-        ax[0].add_patch(rect) #Add rectangle to plot
+    mpes.add_rect(kx[i], kx_int, E_ex, E_int, colors[i], ax[2])
+    mpes.add_rect(kx[i], kx_int, E_cbm, E_int, colors[i], ax[2])
+    mpes.add_rect(kx[i], kx_int, ky, ky_int, colors[i], ax[0])
 
 
 # ax[2].text(0+0.04, 2.75, f"$\Gamma$", size=12)
@@ -153,10 +145,12 @@ E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Ener
 (kx, ky), (kx_int, ky_int) = (0.0, 0.0), (0.2, 0.2) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000
 subtract_neg  = True
+
+kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
     
 e1, e2 = 1.1, 3
 k1, k2 = -1.83, 1.8
-ax_kx = kx_frame.loc[{"kx":slice(k1,k2)}].kx.values
+ax_kx = I.loc[{"kx":slice(k1,k2)}].kx.values
 kx_fits = np.zeros((len(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values),2))
 kx_fits_error = np.zeros(kx_fits.shape)
 eb_kx = np.zeros(kx_fits.shape[0])
@@ -209,15 +203,14 @@ perr = np.sqrt(np.diag(pcov))
 g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"E":slice(0,3)}].E.values, *popt)
 Eb = round(popt[3] - popt[2],3)
 Eb_err = np.sqrt(perr[3]**2+perr[2]**2) 
-print(f'The kx mean is {np.nanmean(1000*eb_kx)} +- {1000*np.nanstd(eb_kx)}')
 
 mpes.plot_kx_frame(
     I_res, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     fig = fig, ax = ax[0],
     cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
-)#ax[0].set_aspect(1)
-
+)
+#ax[0].set_aspect(1)
 #ax[0].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=16)
 
 ax[0].text(0+0.05, 2.75, f"$\Gamma$", size=18)
@@ -226,7 +219,7 @@ ax[0].text(X+0.05, 2.75, f"$X$", size=18)
 ax[0].text(-2*X+0.05, 2.75, f"$\Gamma$", size=18)
 ax[0].text(2*X+0.05, 2.75, f"$\Gamma$", size=18)
 
-ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1.5)
+#ax[0].axhline(Ein, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(0, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
 ax[0].axvline(-X, linestyle = 'dashed', color = 'black', linewidth = 1.5)
@@ -240,6 +233,8 @@ ax[0].plot(ax_kx, kx_fits[:,1], 'o', color = 'crimson')
 #ax[0].fill_between(kx_frame.loc[{"kx":slice(k1,k2)}].kx.values, kx_fits[:,1] - kx_fits_error[:,1], kx_fits[:,1] + kx_fits_error[:,1], color = 'crimson', alpha = 0.5)
 
 #ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
+#mpes.add_rect()
+
 rect = (Rectangle((kx-kx_int/2, .5), kx_int, 3, linewidth=2.5,\
                          edgecolor='purple', facecolor='purple', alpha = 0.3))
 #if kx_int < 4:
@@ -259,23 +254,26 @@ ax[1].set_aspect('auto')
 fig.text(.02, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.51, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
 
+fig.tight_layout()
+
 if save_figure is True:
     mpes.save_figure(fig, name = f'{figure_file_name}', image_format = 'pdf')
-    
+
+print(f'The kx-avg Eb is {np.nanmean(1000*eb_kx)} +- {1000*np.nanstd(eb_kx)}')
 print(f"{popt[2]:.3f} +- {perr[2]:.3f}")
 print(f"{popt[3]:.3f} +- {perr[3]:.3f}")
 print(f"{1000*Eb:.3f} +- {1000*Eb_err:.3f}")
 
-#%% TEST: CBM EDC Fitting to Extract EXCITON Binding Energy and Peak Positions
+#%% TEST: Excited State EDC Fitting to Extract DYNAMIC Exciton Binding Energy and Peak Positions
 
 save_figure = False
 figure_name = 'kx_excited'
 
 E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (3.8, 0.2) # Central (kx, ky) point and k-integration
-delay, delay_int = 500, 1000
+delay, delay_int = 500, 100
 
-kx_frame = mpes.get_kx_E_frame(I_, ky, ky_int, delay, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -294,23 +292,16 @@ fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1.5, 1], 'height_rati
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
-im2 = kx_frame.T.plot.imshow(ax=ax[0], cmap=cmap_plot, add_colorbar=False, vmin=0, vmax=1) #kx, ky, t
-ax[0].set_aspect(1)
+mpes.plot_kx_frame(
+    I_res, ky, ky_int, delay, delay_int,
+    subtract_neg=subtract_neg, neg_delays=neg_delays,
+    fig = fig, ax = ax[0],
+    cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
+)
 
-ax[0].set_xticks(np.arange(-2,2.2,1))
-for label in ax[0].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-ax[0].set_yticks(np.arange(-2,4.1,.25))
-for label in ax[0].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-ax[0].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-ax[0].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-ax[0].set_title(f'$k_y$ = {ky} $\AA^{{-1}}$', fontsize = 18)
-ax[0].tick_params(axis='both', labelsize=16)
-ax[0].set_xlim(-2,2)
 ax[0].set_ylim(0.8,3)
 ax[0].text(-1.9, 2.7,  f"$\Delta$t = {delay} fs", size=16)
-ax[0].axhline(Ein, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
+#ax[0].axhline(Ein, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
 ax[0].axvline(0, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
 ax[0].axvline(X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
 ax[0].axvline(-X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
@@ -319,10 +310,9 @@ ax[0].axvline(-2*X, linestyle = 'dashed', color = 'grey', linewidth = 1.5)
 ax[0].axhline(popt[2], linestyle = 'dashed', color = 'k', linewidth = 1.5)
 ax[0].axhline(popt[3], linestyle = 'dashed', color = 'r', linewidth = 1.5)
 #ax[0].fill_between(I.E.values, I.kx.values - kx_int/2, I.kx.values + kx_int/2, color = 'pink', alpha = 0.5)
-rect = (Rectangle((kx-kx_int/2, .5), kx_int, 3, linewidth=2.5,\
-                         edgecolor='purple', facecolor='purple', alpha = 0.3))
+
 if kx_int < 4:
-    ax[0].add_patch(rect) #Add rectangle to plot
+    mpes.add_rect(kx, kx_int, 2, 4, ax[0], alpha=0.3, facecolor='purple', edgecolor='purple')
 
 #kx_edc.plot(ax=ax[1], color = 'purple', alpha = 0.8)
 ax[1].plot(kx_edc.loc[{"E":slice(0,3)}].E.values, g, color='grey',linestyle = 'solid',linewidth = 3)
@@ -375,7 +365,7 @@ p_err_eb = np.zeros((len(I.delay)))
 n = len(I.delay.values)
 for t in range(n):
 
-    kx_frame = mpes.get_kx_E_frame(I_, ky, ky_int, I.delay.values[t], delay_int)
+    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, I.delay.values[t], delay_int)
 
     kx_edc_i = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].sum(dim="kx")
     kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"E":slice(0.8,3)}])

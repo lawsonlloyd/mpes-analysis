@@ -23,10 +23,12 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import mpes
 from mpes import cmap_LTL, cmap_LTL2
+
+%matplotlib inline
 
 #%% Specifiy filename of h5 file in your path.
 # Include manual energy and time delay offsets for the axes, if required.
@@ -35,7 +37,7 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
 
 filename, offsets = 'Scan062_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0]
@@ -56,9 +58,12 @@ I_res = I/np.max(I)
 I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
 I_diff = I_diff/np.max(I_diff)
 
+a, b = 3.508, 4.763 # CrSBr values
+X, Y = np.pi/a, np.pi/b
+x, y = -2*X, 0
+
 #%% This sets the plots to plot in the IDE window
 
-%matplotlib inline
 cmap_plot = cmap_LTL
 
 def lorentzian(x, amp_1, mean_1, stddev_1, offset):
@@ -108,10 +113,6 @@ figure_file_name = 'vbm'
 save_figure = False
 
 ### Plot EDCs at GAMMA vs time
-
-a, b = 3.508, 4.763 # CrSBr values
-X, Y = np.pi/a, np.pi/b
-x, y = -2*X, 0
 
 (kx, ky), k_int = (x, y), 0.1
 delay, delay_int = 0, 1000
