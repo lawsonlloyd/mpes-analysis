@@ -395,7 +395,7 @@ fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'heig
 fig.set_size_inches(14, 4, forward=False)
 ax = ax.flatten()
 
-kx_frame = mpes.get_kx_E_frame(I_diff, ky, ky_int, 500, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, 500, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -447,7 +447,7 @@ ax[1].set_ylim([1.15,1.375])
 ax2 = ax[1].twinx()
 ax2.plot(I.delay.values[tt:], y_cb, color = 'red', label = 'CBM')
 ax2.fill_between(I.delay.values[tt:], y_cb - y_cb_err, y_cb + y_cb_err, color = 'pink', alpha = 0.5)
-ax2.set_ylim([2.075,2.25])
+ax2.set_ylim([1.7,2.25])
 #ax[1].errorbar(I.delay.values[t:], 1*(centers_EX[t:]), yerr = p_err_excited[t:,2], marker = 'o', color = 'black', label = 'EX')
 #ax[1].errorbar(I.delay.values[t:], 1*(centers_CBM[t:]), yerr = p_err_excited[t:,3], marker = 'o', color = 'red', label = 'CBM')
 #ax[1].set_ylim([1.1,2.3])
@@ -457,7 +457,7 @@ ax2.set_ylabel('$E_{CBM}$, eV', color = 'red')
 ax[1].legend(frameon=False, loc = 'lower left')
 ax2.legend(frameon=False, loc = 'lower right')
 ax[1].arrow(250, 1.355, -80, 0, head_width = .025, width = 0.005, head_length = 40, fc='black', ec='black')
-ax[1].arrow(900, 1.285, 80, 0, head_width = .025, width = 0.005, head_length = 40, fc='red', ec='red')
+ax[1].arrow(700, 1.32, 80, 0, head_width = .025, width = 0.005, head_length = 40, fc='red', ec='red')
 ax2.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 ax[1].yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 
@@ -529,14 +529,14 @@ ax[0].set_title('EDCs at $\Gamma$')
 
 delays, delay_int  = [-120, 0, 50, 100, 500], 30
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
-n = len(pts)
+n = len(delays)
 colors = mpl.cm.inferno(np.linspace(0,.8,n))
                     
 for i in range(n):
     edc = I_res.loc[{"kx":slice(kx-k_int/2,kx+k_int/2), "ky":slice(ky-k_int/2,ky+k_int/2), "delay":slice(delays[i]-delay_int/2,delays[i]+delay_int/2)}].sum(dim=("kx","ky","delay"))
     edc = edc/np.max(edc)
     
-    e = edc.plot(ax = ax[1], color = colors[i], label = f"{pts[i]} fs")
+    e = edc.plot(ax = ax[1], color = colors[i], label = f"{delays[i]} fs")
 
 #plt.legend(frameon = False)
 ax[1].set_xlim([-1.5, 1]) 
@@ -618,30 +618,6 @@ ax2.set_ylim([125,275])
 ax2.legend(frameon=False, loc = 'upper right')
 ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
 
-# #ax[1].plot(edc_gamma.E.values, edc_gamma[:,t].values/edc_gamma.loc[{"E":slice(e1,e2)}][:,t].values.max(), color = 'pink')
-# ax[1].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey')
-# #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
-# ax[1].set_xlim([-2,1.5])
-# ax[1].set_xlabel('Energy, eV')
-# ax[1].set_ylabel('Norm. Int, arb. u.')
-# #plt.gca().set_aspect(3)
-
-# # PLOT VBM SHIFT DYNAMICS
-# #fig = plt.figure()
-# ax[2].plot(edc_gamma.delay.values, 1000*(p_fits_VBM[:,1] - p_fits_VBM[0:10,1].mean()), color = 'grey')
-# ax[2].set_xlim([edc_gamma.delay.values[1], edc_gamma.delay.values[-1]])
-# ax[2].set_ylim([-30,20])
-# ax[2].set_xlabel('Delay, fs')
-# ax[2].set_ylabel('Energy Shift, meV')
-# #plt.axhline(0, linestyle = 'dashed', color = 'black')
-# #plt.axvline(0, linestyle = 'dashed', color = 'black')
-
-# # PLOT VBM PEAK WIDTH DYNAMICS
-# ax2 = ax[2].twinx()
-# ax2.plot(edc_gamma.delay.values, 1000*(p_fits_VBM[:,2] - 0*p_fits_VBM[0:10,2].mean()), color = 'pink')
-# #ax2.set_ylim([-75,50])
-# ax2.set_ylabel('Energy Width Shift, meV')
-
 fig.text(.02, 1, "(a)", fontsize = 20, fontweight = 'regular')
 fig.text(.5, 1, "(b)", fontsize = 20, fontweight = 'regular')
 fig.text(.02, 0.5, "(c)", fontsize = 20, fontweight = 'regular')
@@ -660,7 +636,7 @@ image_format = 'pdf'
 def monoexp(t, A, tau):
    return A * np.exp(-t/tau) * (t >= 0)
     
-i_start = np.abs(I.delay.values-200).argmin()
+i_start = np.abs(I.delay.values-100).argmin()
 waitingfreq = (1/2.99793E10)*np.fft.fftshift(np.fft.fftfreq(len(I.delay.values[i_start:]), d=20E-15));
 delay_trunc = I.delay.values[i_start:]
 
@@ -672,6 +648,10 @@ pk = pk[i_start:] - np.mean(pk[i_start:])
 omega = 2*np.pi/136
 #pk = np.sin(delay_trunc*omega)
 trace = np.abs(np.fft.fftshift(np.fft.fft(pk)))
+
+fig, ax2 = plt.subplots(2,1)
+fig.set_size_inches(8, 8, forward=False)
+ax2 = ax2.flatten()
 
 fig, ax = plt.subplots(1, 3)
 fig.set_size_inches(12, 4, forward=False)
@@ -700,6 +680,15 @@ for i in [0,1,2]:
     trace = trace[i_start:]
     fft_trace = np.abs(np.fft.fftshift(np.fft.fft(trace)))
 
+    ax2[0].plot(I_res.delay.values, pk, color = colors[i]) 
+    ax2[0].plot(I_res.delay.values[i_start:], pk_fit[i_start:], color = colors[i], linestyle = 'dashed') 
+    ax2[0].axvline(0, linestyle = 'solid', color = 'grey')
+    
+    residuals = pk-pk_fit
+    ax2[1].plot(I_res.delay.values[i_start:], residuals[i_start:], color = colors[i]) 
+    ax2[1].axvline(0, linestyle = 'solid', color = 'grey')
+    
+    
     ax[i].plot(waitingfreq, fft_trace, color = colors[i]) 
     ax[i].axvline(phonons[0], color = 'grey', linestyle = 'dashed') 
     ax[i].axvline(phonons[1], color = 'grey', linestyle = 'dashed') 
