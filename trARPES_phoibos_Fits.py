@@ -29,6 +29,7 @@ scan_info = {}
 #data_path = 'R:\Lawson\Data\phoibos'
 data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
+data_path_info = 'R:\Lawson\mpes-analysis'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 

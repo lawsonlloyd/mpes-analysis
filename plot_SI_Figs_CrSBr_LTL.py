@@ -496,8 +496,8 @@ if save_figure is True:
 
 %matplotlib inline
 
-save_figure = False
-figure_file_name = 'EDC_metis'
+save_figure = True
+figure_file_name = 'EDC_dyn_vb_metis'
 image_format = 'pdf'
 
 #I_res = I.groupby_bins('delay', 50)
@@ -580,8 +580,11 @@ for t in np.arange(n):
 
 # VBM FIT TESTS FOR ONE POINT
 t = 9
+edc_neg = edc_gamma.loc[{"delay":slice(-120-10,-120+10)}].mean(dim='delay')
+edc_neg = edc_neg/np.max(edc_neg)
+
 gauss_test = gaussian(edc_gamma.E.values, *p_fits_VBM[t,:])
-ax[2].plot(edc_gamma.E.values, edc_gamma.loc[{"delay":slice(-120-10,-120+10)}]/edc_gamma.loc[{"delay":slice(-120-10,-120+10),"E":slice(e1,e2)}].max(), color = 'black', label = 'Data')
+ax[2].plot(edc_gamma.E.values, edc_neg, color = 'black', label = 'Data')
 ax[2].plot(edc_gamma.E.values, gauss_test, linestyle = 'dashed', color = 'grey', label = 'Fit')
 #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
 ax[2].set_xlim([-2,1.5])

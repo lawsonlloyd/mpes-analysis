@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as col
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
+import matplotlib.colors as mcolors
+import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skimage.draw import disk
 from scipy.optimize import curve_fit
 import csv
@@ -20,12 +23,18 @@ import xarray as xr
 import phoibos
 
 data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
+data_path = 'R:\Lawson\Data\phoibos'
 
+data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
+data_path_info = 'R:\Lawson\mpes-analysis'
+
+energy_offset, delay_offset, force_offset = 19.62,  0, False
+
+filename = '2024 Bulk CrSBr Phoibos.csv'
+scan_info = phoibos.get_scan_info(data_path_info, filename, {})
+ 
 #%% PLOT Fluence Delay TRACES All Together: 915 nm
 
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 save_figure = False
 figure_file_name = 'Combined'
@@ -45,7 +54,7 @@ fluence = [.2, .35, .8, 1.74, 2.4, 2.9]
 
 ####
 k, k_int = (0), 24
-E[0], E[1], E_int = 1.35, 2.1, 0.1
+E, E_int = [1.35, 2.1], 0.1
 subtract_neg = True
 norm_trace = False
 
@@ -73,7 +82,7 @@ norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_1)
@@ -130,14 +139,6 @@ params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-# cbar = plt.colorbar(cm, ax=axx[1])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-# cbar = plt.colorbar(cm2, ax=axx[0])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
 fig.tight_layout()
 
 if save_figure is True:
@@ -181,7 +182,7 @@ norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_2)
@@ -240,14 +241,6 @@ params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-# cbar = plt.colorbar(cm, ax=axx[1])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-# cbar = plt.colorbar(cm2, ax=axx[0])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
 fig.tight_layout()
 
 if save_figure is True:
@@ -294,7 +287,7 @@ norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_2)
@@ -351,14 +344,6 @@ params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-# cbar = plt.colorbar(cm, ax=axx[1])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-# cbar = plt.colorbar(cm2, ax=axx[0])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
 fig.tight_layout()
 
 if save_figure is True:
@@ -405,7 +390,7 @@ norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_2)
@@ -465,128 +450,10 @@ params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20,
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams.update(params)
 
-# cbar = plt.colorbar(cm, ax=axx[1])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-# cbar = plt.colorbar(cm2, ax=axx[0])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
 fig.tight_layout()
 
 if save_figure is True:
     fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format)
-#%% PLOT Fluence Delay TRACES All Together: 640 nm
-
-save_figure = False
-figure_file_name = 'Combined'
-image_format = 'pdf'
-
-# Standard 915 nm Excitation
-scans = [9411, 9409, 9412, 9410
-fluence = [.35, .8, 1.74, 2.4]
-
-####
-E, E_int = [1.3, 2.0], 0.1
-k, k_int = (0), 24
-subtract_neg = True
-norm_trace = False
-
-cn = 100
-p_min = .1
-p_max = 3.5
-
-fig, axx = plt.subplots(1, 2)
-fig.set_size_inches(10, 4, forward=False)
-axx = axx.flatten()
-
-fluence = np.array(fluence)
-boundaries = np.concatenate([[fluence[0] - (fluence[1] - fluence[0]) / 2],  # Leftmost edge
-                             (fluence[:-1] + fluence[1:]) / 2,  # Midpoints
-                             [fluence[-1] + (fluence[-1] - fluence[-2]) / 2]])  # Rightmost edge
-midpoints = (boundaries[:-1] + boundaries[1:]) / 2
-
-
-cmap = plt.colormaps['inferno_r']   # 11 discrete colors
-norm = col.BoundaryNorm(boundaries, cmap.N)  # Normalize fluence values to colors
-
-custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue', 'salmon', 'indianred', 'firebrick'] #colors for plotting the traces
-cmap = mcolors.ListedColormap(custom_colors)  # Create discrete colormap
-norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
-
-i = 0
-for scan_i in scans:
-    
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
-    trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
-    trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
-    trace_2 = trace_2/np.max(trace_2)
-    trace_1 = trace_1/np.max(trace_1)
-
-
-    t1 = trace_1.plot(ax = axx[0], color = cmap(i), linewidth = 3)
-    t2 = trace_2.plot(ax = axx[1], color = cmap(i), linewidth = 3)
-    
-    i += 1
-
-axx[0].set_xticks(np.arange(-1000,3500,500))
-for label in axx[0].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-
-axx[0].set_yticks(np.arange(-0.5,1.25,0.25))
-for label in axx[0].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-    
-axx[1].set_xticks(np.arange(-1000,3500,500))
-for label in axx[1].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-
-axx[1].set_yticks(np.arange(-0.4,1.25,0.2))
-for label in axx[1].yaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
-    
-axx[0].set_xlim([-500,3000])
-axx[1].set_xlim([-500,3000])
-axx[0].set_ylim([-0.1,1.1])
-axx[1].set_ylim([-0.1,1.1])
-
-axx[0].set_xlabel('Delay, fs')
-axx[1].set_xlabel('Delay, fs')
-axx[0].set_ylabel('Norm. Int.')
-axx[1].set_ylabel('Norm. Int.')
-
-axx[0].set_title('Exciton')
-axx[1].set_title('CBM')
-
-fig.text(.01, 0.975, "(a)", fontsize = 20, fontweight = 'regular')
-fig.text(.5, 0.975, "(b)", fontsize = 20, fontweight = 'regular')
-
-# Add colorbar for the discrete color mapping
-sm = cm.ScalarMappable(cmap=cmap, norm=norm)
-sm.set_array([])  # Required for colorbar to work
-cbar_ax = fig.add_axes([1, 0.17, 0.02, 0.75])
-cbar = fig.colorbar(sm, cax=cbar_ax, ticks=midpoints)
-cbar.set_label("$n_{eh}$ ($x$10$^{13}$ cm$^{-2})$")
-cbar.ax.set_yticklabels([f"{f:.2f}" for f in fluence])  # Format tick labels
-
-params = {'lines.linewidth' : 3.5, 'axes.linewidth' : 2, 'axes.labelsize' : 20, 
-              'xtick.labelsize' : 16, 'ytick.labelsize' : 16, 'axes.titlesize' : 20, 'legend.fontsize' : 16}
-plt.rcParams['svg.fonttype'] = 'none'
-plt.rcParams.update(params)
-
-# cbar = plt.colorbar(cm, ax=axx[1])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-# cbar = plt.colorbar(cm2, ax=axx[0])
-# cbar.set_label('Fluence', rotation=90, fontsize=22)
-# cbar.ax.tick_params(labelsize=20)
-
-fig.tight_layout()
-
-if save_figure is True:
-    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
     
 #%% PLOT Fluence Delay TRACES All Together: 400 nm
 
@@ -617,7 +484,7 @@ custom_colors = ['lightsteelblue', 'royalblue', 'mediumblue'] #colors for plotti
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_2)
@@ -626,20 +493,20 @@ for scan_i in scans:
     t1 = trace_1.plot(ax = axx[0], color = custom_colors[i], linewidth = 3)
     t2 = trace_2.plot(ax = axx[1], color = custom_colors[i], linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
     
-    test = exp_rise_monoexp_decay(trace_1.Delay.values, 1.02, 258, 6700)
-    axx[0].plot(trace_1.Delay.values, test, color = 'maroon')
+    #test = exp_rise_monoexp_decay(trace_1.Delay.values, 1.02, 258, 6700)
+    #axx[0].plot(trace_1.Delay.values, test, color = 'maroon')
 
-    test2 = exp_rise_monoexp_decay(trace_1.Delay.values, .8, 400, 6000)
-#    test2 = exciton_model(trace_1.Delay.values, 1., 450, 8000)
-    axx[0].plot(trace_1.Delay.values, 0.85*test2/np.max(test2), color = 'green', linestyle = 'dashed')
+    #test2 = exp_rise_monoexp_decay(trace_1.Delay.values, .8, 400, 6000)
+    #test2 = exciton_model(trace_1.Delay.values, 1., 450, 8000)
+    #axx[0].plot(trace_1.Delay.values, 0.85*test2/np.max(test2), color = 'green', linestyle = 'dashed')
     
-    test3 = exp_rise_biexp_decay(trace_1.Delay.values, 1, 350, .92, 240, 2500)
-    test4= exp_rise_biexp_decay(trace_1.Delay.values, 1, 250, .9, 300, 4000)
-    test5 = (np.exp(-trace_1.Delay.values/400))*(1-np.exp(-trace_1.Delay.values/300))
+    #test3 = exp_rise_biexp_decay(trace_1.Delay.values, 1, 350, .92, 240, 2500)
+    #test4= exp_rise_biexp_decay(trace_1.Delay.values, 1, 250, .9, 300, 4000)
+    #test5 = (np.exp(-trace_1.Delay.values/400))*(1-np.exp(-trace_1.Delay.values/300))
     
-    axx[1].plot(trace_1.Delay.values, test3/np.max(test3), color = 'pink')
-    axx[1].plot(trace_1.Delay.values, test4/np.max(test4), color = 'red', linestyle= 'dashed')
-    axx[1].plot(trace_1.Delay.values, test5/np.max(test5), color = 'green', linestyle= 'dashed')
+    #axx[1].plot(trace_1.Delay.values, test3/np.max(test3), color = 'pink')
+    #axx[1].plot(trace_1.Delay.values, test4/np.max(test4), color = 'red', linestyle= 'dashed')
+    #axx[1].plot(trace_1.Delay.values, test5/np.max(test5), color = 'green', linestyle= 'dashed')
 
     #t1 = trace_1.plot(ax = axx[1], color = 'royalblue', linewidth = 3)
     #t2 = trace_2.plot(ax = axx[1], color = 'blue', linewidth = 3, label = f'{fluence[i]} mJ / cm$^{{2}}$')
@@ -733,7 +600,7 @@ norm = mcolors.BoundaryNorm(boundaries, cmap.N)  # Normalize boundaries
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_1 = trace_1/np.max(trace_2)
@@ -837,7 +704,7 @@ ax = ax.flatten()
 
 for i in np.arange(len(scans)):
     scan_i = scans[i]
-    res = phoibos.load_data(data_path, scan_i, scan_info, 19.72 , _ , False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     WL = scan_info[str(scan_i)].get("Wavelength")
     temp = scan_info[str(scan_i)].get("Temperature")
 
@@ -908,6 +775,8 @@ figure_file_name = 'ARPRES_Panels_diff'
 image_format = 'pdf'
 
 E, E_int = [1.375, 2.125], 0.1
+scan = 9526
+res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 colormap = cmap_LTL # 'bone_r'# 'Purples'
 
@@ -922,6 +791,8 @@ res_neg = res.loc[{'Delay':slice(-1000,-300)}]
 res_pos = res.loc[{'Delay':slice(0,5000)}]
 res_neg_mean = res_neg.mean(axis=2)
 res_pos_mean = res_pos.mean(axis=2)
+
+res_diff_E_Ang = res_pos_mean - res_neg_mean
 
 neg_enh = phoibos.enhance_features(res_neg_mean, E_inset, 1, True)
 pos_enh = phoibos.enhance_features(res_pos_mean, E_inset, 1, True)
@@ -971,7 +842,7 @@ image_format = 'pdf'
 
 #E, E_int = [1.3, 2.0], 0.1
 scan = 9526
-res = phoibos.load_data(data_path, scan, scan_info, _, _, False)
+res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 A, A_int = 0, 20
 E_inset = 0.9
@@ -1110,7 +981,7 @@ intensity = np.zeros(len(scans))
 i = 0
 for scan_i in scans:
     
-    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, offsets_t0[i], False)
+    res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, force_offset)
     trace_1 = phoibos.get_time_trace(res, E[0], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = phoibos.get_time_trace(res, E[1], E_int, k, k_int, subtract_neg, norm_trace)
     trace_2 = trace_2/np.max(trace_1)
@@ -1395,9 +1266,78 @@ def fit_ex_cbm_dynamics(res, delay_int):
         
     return centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb
 
+def fit_vbm_int(res, k, k_int):
+    e1 = -.2
+    e2 = 0.6
+    p0 = [1, 0, .2, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
+    
+    (kx), k_int = k, k_int
+    edc_gamma = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Delay":slice(0,3000)}].sum(dim=("Angle", "Delay"))
+    edc_gamma = edc_gamma/np.max(edc_gamma)
+    
+    edc_i = edc_gamma.loc[{"Energy":slice(e1,e2)}].values
+    edc_i = edc_i/np.max(edc_i)
+    
+    try:
+        popt, pcov = curve_fit(gaussian, edc_gamma.loc[{"Energy":slice(e1,e2)}].Energy.values, edc_i, p0, method=None, bounds = bnds)
+    except ValueError:
+        print('oops')
+        popt = [0,0,0,0]
+        
+    centers_VBM_i = popt[1]
+    p_fits_VBM_i = popt
+    perr = np.sqrt(np.diag(pcov))
+    p_err_VBM_i = perr[1:2+1]
+        
+    return centers_VBM_i, p_fits_VBM_i, p_err_VBM_i
+
+##### CBM AND EXCITON #####
+
+def fit_ex_cbm_int(res):
+    delay_int = 50
+    e1 = 1.1
+    e2 = 3
+    p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
+    bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
+    
+    centers_CBM = np.zeros(len(res.Delay))
+    centers_EX = np.zeros(len(res.Delay))
+    Ebs = np.zeros(len(res.Delay))
+    
+    p_fits_excited = np.zeros((len(res.Delay),7))
+    p_err_excited = np.zeros((len(res.Delay),7))
+    p_err_eb = np.zeros((len(res.Delay)))
+
+    #kx_frame = res.loc[{"Delay":slice(res.Delay.values[t]-delay_int/2, res.Delay.values[t]+delay_int/2)}].mean(dim="Delay")
+    kx_frame = res - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
+
+    kx_frame = kx_frame.loc[{"Delay":slice(200,300)}].mean(dim="Delay")
+    kx_edc_i = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
+    kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"Energy":slice(0.8,3)}])
+    
+    try:
+        popt, pcov = curve_fit(two_gaussians, kx_edc_i.loc[{"Energy":slice(e1,e2)}].Energy.values, kx_edc_i.loc[{"Energy":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
+    except ValueError:
+        print('Oops!')
+        popt = [0,0,0,0]
+   
+    centers_EX_i = popt[2]
+    centers_CBM_i = popt[3]
+    Eb = round(popt[3] - popt[2],3)
+    Ebs_i = Eb
+    perr = np.sqrt(np.diag(pcov))
+    p_fits_excited_i = popt
+    
+    p_err_excited_i = perr[2:3+1] 
+    p_err_eb_i = np.sqrt(perr[3]**2+perr[2]**2)
+        
+    return centers_EX_i, centers_CBM_i, Ebs_i, p_fits_excited_i, p_err_excited_i, p_err_eb_i
+
+
 #%% # Do the Fitting for VBM, EXCITON, AND CBM
 
-res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, False)
+res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
 centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, -3, 4)
 
@@ -1539,7 +1479,7 @@ if save_figure is True:
 #%% TEST: CBM EDC Fitting: Extract Binding Energy
 
 E_trace, E_int = [1.35, 2.1], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
-delay, delay_int = 50, 50
+delay, delay_int = 500, 500
 
 kx_frame = res.loc[{"Delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="Delay")
 kx_frame = kx_frame - res.loc[{"Delay":slice(-1000,-150)}].mean(dim="Delay")
@@ -1725,7 +1665,7 @@ def plot_band_dynamics(ax):
     #ax[2].legend(frameon=False)
 #    plt.show()
 
-#%% Plot Band Dynamics
+#%% Plot 4-Panel VB and Excited State Peak Energy Dynamics
 
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 offset = np.linspace(0,100,6)
@@ -1764,78 +1704,8 @@ fig.tight_layout()
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
-#%%
+#%% Fit Peak Shifts as Function of Fluence
 
-def fit_vbm_int(res, k, k_int):
-    e1 = -.2
-    e2 = 0.6
-    p0 = [1, 0, .2, 0] # Fitting params initial guess [amp, center, width, offset]
-    bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
-    
-    (kx), k_int = k, k_int
-    edc_gamma = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Delay":slice(0,3000)}].sum(dim=("Angle", "Delay"))
-    edc_gamma = edc_gamma/np.max(edc_gamma)
-    
-    edc_i = edc_gamma.loc[{"Energy":slice(e1,e2)}].values
-    edc_i = edc_i/np.max(edc_i)
-    
-    try:
-        popt, pcov = curve_fit(gaussian, edc_gamma.loc[{"Energy":slice(e1,e2)}].Energy.values, edc_i, p0, method=None, bounds = bnds)
-    except ValueError:
-        print('oops')
-        popt = [0,0,0,0]
-        
-    centers_VBM_i = popt[1]
-    p_fits_VBM_i = popt
-    perr = np.sqrt(np.diag(pcov))
-    p_err_VBM_i = perr[1:2+1]
-        
-    return centers_VBM_i, p_fits_VBM_i, p_err_VBM_i
-
-##### CBM AND EXCITON #####
-
-def fit_ex_cbm_int(res):
-    delay_int = 50
-    e1 = 1.1
-    e2 = 3
-    p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
-    bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
-    
-    centers_CBM = np.zeros(len(res.Delay))
-    centers_EX = np.zeros(len(res.Delay))
-    Ebs = np.zeros(len(res.Delay))
-    
-    p_fits_excited = np.zeros((len(res.Delay),7))
-    p_err_excited = np.zeros((len(res.Delay),7))
-    p_err_eb = np.zeros((len(res.Delay)))
-
-    #kx_frame = res.loc[{"Delay":slice(res.Delay.values[t]-delay_int/2, res.Delay.values[t]+delay_int/2)}].mean(dim="Delay")
-    kx_frame = res - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
-
-    kx_frame = kx_frame.loc[{"Delay":slice(200,300)}].mean(dim="Delay")
-    kx_edc_i = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
-    kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"Energy":slice(0.8,3)}])
-    
-    try:
-        popt, pcov = curve_fit(two_gaussians, kx_edc_i.loc[{"Energy":slice(e1,e2)}].Energy.values, kx_edc_i.loc[{"Energy":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
-    except ValueError:
-        print('Oops!')
-        popt = [0,0,0,0]
-   
-    centers_EX_i = popt[2]
-    centers_CBM_i = popt[3]
-    Eb = round(popt[3] - popt[2],3)
-    Ebs_i = Eb
-    perr = np.sqrt(np.diag(pcov))
-    p_fits_excited_i = popt
-    
-    p_err_excited_i = perr[2:3+1] 
-    p_err_eb_i = np.sqrt(perr[3]**2+perr[2]**2)
-        
-    return centers_EX_i, centers_CBM_i, Ebs_i, p_fits_excited_i, p_err_excited_i, p_err_eb_i
-
-
-#%%
 save_figure = False
 figure_file_name = 'phoibos_power_fits2'
 
