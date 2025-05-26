@@ -807,7 +807,7 @@ def fit_vbm_peak(res, k, k_int, delay, delay_int):
     
     return popt, perr
 
-def fit_ex_cbm_dynamics(res, delay, delay_int):
+def fit_ex_cbm_peaks(res, k, k_int, delay, delay_int):
     e1 = 1.1
     e2 = 3
     p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
@@ -816,7 +816,7 @@ def fit_ex_cbm_dynamics(res, delay, delay_int):
     res_diff = res - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
     res_diff = res_diff.loc[{"Delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="Delay")
 
-    edc_i = res_diff.loc[{"Angle":slice(-12,12)}].mean(dim="Angle")
+    edc_i = res_diff.loc[{"Angle":slice(k-k_int/2,k+k_int/2)}].mean(dim="Angle")
     edc_i = edc_i/np.max(edc_i.loc[{"Energy":slice(1,3)}])
     
     try:
@@ -841,14 +841,6 @@ centers_VBM = np.zeros(len(res.Delay))
 p_fits_VBM = np.zeros((len(res.Delay),4))
 p_err_VBM = np.zeros((len(res.Delay),2))
 
-centers_VBM[t] = popt[1]
-p_fits_VBM[t,:] = popt
-perr = np.sqrt(np.diag(pcov))
-p_err_VBM[t,:] = perr[1:2+1]
-#centers_VBM, p_fits_VBM, p_err_VBM = 
-
-popt, perr = fit_vbm_peak(res, -3, 4, 500, 200)
-
 centers_CBM = np.zeros(len(res.Delay))
 centers_EX = np.zeros(len(res.Delay))
 Ebs = np.zeros(len(res.Delay))
@@ -856,22 +848,27 @@ Ebs = np.zeros(len(res.Delay))
 p_fits_excited = np.zeros((len(res.Delay),7))
 p_err_excited = np.zeros((len(res.Delay),7))
 p_err_eb = np.zeros((len(res.Delay)))
-    n = len(res.Delay.values)
-    for t in range(n):
-    
-        centers_EX[t] = popt[2]
-        centers_CBM[t] = popt[3]
-        Eb = round(popt[3] - popt[2],3)
-        Ebs[t] = Eb
-        perr = np.sqrt(np.diag(pcov))
-        p_fits_excited[t,:] = popt
-        
-        p_err_excited[t,:] = perr 
-        p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
-    
-centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb 
 
-popt, perr = fit_ex_cbm_peaks(res, delay, delay_int)
+n = len(res.Delay.values)
+for t in range(n):
+    
+    # VBM
+    popt, perr = fit_vbm_peak(res, -3, 4, 500, 200)
+    centers_VBM[t] = popt[1]
+    p_fits_VBM[t,:] = popt
+    p_err_VBM[t,:] = perr[1:2+1]
+
+    # EXCITON and CBM
+    popt, perr = fit_ex_cbm_peaks(res, 0, 24, delay, delay_int)
+    centers_EX[t] = popt[2]
+    centers_CBM[t] = popt[3]
+    Eb = round(popt[3] - popt[2],3)
+    Ebs[t] = Eb
+    perr = np.sqrt(np.diag(pcov))
+    p_fits_excited[t,:] = popt
+    p_err_excited[t,:] = perr 
+    p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
+    
 
 #%% Plot and Fit EDCs of the VBM
 
