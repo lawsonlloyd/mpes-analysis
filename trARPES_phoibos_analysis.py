@@ -827,7 +827,7 @@ def fit_ex_cbm_peaks(res, k, k_int, delay, delay_int):
     
     perr = np.sqrt(np.diag(pcov))
     
-    return popt, perr
+    return popt, perr, edc_i
 
 #%% # Do the Fitting for VBM, EXCITON, AND CBM
 
@@ -849,17 +849,17 @@ p_fits_excited = np.zeros((len(res.Delay),7))
 p_err_excited = np.zeros((len(res.Delay),7))
 p_err_eb = np.zeros((len(res.Delay)))
 
-n = len(res.Delay.values)
+n = len(res.Delay)
 for t in range(n):
     
     # VBM
-    popt, perr = fit_vbm_peak(res, -3, 4, 500, 200)
+    popt, perr = fit_vbm_peak(res, -3, 4, res.Delay.values[t], 50)
     centers_VBM[t] = popt[1]
     p_fits_VBM[t,:] = popt
     p_err_VBM[t,:] = perr[1:2+1]
 
     # EXCITON and CBM
-    popt, perr = fit_ex_cbm_peaks(res, 0, 24, delay, delay_int)
+    popt, perr, _ = fit_ex_cbm_peaks(res, 0, 24,  res.Delay.values[t], 50)
     centers_EX[t] = popt[2]
     centers_CBM[t] = popt[3]
     Eb = round(popt[3] - popt[2],3)
@@ -869,7 +869,6 @@ for t in range(n):
     p_err_excited[t,:] = perr 
     p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
     
-
 #%% Plot and Fit EDCs of the VBM
 
 %matplotlib inline
@@ -895,8 +894,6 @@ cbar.ax.set_yticklabels(['min', 'max'])  # vertically oriented colorbar
 
 ax[0].set_ylim([-1,1])
 ax[0].set_xlim([edc_gamma.Delay[0], edc_gamma.Delay[-1]])
-#plt.axhline(0, linestyle = 'dashed', color = 'black')
-#plt.axvline(0, linestyle = 'dashed', color = 'black')
 ax[0].set_xlabel('Delay, fs')
 ax[0].set_ylabel('E - E$_{VBM}$, eV')
 
@@ -913,13 +910,11 @@ for i in range(n):
     e = edc.plot(ax = ax[1], color = colors[i], label = f"{pts[i]} fs")
 
 #plt.legend(frameon = False)
-ax[1].set_xlim([-1.5, 1]) 
-#ax[1].set_ylim([0, 1.1])
+ax[1].set_xlim([-1, 1]) 
 ax[1].set_xlabel('E - E$_{VBM}$, eV')
 ax[1].set_ylabel('Norm. Int.')
 #ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
-ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
-
+ax[1].legend(frameon=False, loc = 'lower left', fontsize = 11)
 
 fig.tight_layout()
 
@@ -981,31 +976,20 @@ delay, delay_int = 500, 1000
 
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, False)
 
-kx_frame = res.loc[{"Delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="Delay")
-kx_frame = kx_frame - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
-
-kx_edc = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
-kx_edc = kx_edc/np.max(kx_edc.loc[{"Energy":slice(1,3)}])
-
-##### X and CBM ####
-e1 = 1.15
-e2 = 2.8
-p0 = [1, 0.3,  1.35, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
-bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
-
-popt_2, _ = curve_fit(two_gaussians, kx_edc.loc[{"Energy":slice(e1,e2)}].Energy.values, kx_edc.loc[{"Energy":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
-g, g1, g2, offset = two_gaussians_report(kx_edc.loc[{"Energy":slice(0,3)}].Energy.values, *popt_2)
-Eb = round(popt_2[3] - popt_2[2],2)
+ax_E = np.linspace(0,3,150)
+popt, perr, edc = fit_ex_cbm_peaks(res, 0, 24, delay, delay_int)
+g, g1, g2, offset = two_gaussians_report(ax_E, *popt)
+Eb = round(popt[3] - popt[2],2)
 
 fig, ax = plt.subplots()
 ax = np.ravel(ax)
 fig.set_size_inches(6, 4, forward=False)
 #ax = ax.flatten()
 
-kx_edc.plot(ax=ax[0], color = 'black')
-ax[0].plot(kx_edc.loc[{"Energy":slice(0,3)}].Energy.values, g1, color='black',linestyle = 'dashed')
-ax[0].plot(kx_edc.loc[{"Energy":slice(0,3)}].Energy.values, g2, color='red',linestyle = 'dashed')
-ax[0].plot(kx_edc.loc[{"Energy":slice(0,3)}].Energy.values, g, color='grey',linestyle = 'solid')
+edc.plot(ax=ax[0], color = 'black')
+ax[0].plot(ax_E, g1, color='black',linestyle = 'dashed')
+ax[0].plot(ax_E, g2, color='red',linestyle = 'dashed')
+ax[0].plot(ax_E, g, color='grey',linestyle = 'solid')
 ax[0].set_title(f"$E_B = {1000*Eb}$ meV")
 ax[0].set_xlim(0.5,3)
 ax[0].set_ylim(0, 1.1)
