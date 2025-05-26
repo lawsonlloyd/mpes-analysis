@@ -202,6 +202,7 @@ if save_figure is True:
 #%% Plot Momentum Maps at Constant Energy
 
 E, E_int = [1.35, 1.35, 1.35, 2.15, 2.15, 2.15], 0.2
+
 delays, delay_int = [500, 500], 1000
 
 fig, ax, im = mpes.plot_momentum_maps(
@@ -511,18 +512,19 @@ figure_file_name = 'kx_PANELS_alldelays_0.25dky'
 image_format = 'pdf'
 
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 0.25) # Central (kx, ky) point and k-integration
-delays, delay_int = [-120, 0, 50, 100, 200, 500], 50 #kx frame
+delays, delay_int = [0], 50 #kx frame
 
-Ein = .8 #Enhance excited states above this Energy, eV
+Ein = -1.2 #Enhance excited states above this Energy, eV
 energy_limits = [0.8, 3] # Energy Y Limits for Plotting Panels 3 and 4
 plot_symmetry_points = False
 
 # Plot kx frame
 mpes.plot_kx_frame(
-    I_res, 0, 0.5, delays, delay_int=100,
+    I_res, 0, 0.25, delays, delay_int=100,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
-    nrows = 2, ncols = 3,
-    cmap = 'BuPu'
+    E_enhance = -2,
+    nrows = 1, ncols = 1,
+    cmap = cmap_LTL, energy_limits = [-3.5, 1.5]
 )
 
 fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')

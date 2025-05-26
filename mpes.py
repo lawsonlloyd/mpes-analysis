@@ -328,7 +328,8 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
-    
+    E_enhance = kwargs.get("E_enhance", None)
+
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
@@ -339,7 +340,10 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
         kx_frame = get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
-        kx_frame = enhance_features(kx_frame, 0.9, factor = 0, norm = True)
+        if E_enhance is not None:    
+            kx_frame = enhance_features(kx_frame, E_enhance, factor = 0, norm = True)
+            ax[i].axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+
         kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
         #ax[2].set_aspect(1)
@@ -356,8 +360,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
-        ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+        #ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()

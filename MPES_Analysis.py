@@ -28,14 +28,15 @@ filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 #filename, offsets = 'Scan186_binned_100x100x200_CrSBr_120K_Static.h5', [0,0]
 #filename, offsets = 'Scan62_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 
-#filename, offsets = 'Scan383_binned_LTL.h5', [7.2,0]
+filename, offsets = 'Scan1004_binned.h5', [0, 0]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename, offsets)
 
 I = data_loader.load()
 I_res = I/np.max(I)
-
+#I_res = I_res.T
+I_res  = I_res.loc[{"E":slice(-9.5,10)}]
 #%% Run the Interactive GUI for Data Exploration and Plotting
 
 %matplotlib auto

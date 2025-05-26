@@ -22,6 +22,8 @@ import xarray as xr
 
 import phoibos
 
+#%%
+
 data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
 data_path = 'R:\Lawson\Data\phoibos'
 
@@ -34,7 +36,6 @@ filename = '2024 Bulk CrSBr Phoibos.csv'
 scan_info = phoibos.get_scan_info(data_path_info, filename, {})
  
 #%% PLOT Fluence Delay TRACES All Together: 915 nm
-
 
 save_figure = False
 figure_file_name = 'Combined'
@@ -1041,7 +1042,7 @@ plt.plot(fluence, .01+(1.025e8)*fluence, color = 'pink', linestyle = 'dashed')
 plt.ylim(0,2.75e8)
 plt.xlim(0,3)
 
-#%% # PLOT Fluence Delay TRACES All Together
+#%% PLOT Fluence Delay TRACES All Together
 
 save_figure = False
 figure_file_name = 'phoibosfluencetraces'
@@ -1141,43 +1142,6 @@ axx[1].legend(frameon=False, loc = 'upper right', fontsize = 11)
 # cbar.ax.tick_params(labelsize=20)
 
 fig.tight_layout()
-
-if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
-
-#%%
-
-plt.plot(fluence, pop, '-o')
-    
-#%%
-
-def func(x, a, b, tau1, tau2):
-    return a*np.exp(-x/tau1)+b*np.exp(-x/tau2)
-
-delays_trunc = trace_1.loc[{"Delay":slice(0,20000)}].Delay.values
-trace_trunc =  trace_1.loc[{"Delay":slice(0,20000)}].values
-
-delays = trace_1.Delay.values
-trace =  trace_1.values
-
-popt, pcov = curve_fit(func, delays_trunc, trace_trunc, p0=(1,1,2000,15000))
-
-fit = func(delays_trunc, *popt)
-
-fig = plt.figure()
-plt.plot(delays, trace, 'o', color = 'grey')
-plt.plot(delays_trunc, fit, color = 'blue')
-plt.title(f"Biexp: tau_1 = {round(popt[2])}, tau_2 = {round(popt[3],0)}")
-plt.xlim(-600,20000)
-plt.ylabel('Int.')
-plt.xlabel('Delay, fs')
-#print(popt)
-
-save_figure = False
-figure_file_name = f"Long_Delays_{scan}"
-#plt.rcParams['svg.fonttype'] = 'none'
-new_rc_params = {'text.usetex': False, "svg.fonttype": 'none'}
-plt.rcParams.update(new_rc_params)
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
@@ -1337,8 +1301,10 @@ def fit_ex_cbm_int(res):
 
 #%% # Do the Fitting for VBM, EXCITON, AND CBM
 
+# Load the Data
 res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset)
 
+# Get the Dynamic Peak Fits Fits
 centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, -3, 4)
 
 centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = fit_ex_cbm_dynamics(res, delay_int)

@@ -81,7 +81,9 @@ class PlotHandler:
         self.cmap = self.custom_colormap(mpl.cm.viridis, 0.25)
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1 = None
-
+        self.Energy_limits = None
+        self.E_enhance = -1
+        
         # Initial setup for plots
         self.initialize_plots()
 
@@ -89,7 +91,7 @@ class PlotHandler:
         
         # Define intial kx, ky, Energy, and Delay Points for Images
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
-        
+
         # Initial Momentum Map kx, ky Image (top left)
         frame_temp = mpes.get_momentum_map(self.I, E, E_int, delay, delay_int)
         frame_temp = frame_temp/np.max(frame_temp)
@@ -115,20 +117,21 @@ class PlotHandler:
         frame_temp = mpes.get_kx_E_frame(self.I, ky, k_int, delay, delay_int)
         frame_temp = (frame_temp)/np.max(frame_temp)
         
+        self.Energy_limits = (frame_temp.E.values.min(), frame_temp.E.values.max())
         self.im_2 = frame_temp.T.plot.imshow(ax = self.ax[2], clim = None, vmin = 0, vmax = 1, cmap = self.cmap, add_colorbar=False)
 
         self.ax[2].set_title("Energy Cut")
         self.ax[2].set_xlabel('$k_x$', fontsize = 14)
         self.ax[2].set_ylabel("E, eV")
-        self.ax[2].set_aspect(.5)
-        self.ax[2].set_xticks(np.arange(-3,3.1,0.5))
+        self.ax[2].set_aspect('auto')
+        self.ax[2].set_xticks(np.arange(-2,3.1,0.5))
         for label in self.ax[2].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        self.ax[2].set_yticks(np.arange(-5,3.1,0.5))
+        self.ax[2].set_yticks(np.arange(-10,5.1,0.5))
         for label in self.ax[2].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
-        self.ax[2].set_xlim(-2,2)
-        self.ax[2].set_ylim(-4,3)
+        self.ax[2].set_xlim(-2.25,2.25)
+        self.ax[2].set_ylim(self.Energy_limits[0],self.Energy_limits[1])
 
         # Initial ky vs E Image (bottom left)
         frame_temp = mpes.get_ky_E_frame(self.I, kx, k_int, delay, delay_int)
@@ -139,15 +142,15 @@ class PlotHandler:
         self.ax[3].set_title("Energy Cut")
         self.ax[3].set_xlabel('$k_y$', fontsize = 14)
         self.ax[3].set_ylabel("E, eV")
-        self.ax[3].set_aspect(.5)
+        self.ax[3].set_aspect('auto')
         self.ax[3].set_xticks(np.arange(-3,3.1,0.5))
         for label in self.ax[3].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        self.ax[3].set_yticks(np.arange(-5,3.1,0.5))
+        self.ax[3].set_yticks(np.arange(-10,5.1,0.5))
         for label in self.ax[3].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)   
-        self.ax[3].set_xlim(-2,2)
-        self.ax[3].set_ylim(-4,3)
+        self.ax[3].set_xlim(-2.25,2.25)
+        self.ax[3].set_ylim(self.Energy_limits[0],self.Energy_limits[1])
         
         # Initial Dynamics Time Trace (top right)
         if self.I.ndim > 3:
@@ -244,9 +247,9 @@ class PlotHandler:
 
         frame_temp = mpes.get_kx_E_frame(self.I, ky, 0.1, delay, delay_int)
         frame_temp = frame_temp.T/np.max(frame_temp)
-        
+        #self.E_enhance = -0.9
         if self.check_button_manager.enhance_button_status == True:    
-            mask_start = (np.abs(self.I.E.values - 0.95)).argmin()
+            mask_start = (np.abs(self.I.E.values - self.E_enhance)).argmin()
             frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
         self.im_2.set_data(frame_temp)  # Update image for new E
 
@@ -255,9 +258,10 @@ class PlotHandler:
 
         frame_temp = mpes.get_ky_E_frame(self.I, kx, 0.1, delay, delay_int)
         frame_temp = frame_temp.T/np.max(frame_temp)
-        
+        #self.E_enhance = -0.9
+
         if self.check_button_manager.enhance_button_status == True:    
-            mask_start = (np.abs(self.I.E.values - 0.95)).argmin()
+            mask_start = (np.abs(self.I.E.values - self.E_enhance)).argmin()
             frame_temp[mask_start:,:] *= 1/np.max(frame_temp[mask_start:,:])
             
         self.im_3.set_data(frame_temp)  # Update image for new E
@@ -505,10 +509,11 @@ class SliderManager:
         self.value_manager = value_manager
         self.check_button_manager = check_button_manager
         self.E_slider, self.E_int_slider, self.k_int_slider, self.delay_slider, self.delay_int_slider = self.create_sliders()
-            
+        print(self.plot_manager.Energy_limits)
+        
     def create_sliders(self):
         """Create the sliders for energy and delay."""
-        E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -4, 3.5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
+        E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -10, 5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
         E_int_slider = Slider(plt.axes([0.000, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.055, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
         delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
