@@ -42,12 +42,13 @@ data_path = 'R:\Lawson\Data\metis'
 filename, offsets = 'Scan062_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0]
 filename, offsets = 'Scan138_binned_200x200x300_CrSBr_Integrated_XUV_Pol.h5', [0,0]
-#filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
+filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
-filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
+#filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 #filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
+#filename, offsets  = 'Scan186_binned_100x100x200_CrSBr_120K_Static.h5',  [-0.6369, 0]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
-
+filename, offsets = 'Scan383_binned_LTL.h5', [-7.2775, 0]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename, offsets)
@@ -55,8 +56,8 @@ data_loader = DataLoader(data_path + '//' + filename, offsets)
 I = data_loader.load()
 I_res = I/np.max(I)
 
-I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
-I_diff = I_diff/np.max(I_diff)
+#I_diff = I_res - I_res.loc[{"delay":slice(-500,-200)}].mean(dim="delay")
+#I_diff = I_diff/np.max(I_diff)
 
 a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
@@ -139,7 +140,6 @@ if save_figure is True:
 
 #%% Plots EDC Comparisons
 
-
 edc_pos = (I_res.loc[{"delay":slice(200,1100)}].mean(dim=("kx","ky","delay")))
 edc_neg = (I_res.loc[{"delay":slice(-200,-90)}].mean(dim=("kx","ky","delay")))
 
@@ -201,16 +201,18 @@ if save_figure is True:
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [1.35, 1.35, 1.35, 2.15, 2.15, 2.15], 0.2
+E, E_int = 0.05, 0.2
 
-delays, delay_int = [500, 500], 1000
+delays, delay_int = -150, 100
 
 fig, ax, im = mpes.plot_momentum_maps(
     I_res, E=E, E_int=0.2, delays=delays, delay_int=delay_int,
     cmap=cmap_LTL, scale=[0, 1],
-    fontsize=16, figsize=(8, 6), colorbar=True, panel_labels = False
+    fontsize=16, figsize=(4, 3), colorbar=True, panel_labels = False
 )
-     
+
+mpes.overlay_bz('rectangular', 3.508, 4.763, ax[0], 'black')
+
 mpes.save_figure(fig, name = f'test', image_format = 'pdf')
 
 #%% Plot Overview: MM, Delay Traces, k-cut, and Waterfall Panel

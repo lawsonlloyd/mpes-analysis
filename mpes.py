@@ -150,6 +150,7 @@ def find_E0(edc, fig, ax):
         popt, pcov = curve_fit(gaussian, edc.loc[{"E":slice(e1,e2)}].E.values, edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
     except ValueError:
         popt = p0
+        pcov = [0, 0, 0, 0]
         print('oops!')
         
     perr = np.sqrt(np.diag(pcov))
@@ -236,7 +237,7 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, fig=None, ax=None, **kwar
     label_positions = kwargs.get("label_positions", (0.0, 1.1))
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (8, 5))
-    nrows = kwargs.get("nrows", 2)
+    nrows = kwargs.get("nrows", 1)
     ncols = kwargs.get("ncols", int(np.ceil(len(E) / nrows)))
     colorbar = kwargs.get("colorbar", False)
 
@@ -563,7 +564,21 @@ def add_rect(dim1, dim1_int, dim2, dim2_int, ax, **kwargs):
         ax.add_patch(rect) #Add rectangle to plot
         
         return rect
+
+def overlay_bz(shape, a, b, ax, color):
     
+    X, Y = np.pi/a, np.pi/b
+    
+    bz = Rectangle((0-X, 0-Y), 2*X, 2*Y , linewidth=2, edgecolor=color, facecolor='none', alpha = 0.75)
+    
+    ax.add_patch(bz) #Add bz to plot
+    ax.plot(0,0, 'ko', markersize = 4, alpha = 0.75)
+    ax.plot([0, 0], [Y-0.1, Y+0.1], color = 'black', alpha = 0.75)
+    ax.plot([-X-0.1, -X+0.1], [0, 0], color = 'black', alpha = 0.75)
+    ax.text(-X-0.45, 0, 'X', size=12)
+    ax.text(0, Y+0.15, 'Y', size=12)
+    ax.text(0.1, 0.1, fr'$\Gamma$', size=12)
+
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
 def custom_colormap(CMAP, lower_portion_percentage):
     # create a colormap that consists of
