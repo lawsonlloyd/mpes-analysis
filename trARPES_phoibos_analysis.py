@@ -21,14 +21,15 @@ from Loader import DataLoader
 import xarray as xr
 
 import phoibos
+from mpes import cmap_LTL
 
 #%%
 
 data_path = '/Users/lawsonlloyd/Desktop/Data/phoibos'
-data_path = 'R:\Lawson\Data\phoibos'
+#data_path = 'R:\Lawson\Data\phoibos'
 
 data_path_info = '/Users/lawsonlloyd//GitHub/mpes-analysis'
-data_path_info = 'R:\Lawson\mpes-analysis'
+#data_path_info = 'R:\Lawson\mpes-analysis'
 
 energy_offset, delay_offset, force_offset = 19.62,  0, False
 
@@ -864,7 +865,6 @@ for t in range(n):
     centers_CBM[t] = popt[3]
     Eb = round(popt[3] - popt[2],3)
     Ebs[t] = Eb
-    perr = np.sqrt(np.diag(pcov))
     p_fits_excited[t,:] = popt
     p_err_excited[t,:] = perr 
     p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
@@ -901,7 +901,7 @@ pts = [-120, 0, 50, 100, 500]
 delay_int = 50
 colors = ['black', 'red', 'orange', 'purple', 'blue', 'green', 'grey']
 n = len(pts)
-colors = mpl.cm.inferno(np.linspace(0,.8,n))
+colors = cm.inferno(np.linspace(0,.8,n))
                     
 for i in range(n):
     edc = res.loc[{"Angle":slice(kx-k_int/2,kx+k_int/2), "Delay":slice(pts[i]-delay_int/2,pts[i]+delay_int/2)}].sum(dim=("Angle","Delay"))
@@ -924,23 +924,24 @@ if save_figure is True:
 #%% Plot VBM Fit Results
 
 figure_file_name = 'EDC_phoibos_fits1'
-save_figure = True
+save_figure = False
 
 fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 # VBM FIT TESTS FOR ONE POINT
-t = 15
+t = np.abs(edc_gamma.Delay.values - 100).argmin()
 gauss_test = gaussian(edc_gamma.Energy.values, *p_fits_VBM[t,:])
-ax[0].plot(edc_gamma.Energy.values, edc_gamma[:,t].values/edc_gamma.loc[{"Energy":slice(-0.2,0.5)}][:,t].values.max(), color = 'black')
-ax[0].plot(edc_gamma.Energy.values, gauss_test, linestyle = 'dashed', color = 'grey')
+ax[0].plot(edc_gamma.Energy.values, edc_gamma[:,t].values, color = 'black')
+ax[0].plot(edc_gamma.Energy.values, gauss_test, linestyle = 'dashed', color = 'purple')
 #plt.axvline(trunc_e, linestyle = 'dashed', color = 'black')
 ax[0].set_xlim([-1,1])
 ax[0].set_xlabel('E - E$_{VBM}$, eV')
 ax[0].set_ylabel('Norm. Int.')
-ax[0].axvline(e1, linestyle = 'dashed', color = 'pink')
-ax[0].axvline(e2, linestyle = 'dashed', color = 'pink')
+#ax[0].axvline(e1, linestyle = 'dashed', color = 'pink')
+#ax[0].axvline(e2, linestyle = 'dashed', color = 'pink')
+ax[0].set_title(fr'$\Delta$t = {edc_gamma.Delay.values[t]:.0f} fs', color = 'black')
 
 # PLOT VBM SHIFT DYNAMICS
 
@@ -972,11 +973,14 @@ if save_figure is True:
 
 #%% TEST: CBM EDC Fitting: Extract Binding Energy
 
-delay, delay_int = 500, 1000
+delay, delay_int = 100, 100
 
-res = phoibos.load_data(data_path, scan, scan_info, energy_offset, delay_offset, False)
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+s = 4
+res = phoibos.load_data(data_path, scans[s], scan_info, energy_offset, delay_offset, False)
 
 ax_E = np.linspace(0,3,150)
+
 popt, perr, edc = fit_ex_cbm_peaks(res, 0, 24, delay, delay_int)
 g, g1, g2, offset = two_gaussians_report(ax_E, *popt)
 Eb = round(popt[3] - popt[2],2)
@@ -1011,7 +1015,7 @@ kx_edc = kx_frame.loc[{"Angle":slice(-12,12)}].sum(dim="Angle")
 kx_edc = kx_edc/np.max(kx_edc.loc[{"Energy":slice(1,3)}])
 
 ##### X and CBM ####
-e1 = 1.15
+e1 = 1.1
 e2 = 2.8
 p0 = [1, 0.3,  1.35, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
 bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
@@ -1074,19 +1078,12 @@ ax[2].set_ylabel('$E_{B}$, meV', color = 'black')
 ax[2].legend(frameon=False)
 ax[2].set_title(f"$E_B = {Eb_mean:.0f} \pm {Eb_std:.0f}$ meV")
 
-# # PLOT VBM PEAK WIDTH DYNAMICS
-# ax2 = ax[1].twinx()
-# ax2.plot(edc_gamma.Delay.values, 1000*(p_fits_VBM[:,2] - 0*p_fits_VBM[0:10,2].mean()), color = 'maroon')
-# #ax2.set_ylim([-75,50])
-# ax2.set_ylabel('${VBM}$ Peak Width, meV', color = 'maroon')
-
 fig.tight_layout()
 
 if save_figure is True:
     fig.savefig((figure_file_name +'.svg'), format='svg')
 
-
-#%%
+#%% Define Four Panel Band Dynamics
 
 def plot_band_dynamics(ax):
 
@@ -1152,33 +1149,59 @@ def plot_band_dynamics(ax):
 
 #%% Plot 4-Panel VB and Excited State Peak Energy Dynamics
 
-scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offset = np.linspace(0,100,6)
-energy_offset = + 19.72
-delay_offset = -80
-i = 0
-(kx), k_int = (-3), 4
-
-peaks_dynamics = np.zeros((6,4,76))
-
 save_figure = True
-figure_file_name = 'phoibos_power_fits2'
+figure_file_name = 'Phoibos_Fluence_Delay_Fits'
 
 fig, ax = plt.subplots(2, 2)
 fig.set_size_inches(12, 8, forward=False)
 ax = ax.flatten()
 
+scans = [9219, 9217, 9218, 9216, 9220, 9228]
+(kx), k_int = (-3), 4
+
+peaks_dynamics = np.zeros((len(scans), 4, len(res.Delay)))
+
+i = 0
 for scan_i in scans:
 
     res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, False)
     
-    centers_VBM, p_fits_VBM, p_err_VBM = fit_vbm_dynamics(res, kx, 4)
-    centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = fit_ex_cbm_dynamics(res, delay_int)
+    # Get the Dynamic Peak Fits Fits
+    centers_VBM = np.zeros(len(res.Delay))
+    p_fits_VBM = np.zeros((len(res.Delay),4))
+    p_err_VBM = np.zeros((len(res.Delay),2))
+
+    centers_CBM = np.zeros(len(res.Delay))
+    centers_EX = np.zeros(len(res.Delay))
+    Ebs = np.zeros(len(res.Delay))
+
+    p_fits_excited = np.zeros((len(res.Delay),7))
+    p_err_excited = np.zeros((len(res.Delay),7))
+    p_err_eb = np.zeros((len(res.Delay)))
+
+    n = len(res.Delay)
+    for t in range(n):
+        
+        # VBM
+        popt, perr = fit_vbm_peak(res, -3, 4, res.Delay.values[t], 50)
+        centers_VBM[t] = popt[1]
+        p_fits_VBM[t,:] = popt
+        p_err_VBM[t,:] = perr[1:2+1]
+
+        # EXCITON and CBM
+        popt, perr, _ = fit_ex_cbm_peaks(res, 0, 24,  res.Delay.values[t], 50)
+        centers_EX[t] = popt[2]
+        centers_CBM[t] = popt[3]
+        Eb = round(popt[3] - popt[2],3)
+        Ebs[t] = Eb
+        p_fits_excited[t,:] = popt
+        p_err_excited[t,:] = perr 
+        p_err_eb[t] = np.sqrt(perr[3]**2+perr[2]**2)
     
-    # peaks_dynamics[i,0,:] = centers_VBM
-    # peaks_dynamics[i,1,:] = centers_EX
-    # peaks_dynamics[i,2,:] = centers_CBM
-    # peaks_dynamics[i,3,:] = Ebs
+    #peaks_dynamics[i,0,:] = centers_VBM
+    #peaks_dynamics[i,1,:] = centers_EX
+    #peaks_dynamics[i,2,:] = centers_CBM
+    #peaks_dynamics[i,3,:] = Ebs
     
     plot_band_dynamics(ax)
 
@@ -1187,18 +1210,17 @@ for scan_i in scans:
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig((figure_file_name +'.pdf'), format='pdf')
 
-#%% Fit Peak Shifts as Function of Fluence
+#%% Fit Static Peak Shifts as Function of Fluence
 
 save_figure = False
 figure_file_name = 'phoibos_power_fits2'
 
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
-offset = np.linspace(0,100,6)
 
 (kx), k_int = (-3), 4
-delay, delay_int = 125, 250
+delay, delay_int = 200, 2000
 
 centers_VBM, p_fits_VBM, p_err_VBM = [], [], []
 centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = [], [], [], [], [], []
@@ -1206,9 +1228,15 @@ centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = [], [], 
 i = 0
 for scan_i in scans:
     res = phoibos.load_data(data_path, scan_i, scan_info, energy_offset, delay_offset, False)
-    
-    centers_VBM_i, p_fits_VBM_i, p_err_VBM_i = fit_vbm_int(res, kx, 4)
-    centers_EX_i, centers_CBM_i, Ebs_i, p_fits_excited_i, p_err_excited_i, p_err_eb_i = fit_ex_cbm_int(res, delay, delay_int)
+        
+    # VBM
+    popt, perr = fit_vbm_peak(res, -3, 4, delay, delay_int)
+    centers_VBM_i, p_fits_VBM_i, p_err_VBM_i = popt[1], popt, perr[1:2+1]
+
+    # EXCITON and CBM
+    popt, perr, _ = fit_ex_cbm_peaks(res, 0, 24, delay, delay_int)
+    centers_EX_i, centers_CBM_i, Ebs_i = popt[2], popt[3], round(popt[3] - popt[2],3)
+    p_fits_excited_i, p_err_excited_i, p_err_eb_i = popt, perr, np.sqrt(perr[3]**2+perr[2]**2)
     
     i += 1
     
@@ -1227,7 +1255,7 @@ p_err_eb = np.asarray(p_err_eb)
 p_err_excited = np.asarray(p_err_excited)
 p_err_VBM = np.asarray(p_err_VBM)
 
-#%% Plot Peak Energies and Eb Change
+#%% Plot Static Peak Energies and Eb Change
 
 fig, ax = plt.subplots(1, 2)
 fig.set_size_inches(12, 4, forward=False)
@@ -1246,15 +1274,16 @@ ax[1].axhline(0, color = 'black', linestyle = 'dashed', linewidth = 2)
 
 #ax[0].plot(y1, color = 'grey')
 #ax[0].errorbar(x = x, y = y1, yerr = y_vb_err, marker = 'o', color = 'grey', label = 'VBM')
-ax[0].plot(x, y1, color = 'grey', marker = 'o', markersize = 12)
+ax[0].plot(x, y1, color = 'blue', marker = 'o', markersize = 12)
 ax[0].plot(x, y2, color = 'black', marker = 'o', markersize = 12)
-ax[0].plot(x, y3, color = 'red', marker = 'o', markersize = 12)
+ax[0].plot(x, y3, color = 'crimson', marker = 'o', markersize = 12)
 ax[1].plot(x, y4, color = 'purple', marker = 'o', markersize = 12)
 
-ax[0].fill_between(x, y1 - y_vb_err, y1 + y_vb_err, color = 'grey', alpha = 0.5, label = 'VBM')
-ax[0].fill_between(x, y2 - y_ex_err, y2 + y_ex_err, color = 'black', alpha = 0.5, label = 'Exciton')
-ax[0].fill_between(x, y3 - y_cb_err, y3 + y_cb_err, color = 'crimson', alpha = 0.5, label = 'CBM')
-ax[1].fill_between(x, y4 - y_eb_err, y4 + y_eb_err, color = 'purple', alpha = 0.5, label = '$E_{b}$')
+alpha = 0.3
+ax[0].fill_between(x, y2 - y_ex_err, y2 + y_ex_err, color = 'black', alpha = 0.25, label = 'Exciton')
+ax[0].fill_between(x, y3 - y_cb_err, y3 + y_cb_err, color = 'crimson', alpha = alpha, label = 'CBM')
+ax[0].fill_between(x, y1 - y_vb_err, y1 + y_vb_err, color = 'blue', alpha = alpha, label = 'VBM')
+ax[1].fill_between(x, y4 - y_eb_err, y4 + y_eb_err, color = 'purple', alpha = alpha, label = '$E_{b}$')
 
 #ax[0].errorbar(x = x, y = y2, yerr = y_ex_err, marker = 'o', color = 'black', label = 'ex')
 #ax[0].errorbar(x = x, y = y3, yerr = y_cb_err, marker = 'o', color = 'red', label = 'CBM')
