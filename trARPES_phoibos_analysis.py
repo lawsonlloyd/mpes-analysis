@@ -788,9 +788,9 @@ if save_figure is True:
 #%% Do the EDC Fits: Functions
 
 def fit_vbm_peak(res, k, k_int, delay, delay_int):
-    e1 = -.2
-    e2 = 0.6
-    p0 = [1, 0, .2, 0] # Fitting params initial guess [amp, center, width, offset]
+    e1, e2 = -.2, 0.6
+    # Fitting params initial guess [amp, center, width, offset]
+    p0 = [1, 0, .2, 0]
     bnds = ((0.5, -1, 0.0, 0), (1.5, 0.5, 1, .5))
     
     (kx), k_int = k, k_int
@@ -809,9 +809,10 @@ def fit_vbm_peak(res, k, k_int, delay, delay_int):
     return popt, perr
 
 def fit_ex_cbm_peaks(res, k, k_int, delay, delay_int):
-    e1 = 1.1
-    e2 = 3
-    p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2, 0] # Fitting params initial guess [amp, center, width, offset]
+    e1, e2 = 1.1, 3
+    
+    # Fitting params initial guess [amp, amp, center, center, width, width, offset]
+    p0 = [1, 0.3,  1.3, 2.1,  0.2, 0.2,  0] 
     bnds = ((0.5, 0.1, 1.0, 1.5, 0.1, 0.1, 0), (1.5, 0.7, 1.5, 2.3, 0.9, 0.9, .3))
     
     res_diff = res - res.loc[{"Delay":slice(-1000,-200)}].mean(dim="Delay")
@@ -1220,7 +1221,7 @@ figure_file_name = 'phoibos_power_fits2'
 scans = [9219, 9217, 9218, 9216, 9220, 9228]
 
 (kx), k_int = (-3), 4
-delay, delay_int = 200, 2000
+delay, delay_int = 250, 500
 
 centers_VBM, p_fits_VBM, p_err_VBM = [], [], []
 centers_EX, centers_CBM, Ebs, p_fits_excited, p_err_excited, p_err_eb = [], [], [], [], [], []
@@ -1257,33 +1258,37 @@ p_err_VBM = np.asarray(p_err_VBM)
 
 #%% Plot Static Peak Energies and Eb Change
 
+save_figure = True
+figure_file_name = 'peak_shifts_500fs'
+image_format = 'pdf'
+
 fig, ax = plt.subplots(1, 2)
-fig.set_size_inches(12, 4, forward=False)
+fig.set_size_inches(10, 6, forward=False)
 ax = ax.flatten()
 
 y1, y_vb_err = 1000*(centers_VBM - centers_VBM[0]), 1000*p_err_VBM[:,0]
-y2, y_ex_err = 1000*(centers_EX - centers_EX[0]), 1000*p_err_excited[:,0]
-y3, y_cb_err = 1000*(centers_CBM - centers_CBM[0]), 1000*p_err_excited[:,1]
+y2, y_ex_err = 1000*(centers_EX - centers_EX[0]), 1000*p_err_excited[:,2]
+y3, y_cb_err = 1000*(centers_CBM - centers_CBM[0]), 1000*p_err_excited[:,3]
 y4, y_eb_err = 1000*(Ebs - Ebs[0]), 1000*p_err_eb
 
-x = range(0,6)
-colors = ['grey', 'black', 'red']
+x = fluence
+colors = ['green', 'black', 'crimson', 'purple']
 i = 0
 ax[0].axhline(0, color = 'black', linestyle = 'dashed', linewidth = 2)
 ax[1].axhline(0, color = 'black', linestyle = 'dashed', linewidth = 2)
 
 #ax[0].plot(y1, color = 'grey')
 #ax[0].errorbar(x = x, y = y1, yerr = y_vb_err, marker = 'o', color = 'grey', label = 'VBM')
-ax[0].plot(x, y1, color = 'blue', marker = 'o', markersize = 12)
-ax[0].plot(x, y2, color = 'black', marker = 'o', markersize = 12)
-ax[0].plot(x, y3, color = 'crimson', marker = 'o', markersize = 12)
-ax[1].plot(x, y4, color = 'purple', marker = 'o', markersize = 12)
+ax[0].plot(x, y1, color = colors[0], marker = 'o', markersize = 12, label = 'VBM')
+ax[0].plot(x, y2, color = colors[1], marker = 'o', markersize = 12, label = 'Exciton')
+ax[0].plot(x, y3, color = colors[2], marker = 'o', markersize = 12, label = 'CBM')
+ax[1].plot(x, y4, color = colors[3], marker = 'o', markersize = 12, label = '$E_{b}$')
 
 alpha = 0.3
-ax[0].fill_between(x, y2 - y_ex_err, y2 + y_ex_err, color = 'black', alpha = 0.25, label = 'Exciton')
-ax[0].fill_between(x, y3 - y_cb_err, y3 + y_cb_err, color = 'crimson', alpha = alpha, label = 'CBM')
-ax[0].fill_between(x, y1 - y_vb_err, y1 + y_vb_err, color = 'blue', alpha = alpha, label = 'VBM')
-ax[1].fill_between(x, y4 - y_eb_err, y4 + y_eb_err, color = 'purple', alpha = alpha, label = '$E_{b}$')
+ax[0].fill_between(x, y2 - y_ex_err, y2 + y_ex_err, color = colors[1], alpha = alpha, edgecolor = None)
+ax[0].fill_between(x, y3 - y_cb_err, y3 + y_cb_err, color = colors[2], alpha = alpha, edgecolor = None)
+ax[0].fill_between(x, y1 - y_vb_err, y1 + y_vb_err, color = colors[0], alpha = alpha, edgecolor = None)
+ax[1].fill_between(x, y4 - y_eb_err, y4 + y_eb_err, color = colors[3], alpha = alpha, edgecolor = None)
 
 #ax[0].errorbar(x = x, y = y2, yerr = y_ex_err, marker = 'o', color = 'black', label = 'ex')
 #ax[0].errorbar(x = x, y = y3, yerr = y_cb_err, marker = 'o', color = 'red', label = 'CBM')
@@ -1291,16 +1296,28 @@ ax[1].fill_between(x, y4 - y_eb_err, y4 + y_eb_err, color = 'purple', alpha = al
 
 #ax[1].errorbar(x = x, y = y4, yerr = y_eb_err, marker = 'o', color = 'purple', label = '$E_{b}$')
 
-ax[0].set_xlabel('Fluence', fontsize = 20)
-ax[1].set_xlabel('Fluence', fontsize = 20)
+ax[0].set_xlabel('$n_{eh} \ (x \ 10^{13}$/cm$^{2}$) ', fontsize = 22)
+ax[1].set_xlabel('$n_{eh} \ (x \ 10^{13}$/cm$^{2}$) ', fontsize = 22)
 
-ax[0].set_ylabel('$\Delta$E, meV', fontsize = 20)
-ax[1].set_ylabel('$\Delta$E, meV', fontsize = 20)
+ax[0].set_ylabel('Rel. $\Delta$E, meV', fontsize = 22)
+ax[1].set_ylabel('Rel. $\Delta$E, meV', fontsize = 22)
 
-ax[0].legend(frameon=False)
-ax[1].legend(frameon=False)
+ax[0].legend(frameon=False, fontsize = 14, loc = 'upper left')
+ax[1].legend(frameon=False, fontsize = 14)
+
+xx = np.linspace(0,3,7)
+ax[0].set_xticks(xx)
+ax[1].set_xticks(xx)
+ax[0].set_xlim(0.1, 3)
+ax[1].set_xlim(0.1, 3)
+
+#for label in ax[0].xaxis.get_ticklabels():
+ #   label.set_visible(False)
+
+fig.text(.01, 1, "(a)", fontsize = 24, fontweight = 'regular')
+fig.text(.5, 1, "(b)", fontsize = 24, fontweight = 'regular')
 
 fig.tight_layout()
 
 if save_figure is True:
-    fig.savefig((figure_file_name +'.svg'), format='svg')
+    fig.savefig(figure_file_name + '.'+ image_format, bbox_inches='tight', format=image_format) 
