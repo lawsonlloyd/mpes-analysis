@@ -207,8 +207,8 @@ Eb_err = np.sqrt(perr[3]**2+perr[2]**2)
 mpes.plot_kx_frame(
     I_res, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
-    fig = fig, ax = ax[0],
-    cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
+    fig = fig, ax = ax[0], E_enhance = 1,
+    cmap = cmap, scale=[0,1], energy_limits=[1,3]
 )
 #ax[0].set_aspect(1)
 #ax[0].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=16)
@@ -295,8 +295,8 @@ ax = ax.flatten()
 mpes.plot_kx_frame(
     I_res, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
-    fig = fig, ax = ax[0],
-    cmap = 'BuPu', scale=[0,1], energy_limits=[1,3]
+    fig = fig, ax = ax[0], E_enhance = 1,
+    cmap = cmap, scale=[0,1], energy_limits=[1,3]
 )
 
 ax[0].set_ylim(0.8,3)

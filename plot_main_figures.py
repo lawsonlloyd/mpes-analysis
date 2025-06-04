@@ -23,12 +23,10 @@ import mpes
 
 #%% Figure 1: Momentum Maps
 
-E, E_int = [1.25, 1.25, 1.25, 2.05, 2.05, 2.05], 0.2 # Energies and Total Energy Integration Window to Plot MMs
-E, E_int = [0, 1.4, 2.2], 0.2 # Energies and Total Energy Integration Window to Plot MMs
 E, E_int = [1.25, 2.05], 0.2
-#E, E_int = [1.33, 2.14], 0.2
+E, E_int = [1.33, 2.14], 0.2
 titles = ['Exciton', 'CBM']
-temp = 300 
+temp = 120 
 
 delays, delay_int = [500, 500], 1000 #Integration range for delays
 
