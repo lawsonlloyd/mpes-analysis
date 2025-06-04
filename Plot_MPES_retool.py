@@ -237,7 +237,7 @@ mpes.plot_momentum_maps(
 )
 
 # Plot time traces
-E, E_int = [1.35, 2.125], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
+E, E_int = [1.35, 2.15], .12 # Energies for Plotting Time Traces ; 1st Energy for MM
 (kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
 norm_trace = True
 subtract_neg = True
