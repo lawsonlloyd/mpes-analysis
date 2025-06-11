@@ -63,7 +63,7 @@ I_diff = I - I.loc[{"delay":slice(-400,-100)}].mean(dim="delay")
 I_diff = I_diff/np.max(I_diff)
 
 I_res = I
-I_res = I_diff
+I_diff = I_diff
 
 a, b = 3.508, 4.763 # CrSBr values
 X, Y = np.pi/a, np.pi/b
@@ -207,9 +207,9 @@ if save_figure is True:
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = 0.0, 0.2
+E, E_int = 1.33, 0.2
 
-delays, delay_int = -150, 100
+delays, delay_int = 500, 1000
 
 fig, ax, im = mpes.plot_momentum_maps(
     I_res, E=E, E_int=0.2, delays=delays, delay_int=delay_int,
