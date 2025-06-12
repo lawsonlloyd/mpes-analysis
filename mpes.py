@@ -345,7 +345,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
             kx_frame = enhance_features(kx_frame, E_enhance, factor = 0, norm = True)
             ax[i].axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
 
-        kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
+        im = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
         #ax[2].set_aspect(1)
         ax[i].set_xticks(np.arange(-2,2.2,1))
@@ -366,7 +366,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     # Adjust layout
     fig.tight_layout()
     
-    return fig, ax
+    return fig, ax, im
 
 def plot_ky_frame(I_res, kx, kx_int, delays, delay_int, fig=None, ax=None, **kwargs):
     """

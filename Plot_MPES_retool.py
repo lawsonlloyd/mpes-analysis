@@ -46,7 +46,7 @@ filename, offsets = 'Scan177_120K_120x120x115_binned.h5', [0.363, 0]
 
 filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 filename, offsets = 'Scan163_120K_120x120x115x75_binned.h5',  [0.6369, -132]
-#filename, offsets = 'Scan163_120K_101x101x131x77_binned_v3.h5',  [0, 0]
+filename, offsets = 'Scan163_120K_101x101x131x77_binned_v3.h5',  [0, 0]
 
 #filename, offsets  = 'Scan186_binned_100x100x200_CrSBr_120K_Static.h5',  [-0.6369, 0]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
