@@ -313,7 +313,7 @@ mpes.plot_momentum_maps(
 
 # Plot kx frame
 mpes.plot_kx_frame(
-    I_res, 0, 0.5, delays=500, delay_int=1000,
+    I_diff, 0, 0.5, delays=500, delay_int=1000,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     E_enhance = 1,
     fig = fig, ax = ax[1],
@@ -322,7 +322,7 @@ mpes.plot_kx_frame(
 
 # Plot ky frame
 mpes.plot_ky_frame(
-    I_res, 0, 0.5, delays=[500], delay_int=1000,
+    I_diff, 0, 0.5, delays=[500], delay_int=1000,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     E_enhance = 1,
     fig = fig, ax = ax[2],
