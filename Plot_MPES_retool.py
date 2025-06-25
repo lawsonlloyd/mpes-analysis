@@ -35,7 +35,7 @@ data_path = 'path_to_your_data'
 filename = 'your_file_name.h5'
 
 data_path = 'R:\Lawson\Data\metis'
-data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
+#data_path = '/Users/lawsonlloyd/Desktop/Data/metis'
 
 filename, offsets = 'Scan062_binned_200x200x300_CrSBr_RT_Static_rebinned.h5', [0,0]
 filename, offsets = 'Scan129_binned_100x100x200x67_CrSBr_XUVPolScan.h5', [-.3, 0]
@@ -49,6 +49,8 @@ filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 #filename, offsets  = 'Scan186_binned_100x100x200_CrSBr_120K_Static.h5',  [-0.6369, 0]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 #filename, offsets = 'Scan383_binned_LTL.h5', [-7.2775, 0]
+
+filename, offsets = 'Scan788_Ppol3_delay_binned.h5', [0.3, 0]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename, offsets)
@@ -74,7 +76,7 @@ cmap_plot = cmap_LTL
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [1.1, 1.4, 1.8], 0.1
+E, E_int = [.1], 0.1
 
 delays, delay_int = 500, 1000
 
@@ -316,6 +318,8 @@ save_figure = False
 ### Plot EDCs at GAMMA vs time
 
 (kx, ky), k_int = (x, y), 0.1
+(kx, ky), k_int = (-.1, -.3), 0.2
+
 delay, delay_int = 0, 1000
 
 edc_gamma = mpes.get_edc(I_res, kx, ky, (k_int, k_int), delay, delay_int)
@@ -328,12 +332,17 @@ mpes.plot_momentum_maps(
     fontsize=16, figsize=(8, 6), colorbar=False, panel_labels = False
 )
     
-mpes.find_E0(edc_gamma, fig, ax)
+e1, e2 = -0.1, 0.3
+p0 = [1, .02, 0.4, 0] # Fitting params initial guess [amp, center, width, offset]
+
+mpes.find_E0(edc_gamma, e1, e2, p0, fig, ax)
 
 # cbar_ax = fig.add_axes([.51, 0.275, 0.025, 0.5])
 rect = (Rectangle((kx-k_int/2, ky-k_int/2), k_int, k_int, linewidth=1.5,\
                          edgecolor='k', facecolor='None'))
 fig.axes[0].add_patch(rect)
+ax[1].axvline(e1)
+ax[1].axvline(e2)
 
 if save_figure is True:
     mpes.save_figure(fig, name = f'test', image_format = 'pdf')
