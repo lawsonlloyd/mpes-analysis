@@ -74,17 +74,17 @@ cmap_plot = cmap_LTL
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = [1.33], 0.2
+E, E_int = [1.1, 1.4, 1.8], 0.1
 
 delays, delay_int = 500, 1000
 
 fig, ax, im = mpes.plot_momentum_maps(
     I_res, E=E, E_int=0.2, delays=delays, delay_int=delay_int,
     cmap=cmap_LTL, scale=[0, 1],
-    fontsize=16, figsize=(4, 3), colorbar=False, panel_labels = False
+    fontsize=16, figsize=(8, 3), colorbar=False, panel_labels = False
 )
 
-mpes.overlay_bz('rectangular', 3.508, 4.763, ax[0], 'black')
+#mpes.overlay_bz('rectangular', 3.508, 4.763, ax[0], 'black')
 
 mpes.save_figure(fig, name = f'test', image_format = 'pdf')
 
