@@ -74,14 +74,14 @@ cmap_plot = cmap_LTL
 
 #%% Plot Momentum Maps at Constant Energy
 
-E, E_int = 1.33, 0.2
+E, E_int = [1.33], 0.2
 
 delays, delay_int = 500, 1000
 
 fig, ax, im = mpes.plot_momentum_maps(
     I_res, E=E, E_int=0.2, delays=delays, delay_int=delay_int,
     cmap=cmap_LTL, scale=[0, 1],
-    fontsize=16, figsize=(4, 3), colorbar=True, panel_labels = False
+    fontsize=16, figsize=(4, 3), colorbar=False, panel_labels = False
 )
 
 mpes.overlay_bz('rectangular', 3.508, 4.763, ax[0], 'black')
@@ -138,9 +138,9 @@ mpes.plot_kx_frame(
 # )
 
 # Plot waterfall
-(kx, ky), (kx_int, ky_int) = (0, 0), (4, 4) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (.5, .5) # Central (kx, ky) point and k-integration
 mpes.plot_waterfall(
-    I_res, kx, kx_int, ky, ky_int,
+    I_diff, kx, kx_int, ky, ky_int,
     fig = fig, ax = axs[3],
     cmap=cmap_LTL, scale=[0,1], energy_limits=[1,3]
 )
