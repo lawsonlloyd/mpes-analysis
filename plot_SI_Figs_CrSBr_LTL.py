@@ -295,7 +295,7 @@ ax = ax.flatten()
 mpes.plot_kx_frame(
     I_res, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
-    fig = fig, ax = ax[0], E_enhance = 1,
+    fig = fig, ax = ax[0], E_enhance = 0.8,
     cmap = cmap, scale=[0,1], energy_limits=[1,3]
 )
 

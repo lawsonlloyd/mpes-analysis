@@ -153,11 +153,8 @@ image_format = 'svg'
 
 E, E_int = [1.25, 2.05], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
 
-(kx, ky), (kx_int, ky_int) = (X, 0), (0.5, .5) # Central (kx, ky) point and k-integration
+(kx, ky), (kx_int, ky_int) = (0, 0), (0.5, .5) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000 #kx frame
-
-E, E_int = [1.4, 2.25], .2 # Energies for Plotting Time Traces ; 1st Energy for MM
-(kx, ky), (kx_int, ky_int) = (0, 0), (2, 2) # Central (kx, ky) point and k-integration
 
 Ein = .9 #Enhance excited states above this Energy, eV
 energy_limits = [0.9, 2.75] # Energy Y Limits for Plotting Panels 3 and 4
@@ -175,7 +172,7 @@ i = 0
 frame = mpes.get_momentum_map(I, E_MM, E_MM_int, 500, 2000)
 
 fig, ax = plt.subplots(1, 2, gridspec_kw={'width_ratios': [1, 1.5], 'height_ratios':[1]})
-fig.set_size_inches(8, 4, forward=False)
+fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 ### kx Frame
@@ -229,7 +226,8 @@ for i in np.arange(len(E)):
         trace = trace/np.max(trace)
     elif i == 1:
         trace = trace/trace_norms[0]
-        
+    
+    print(trace.max())
     trace.plot(ax = ax[1], color = colors[i], label = str(E[i]) + ' eV')
     
     rect2 = (Rectangle((kx-kx_int/2, E[i]-E_int/2), kx_int, E_int , linewidth=.5,\
@@ -250,11 +248,12 @@ ax[1].legend(frameon = False)
 ax[1].set_title('Delay Traces')
 ax[1].set_xticks(np.arange(-400,1400,200))
 for label in ax[1].xaxis.get_ticklabels()[1::2]:
-    label.set_visible(False)
+    label.set_visible(True)
 ax[1].set_yticks(np.arange(0,1.2,.25))
 for label in ax[1].yaxis.get_ticklabels()[1::2]:
     label.set_visible(False)
-ax[1].set_xlim(np.max([-200,I.delay.values[0]]),I.delay.values[-1])    
+ax[1].set_xlim(np.max([-150,I.delay.values[1]]),I.delay.values[-1])   
+ax[1].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 fig.text(.03, 0.975, "(a)", fontsize = 18, fontweight = 'regular')
 fig.text(.44, 0.975, "(b)", fontsize = 18, fontweight = 'regular')
 
