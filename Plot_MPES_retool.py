@@ -318,7 +318,7 @@ save_figure = False
 ### Plot EDCs at GAMMA vs time
 
 (kx, ky), k_int = (x, y), 0.1
-(kx, ky), k_int = (-.1, -.3), 0.2
+(kx, ky), k_int = (0, 0), 0.2
 
 delay, delay_int = 0, 1000
 

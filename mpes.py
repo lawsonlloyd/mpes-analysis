@@ -529,7 +529,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
         fig, ax = plt.subplots(figsize=(8, 6))
     
     waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
-    waterfall = enhance_features(waterfall, 0.9, factor = 0, norm = True)
+    waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
     waterfall.plot(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     
