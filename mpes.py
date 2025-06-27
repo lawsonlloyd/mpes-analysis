@@ -124,7 +124,7 @@ def enhance_features(I_res, Ein, factor, norm):
     
     return I3
 
-def find_E0(edc, e1, e2, p0, fig, ax):
+def find_E0(edc, energy_window, p0, fig, ax):
     
     def gaussian(x, amp_1, mean_1, stddev_1, offset):
         
@@ -145,7 +145,8 @@ def find_E0(edc, e1, e2, p0, fig, ax):
     #e2 = 0.6
     #    p0 = [1, .02, 0.17, 0] # Fitting params initial guess [amp, center, width, offset]
     bnds = ((0.5, -.155, 0.0, 0), (1.5, 0.75, 1.5, .5))
-        
+
+    e1, e2 = energy_window[0], energy_window[1]    
     try:
         popt, pcov = curve_fit(gaussian, edc.loc[{"E":slice(e1,e2)}].E.values, edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
     except ValueError:

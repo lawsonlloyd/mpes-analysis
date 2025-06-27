@@ -291,10 +291,11 @@ class PlotHandler:
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
 
         if self.data_handler.I.ndim > 3:
-            edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :, idx_delay1:idx_delay2+1].sum(axis=(0,1,3))
-        else:
-            edc = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], :].sum(axis=(0,1))
+            edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
         
+        else:
+            edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
+            
         edc = edc/np.max(edc)
 
         if self.check_button_manager.enhance_button_status == True:    
@@ -302,13 +303,13 @@ class PlotHandler:
             edc[mask_start:] *= 1/np.max(edc[mask_start:])
             
         # Update the edc plots
-        self.im_4.set_xdata(self.data_handler.ax_E)
+        self.im_4.set_xdata(self.I.E.values)
         self.im_4.set_ydata(edc/np.max(edc))
         self.ax[1].set_ylim([-0.1, 1.1])
         self.ax[1].set_xticks(np.arange(-6,4,0.5))
         for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        self.ax[1].set_xlim([self.data_handler.ax_E[0], self.data_handler.ax_E[-1]])
+        self.ax[1].set_xlim([self.I.E.values[0], self.I.E.values[-1]])
         self.ax[1].set_title("EDC")
         self.ax[1].set_xlabel("Energy, eV")
         self.ax[1].set_ylabel("Intensity")
