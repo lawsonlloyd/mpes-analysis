@@ -540,7 +540,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
     ax.set_title('$k$-Integrated')
-    ax.axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+    ax.axhline(energy_limits[0], linestyle = 'dashed', color = 'black', linewidth = 1)
     
     for label in ax.yaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
