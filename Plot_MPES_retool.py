@@ -23,7 +23,7 @@ import xarray as xr
 from math import nan
 
 from Loader import DataLoader
-from main import main
+from Main import main
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager
 import mpes
 from mpes import cmap_LTL, cmap_LTL2
@@ -50,7 +50,7 @@ filename, offsets = 'Scan162_RT_120x120x115x50_binned.h5', [0.8467, -120]
 #filename, offsets = 'Scan188_120K_120x120x115x77_binned.h5', [0.5660, -110]
 #filename, offsets = 'Scan383_binned_LTL.h5', [-7.2775, 0]
 
-filename, offsets = 'Scan788_Ppol3_delay_binned.h5', [0.3, 0]
+#filename, offsets = 'Scan788_Ppol3_delay_binned.h5', [0.3, 0]
 #%% Load the data and axes information
 
 data_loader = DataLoader(data_path + '//' + filename, offsets)

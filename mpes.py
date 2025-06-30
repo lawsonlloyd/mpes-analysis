@@ -11,6 +11,7 @@ import matplotlib.colors as col
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FormatStrFormatter
+from matplotlib.colors import LogNorm
 import xarray as xr
 from scipy.special import erf
 from scipy.optimize import curve_fit
@@ -532,8 +533,9 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
     waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
     waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
-    waterfall.plot(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
-    
+    waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+    #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
+   
     ax.set_xlabel('Delay, fs', fontsize = 18)
     ax.set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
     ax.set_yticks(np.arange(-1,3.5,0.25))
@@ -587,10 +589,11 @@ def custom_colormap(CMAP, lower_portion_percentage):
     # - 4/5 : existing colormap
     
     # set upper part: 4 * 256/4 entries
-    
+    CMAP = plt.get_cmap(CMAP)
     upper =  CMAP(np.arange(256))
-    upper = upper[56:,:]
-    
+    #upper = upper[56:,:]
+    upper = upper[0:,:]
+
     # - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
     lower_portion = int(1/lower_portion_percentage) - 1
     
@@ -608,13 +611,13 @@ def custom_colormap(CMAP, lower_portion_percentage):
     
     return custom_cmap
 
-def create_custom_diverging_colormap():
+def create_custom_diverging_colormap(map1, map2):
     # Create the negative part from seismic (from 0.5 to 1 -> blue to white)
-    seismic = plt.get_cmap('Blues')
+    seismic = plt.get_cmap(map1)
     seismic_colors = seismic(np.linspace(0, 1, 128))  # -1 to 0
 
     # Create the positive part from viridis (from 0 to 1)
-    viridis = plt.get_cmap('viridis')
+    viridis = plt.get_cmap(map1)
     viridis = cmap_LTL
     viridis_colors = viridis(np.linspace(0, 1, 128))  # 0 to 1
 
@@ -626,5 +629,5 @@ def create_custom_diverging_colormap():
 
     return custom_colormap
 
-cmap_LTL = custom_colormap(mpl.cm.viridis, 0.2)
-cmap_LTL2 = create_custom_diverging_colormap()
+cmap_LTL = custom_colormap('viridis', 0.2)
+cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')

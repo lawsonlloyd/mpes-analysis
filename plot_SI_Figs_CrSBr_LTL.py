@@ -73,9 +73,9 @@ ax[3].set_title(f"CBM")
 
 for i in np.arange(len(kx)):
 
-    mpes.add_rect(kx[i], kx_int, E_ex, E_int, colors[i], ax[2])
-    mpes.add_rect(kx[i], kx_int, E_cbm, E_int, colors[i], ax[2])
-    mpes.add_rect(kx[i], kx_int, ky, ky_int, colors[i], ax[0])
+    mpes.add_rect(kx[i], kx_int, E_ex, E_int, ax[2], facecolor = colors[i])
+    mpes.add_rect(kx[i], kx_int, E_cbm, E_int, ax[2], facecolor = colors[i])
+    mpes.add_rect(kx[i], kx_int, ky, ky_int, ax[0], facecolor = colors[i])
 
 
 # ax[2].text(0+0.04, 2.75, f"$\Gamma$", size=12)
@@ -123,12 +123,12 @@ axs = axs.flatten()
 mpes.plot_waterfall(
     I_res, kx, kx_int, ky, ky_int,
     fig = fig, ax = axs[0],
-    cmap= cmocean.cm.balance, scale=[0,1]
+    cmap = cmap_LTL2, scale=[-1,1]
 )
 
 # Plot time traces
 mpes.plot_time_traces(
-    I, E_trace, E_int, (kx, ky), (kx_int, ky_int),
+    I_res, E_trace, E_int, (kx, ky), (kx_int, ky_int),
     norm_trace=False, subtract_neg=True, neg_delays=[-110,-70],
     fig = fig, ax = axs[1],
     colors = colors,
@@ -145,8 +145,9 @@ E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Ener
 (kx, ky), (kx_int, ky_int) = (0.0, 0.0), (0.2, 0.2) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 1000
 subtract_neg  = True
+I_plot = I_diff
 
-kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_plot, ky, ky_int, delay, delay_int)
     
 e1, e2 = 1.1, 3
 k1, k2 = -1.83, 1.8
@@ -205,7 +206,7 @@ Eb = round(popt[3] - popt[2],3)
 Eb_err = np.sqrt(perr[3]**2+perr[2]**2) 
 
 mpes.plot_kx_frame(
-    I_res, ky, ky_int, delay, delay_int,
+    I_plot, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     fig = fig, ax = ax[0], E_enhance = 1,
     cmap = cmap, scale=[0,1], energy_limits=[1,3]
@@ -273,7 +274,7 @@ E_trace, E_int = [1.35, 2.05], .1 # Energies for Plotting Time Traces ; 1st Ener
 (kx, ky), (kx_int, ky_int) = (0, 0), (3.8, 0.2) # Central (kx, ky) point and k-integration
 delay, delay_int = 500, 100
 
-kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_plot, ky, ky_int, delay, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -293,7 +294,7 @@ fig.set_size_inches(10, 4, forward=False)
 ax = ax.flatten()
 
 mpes.plot_kx_frame(
-    I_res, ky, ky_int, delay, delay_int,
+    I_plot, ky, ky_int, delay, delay_int,
     subtract_neg=subtract_neg, neg_delays=neg_delays,
     fig = fig, ax = ax[0], E_enhance = 0.8,
     cmap = cmap, scale=[0,1], energy_limits=[1,3]
@@ -365,7 +366,7 @@ p_err_eb = np.zeros((len(I.delay)))
 n = len(I.delay.values)
 for t in range(n):
 
-    kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, I.delay.values[t], delay_int)
+    kx_frame = mpes.get_kx_E_frame(I_plot, ky, ky_int, I.delay.values[t], delay_int)
 
     kx_edc_i = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].sum(dim="kx")
     kx_edc_i = kx_edc_i/np.max(kx_edc_i.loc[{"E":slice(0.8,3)}])
@@ -395,7 +396,7 @@ fig, ax = plt.subplots(1, 3,  gridspec_kw={'width_ratios': [1.25,1.5,1.5], 'heig
 fig.set_size_inches(14, 4, forward=False)
 ax = ax.flatten()
 
-kx_frame = mpes.get_kx_E_frame(I_res, ky, ky_int, 500, delay_int)
+kx_frame = mpes.get_kx_E_frame(I_plot, ky, ky_int, 500, delay_int)
 kx_frame = kx_frame/np.max(kx_frame.loc[{"E":slice(0.8,3)}])
 
 kx_edc = kx_frame.loc[{"kx":slice(kx-kx_int/2,kx+kx_int/2)}].mean(dim="kx")
@@ -639,7 +640,7 @@ image_format = 'pdf'
 def monoexp(t, A, tau):
    return A * np.exp(-t/tau) * (t >= 0)
     
-i_start = np.abs(I.delay.values-100).argmin()
+i_start = np.abs(I.delay.values - 150).argmin()
 waitingfreq = (1/2.99793E10)*np.fft.fftshift(np.fft.fftfreq(len(I.delay.values[i_start:]), d=20E-15));
 delay_trunc = I.delay.values[i_start:]
 
@@ -791,7 +792,7 @@ if save_figure is True:
 
 #%% Waterfall difference Panel
 
-save_figure = True
+save_figure = False
 figure_file_name = 'WaterFallDifference_phoibos400nm'
 image_format = 'pdf'
 
