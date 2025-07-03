@@ -4,7 +4,6 @@ Created on Mon Mar 10 11:15:40 2025
 
 @author: lloyd
 """ 
-import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
@@ -15,6 +14,9 @@ from matplotlib.colors import LogNorm
 import xarray as xr
 from scipy.special import erf
 from scipy.optimize import curve_fit
+from scipy.signal import fftconvolve
+from scipy.optimize import curve_fit
+import numpy as np
 
 #%% Useful Functions and Definitions for Manipulating Data
 
@@ -132,6 +134,7 @@ def find_E0(edc, energy_window, p0, fig, ax):
         g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
         
         return g1
+    
     #plt.legend(frameon = False)
     ax[1].set_xlim([-1, 1]) 
     #ax[1].set_ylim([0, 1.1])
@@ -151,7 +154,7 @@ def find_E0(edc, energy_window, p0, fig, ax):
     try:
         popt, pcov = curve_fit(gaussian, edc.loc[{"E":slice(e1,e2)}].E.values, edc.loc[{"E":slice(e1,e2)}].values, p0, method=None, bounds = bnds)
     except ValueError:
-        popt = p0
+        popt = [0, 0, 0, 0]
         pcov = [0, 0, 0, 0]
         print('oops!')
         
@@ -591,8 +594,8 @@ def custom_colormap(CMAP, lower_portion_percentage):
     # set upper part: 4 * 256/4 entries
     CMAP = plt.get_cmap(CMAP)
     upper =  CMAP(np.arange(256))
-    #upper = upper[56:,:]
-    upper = upper[0:,:]
+    upper = upper[56:,:]
+    #upper = upper[0:,:]
 
     # - initialize all entries to 1 to make sure that the alpha channel (4th column) is 1
     lower_portion = int(1/lower_portion_percentage) - 1
@@ -628,6 +631,125 @@ def create_custom_diverging_colormap(map1, map2):
     custom_colormap = LinearSegmentedColormap.from_list('seismic_viridis', combined_colors)
 
     return custom_colormap
+
+#%% Functions For Fitting Data: Time Traces
+
+def monoexp(t, A, tau):
+    return A * np.exp(-t / tau) * (t >= 0)  # Ensure decay starts at t=0
+
+# Define the biexponnential decay function (Exciton)    
+def biexp(t, A, tau1, B, tau2):
+    return ( A * np.exp(-t / tau1) + B * np.exp(-t / tau2))  * (t >= 0)  # Ensure decay starts at t=0
+
+# Define the conduction band model: exponential rise + decay
+def exp_rise_monoexp_decay(t, C, tau_rise, tau_decay1):
+    return C * (1 - np.exp(-t / tau_rise)) * (np.exp(-t / tau_decay1)) * (t >= 0)
+
+def exp_rise_biexp_decay(t, C, tau_rise, D, tau_decay1, tau_decay2):
+    return C * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
+
+# Define the Instrumental Response Function (IRF) as a Gaussian
+def IRF(t, sigma_IRF):
+    return np.exp(-t**2 / (2 * sigma_IRF**2)) / (sigma_IRF * np.sqrt(2 * np.pi))
+
+# Convolution of the signal with the IRF
+def convolved_signal_1(t, signal_function, sigma_IRF, *params):
+    dt = np.mean(np.diff(t))  # Time step
+    signal = signal_function(t, *params)  # Compute signal
+    irf = IRF(t - t[len(t)//2], sigma_IRF)  # Shift IRF to center
+    irf /= np.sum(irf) * dt  # Normalize IRF
+    convolved = fftconvolve(signal, irf, mode='same') * dt  # Convolve with IRF
+    return convolved
+
+def convolved_signal(t, signal_function, sigma_IRF, *params):
+    dt = np.mean(np.diff(t))
+
+    # Extend the time axis on both sides to avoid edge effects
+    pad_width = int(5 * sigma_IRF / dt)  # enough padding for Gaussian tail
+    t_pad = np.linspace(t[0] - pad_width * dt, t[-1] + pad_width * dt, len(t) + 2 * pad_width)
+
+    # Evaluate signal on the extended time axis
+    signal_ext = signal_function(t_pad, *params)
+
+    # Create centered Gaussian IRF
+    irf = np.exp(-((t_pad - np.median(t_pad)) ** 2) / (2 * sigma_IRF ** 2))
+    irf /= np.sum(irf) * dt  # Normalize area under the IRF to 1
+
+    # Convolve using FFT
+    conv_ext = fftconvolve(signal_ext, irf, mode='same') * dt
+
+    # Trim back to original t range
+    convolved = conv_ext[pad_width : -pad_width]
+    
+    return convolved
+
+def make_convolved_model(base_model, t, sigma_IRF):
+    """
+    Returns a callable f(t, *params) which evaluates the convolved model at time t.
+    """
+    dt = np.mean(np.diff(t))
+    pad_width = int(5 * sigma_IRF / dt)
+    t_pad = np.linspace(t[0] - pad_width * dt, t[-1] + pad_width * dt, len(t) + 2 * pad_width)
+
+    # Centered Gaussian IRF
+    irf = np.exp(-((t_pad - np.median(t_pad)) ** 2) / (2 * sigma_IRF ** 2))
+    irf /= np.sum(irf) * dt
+
+    def model(t_fit, *params):
+        signal_ext = base_model(t_pad, *params)
+        conv_ext = fftconvolve(signal_ext, irf, mode='same') * dt
+        return conv_ext[pad_width : -pad_width]
+
+    return model
+
+def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, sigma_IRF=None):
+    """
+    Fit a time trace using a specified model, optionally convolved with an IRF.
+
+    Parameters:
+    - fit_model (str): Name of the model ('monoexp', 'exp_rise_monoexp_decay')
+    - delay_axis (array): Time delay values
+    - time_trace (array): Measured time trace
+    - p0 (tuple/list): Initial guess for fit parameters
+    - bnds (2-tuple): Bounds for fit parameters ((lower_bounds), (upper_bounds))
+    - convolve (bool): Whether to convolve the model with an IRF
+    - sigma_IRF (float): Width of the Gaussian IRF (if convolve=True)
+
+    Returns:
+    - popt: Optimal parameters from curve_fit
+    - pcov: Covariance of the parameters
+    - fit_curve: Evaluated fit curve
+    """
+
+    model_dict = {
+        'monoexp': monoexp,
+        'exp_rise_monoexp_decay': exp_rise_monoexp_decay,
+        'biexp': biexp,
+        'exp_rise_biexp_decay': exp_rise_biexp_decay
+    }
+
+    if fit_model not in model_dict:
+        raise ValueError(f"Unsupported model: {fit_model}")
+
+    base_model = model_dict[fit_model]
+
+    if convolve:
+        if sigma_IRF is None:
+            raise ValueError("sigma_IRF must be provided if convolve=True")
+        def model_func(t, *params):
+            return convolved_signal(t, base_model, sigma_IRF, *params)
+    else:
+        model_func = base_model
+
+    if convolve:
+        model_func = make_convolved_model(base_model, delay_axis, sigma_IRF)
+    else:
+        model_func = base_model
+
+    popt, pcov = curve_fit(model_func, delay_axis, time_trace, p0=p0, bounds=bnds)
+    fit_curve = model_func(delay_axis, *popt)
+
+    return popt, pcov, fit_curve
 
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
