@@ -752,5 +752,31 @@ def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, 
 
     return popt, pcov, fit_curve
 
+import numpy as np
+
+def print_fit_results(model_name, popt, pcov):
+    """
+    Print fit parameters and uncertainties based on model name.
+    """
+    model_param_names = {
+        'monoexp': ['A', 'tau'],
+        'biexp': ['A1', 'tau1', 'A2', 'tau2'],
+        'exp_rise_monoexp_decay': ['A', 'tau_rise', 'tau_decay'],
+        'exp_rise_biexp_decay': ['C', 'tau_rise', 'D', 'tau_decay1', 'tau_decay2']
+        # Add more models here as needed
+    }
+
+    if model_name not in model_param_names:
+        raise ValueError(f"Unsupported model: {model_name}")
+
+    param_names = model_param_names[model_name]
+    errors = np.sqrt(np.diag(pcov))
+
+    print(f"\nFit Results for model: {model_name}")
+    print("-" * 40)
+    for name, val, err in zip(param_names, popt, errors):
+        print(f"{name:10s} = {val:10.4f} ± {err:7.4f}")
+    print("-" * 40)
+
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
