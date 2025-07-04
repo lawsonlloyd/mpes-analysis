@@ -702,6 +702,14 @@ def make_convolved_model(base_model, t, sigma_IRF):
 
     return model
 
+model_dict = {
+        'monoexp': monoexp,
+        'exp_rise_monoexp_decay': exp_rise_monoexp_decay,
+        'biexp': biexp,
+        'exp_rise_biexp_decay': exp_rise_biexp_decay
+}
+
+
 def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, sigma_IRF=None):
     """
     Fit a time trace using a specified model, optionally convolved with an IRF.
@@ -720,13 +728,6 @@ def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, 
     - pcov: Covariance of the parameters
     - fit_curve: Evaluated fit curve
     """
-
-    model_dict = {
-        'monoexp': monoexp,
-        'exp_rise_monoexp_decay': exp_rise_monoexp_decay,
-        'biexp': biexp,
-        'exp_rise_biexp_decay': exp_rise_biexp_decay
-    }
 
     if fit_model not in model_dict:
         raise ValueError(f"Unsupported model: {fit_model}")
