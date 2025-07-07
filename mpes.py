@@ -17,6 +17,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import fftconvolve
 from scipy.optimize import curve_fit
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 
 #%% Useful Functions and Definitions for Manipulating Data
 
@@ -46,14 +47,20 @@ def get_data_chunks(I, neg_times, t0, ax_delay_offset):
         I_sum = I
 
 # Function for Creating MM Constant Energy kx, ky slice 
-def get_momentum_map(I_res, E, E_int, delays, delay_int):
-    # Momentum Maps at specified Energies and Delays
+def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None):
     
-    if I_res.ndim > 3:    
-        frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "delay":slice(delays-delay_int/2, delays+delay_int/2)}].mean(dim=("E","delay")).T
-    
+    # Integrate over energy window
+    I_E = I_res.loc[{"E":slice(E - E_int / 2, E + E_int / 2)}].mean(dim="E")
+
+    if "delay" in I_res.dims:
+        if delay is not None and delay_int is not None:
+            # Integrate over a delay window
+            frame = I_E.loc[{"delay":slice(delay - delay_int / 2, delay + delay_int / 2)}].mean(dim="delay").T
+        else:
+            # No delay specified: average over entire delay axis
+            frame = I_E.mean(dim="delay").T
     else:
-        frame = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2)}].mean(dim=("E")).T
+        frame = I_E.T
 
     return frame
 
@@ -81,6 +88,60 @@ def get_waterfall(I_res, kx, kx_int, ky, ky_int):
     frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
 
     return frame
+
+def get_k_cut(I, k_start, k_end, num_k=200):
+    """
+    Extract an E vs k slice along an arbitrary line in kx-ky space.
+
+    Parameters:
+    - I: xarray.DataArray with dims ('kx', 'ky', 'energy')
+    - k_start: (kx0, ky0) tuple — start point in k-space
+    - k_end: (kx1, ky1) tuple — end point in k-space
+    - num_k: number of points along the k-space cut
+
+    Returns:
+    - I_cut: 2D array of shape (len(E), num_k)
+    - k_vals: 1D array of k-distance along the cut
+    - E_vals: 1D array of energies
+    """
+    assert all(dim in I.dims for dim in ['kx', 'ky', 'E']), "Data must have kx, ky, energy dims"
+
+    # Coordinate arrays
+    kx_vals = I.kx.values
+    ky_vals = I.ky.values
+    E_vals = I.E.values
+
+    # Create k-space cut line
+    k_start = np.array(k_start)
+    k_end = np.array(k_end)
+    k_line = np.linspace(k_start, k_end, num_k)
+    kx_line = k_line[:, 0]
+    ky_line = k_line[:, 1]
+
+    # Interpolator
+    interp = RegularGridInterpolator(
+        (kx_vals, ky_vals, E_vals),
+        I.transpose('kx', 'ky', 'E').values,
+        bounds_error=False,
+        fill_value=np.nan
+    )
+
+    # For each point along the k-line, extract the I(E) spectrum
+    I_cut = []
+    for kx_i, ky_i in zip(kx_line, ky_line):
+        pts = np.column_stack([np.full_like(E_vals, kx_i),
+                               np.full_like(E_vals, ky_i),
+                               E_vals])
+        spectrum = interp(pts)
+        I_cut.append(spectrum)
+
+    I_cut = np.array(I_cut).T  # shape: (energy, k_index)
+
+    # Compute 1D distance along cut
+    dk = np.linalg.norm(k_end - k_start)
+    k_vals = np.linspace(0, dk, num_k)
+
+    return I_cut, k_vals, E_vals
 
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k, k_int, norm_trace, subtract_neg, neg_delays):
@@ -204,7 +265,7 @@ def save_figure(fig, name, image_format):
     
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
 
-def plot_momentum_maps(I, E, E_int, delays, delay_int, fig=None, ax=None, **kwargs):
+def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
     Plot momentum maps at specified energies and delays with optional layout and styling.
     
@@ -212,8 +273,8 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, fig=None, ax=None, **kwar
     - I: xarray dataset (e.g., I_diff or I_res).
     - E: list of energies.
     - E_int: total energy integration width (float).
-    - delays: list of delays (same length as E).
-    - delay_int: integration window for delays (float).
+    - delays: list of delays (same length as E). Ignored if no 'delay' in data.
+    - delay_int: integration window for delays (float). Ignored if no 'delay' in data.
     
     Optional kwargs:
     - fig: matplotlib figure object (optional).
@@ -230,12 +291,20 @@ def plot_momentum_maps(I, E, E_int, delays, delay_int, fig=None, ax=None, **kwar
     Returns:
     - fig, ax, im (image handle for colorbar)
     """
-    delays = np.atleast_1d(delays)
     E = np.atleast_1d(E)
+
+    has_delay = "delay" in I.dims
+
+    delays = np.atleast_1d(delays)
     
-    if len(delays) != len(E):
-        delays = np.resize(delays, len(E))
-        
+    if has_delay:
+        delays = np.atleast_1d(delays)
+        if len(delays) != len(E):
+            delays = np.resize(delays, len(E))
+    else:
+        # Static data – ignore delays entirely
+        delays = [None] * len(E)
+
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
     panel_labels = kwargs.get("panel_labels", False)
