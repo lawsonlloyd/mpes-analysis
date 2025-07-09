@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as col
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
+from matplotlib.patches import Polygon
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.colors import LogNorm
 import xarray as xr
@@ -640,19 +641,94 @@ def add_rect(dim1, dim1_int, dim2, dim2_int, ax, **kwargs):
         
         return rect
 
-def overlay_bz(shape, a, b, ax, color):
+def overlay_bz(shape_type, a, b, ax, color, **kwargs):
+
+    """
+    Overlays a custom Brillouin zone polygon on an imshow plot.
+
+    Parameters:
+    - shape: 
+    - a, b: lattice constants in x and y direction (used to scale Γ, X, Y point labels).
+    - ax: matplotlib axes object to draw on.
+    - color: color for the polygon edge.
+    """
+
+    repeat=kwargs.get("repeat", 0)
+    rotation_deg=kwargs.get("rotation_deg", 0)
+
+    def make_rect_bz(a, b):
+        X = np.pi / a
+        Y = np.pi / b
+        return [(-X, -Y), (X, -Y), (X, Y), (-X, Y)]
+
+    def make_hex_bz(a):
+        radius = 4 * np.pi / (3 * a)
+        angles = np.linspace(0, 2*np.pi, 7)[:-1] + np.pi/6
+        return [(radius * np.cos(a), radius * np.sin(a)) for a in angles]
+
+    def rotate_shape(coords, angle_deg):
+        angle_rad = np.deg2rad(angle_deg)
+        cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
+        return [(x*cos_a - y*sin_a, x*sin_a + y*cos_a) for x, y in coords]
+        
+    # Choose the shape
+    if shape_type == 'rectangular':
+        base_shape = make_rect_bz(a, b)
+        dx, dy = 2 * np.pi / a, 2 * np.pi / b
+    elif shape_type == 'hexagonal':
+        base_shape = make_hex_bz(a)
+        # approximate hexagon repetition spacing
+        dx, dy = 4 * np.pi / (3 * a), 4 * np.pi / (3 * a)
+    else:
+        raise ValueError(f"Unsupported shape type: {shape_type}")
     
-    X, Y = np.pi/a, np.pi/b
-    
-    bz = Rectangle((0-X, 0-Y), 2*X, 2*Y , linewidth=2, edgecolor=color, facecolor='none', alpha = 0.75)
-    
-    ax.add_patch(bz) #Add bz to plot
-    ax.plot(0,0, 'ko', markersize = 4, alpha = 0.75)
-    ax.plot([0, 0], [Y-0.1, Y+0.1], color = 'black', alpha = 0.75)
-    ax.plot([-X-0.1, -X+0.1], [0, 0], color = 'black', alpha = 0.75)
-    ax.text(-X-0.45, 0, 'X', size=12)
-    ax.text(0, Y+0.15, 'Y', size=12)
-    ax.text(0.1, 0.1, fr'$\Gamma$', size=12)
+    # Rotate shape
+    shape = rotate_shape(base_shape, rotation_deg)
+
+    # Translate shape to center
+    center = (0,0)
+    cx, cy = center
+
+    if shape_type == 'hexagonal':
+        # Use reciprocal lattice vectors for proper hex tiling
+        #b1 = np.array([4 * np.pi / (3 * a), 0])
+        #b2 = np.array([-2 * np.pi / (3 * a), 2 * np.pi / (np.sqrt(3) * a)])
+        b1 = (2 * np.pi / a) * np.array([1, -1 / np.sqrt(3)])
+        b2 = (2 * np.pi / a) * np.array([0, 2 / np.sqrt(3)])
+        for i in range(-repeat, repeat + 1):
+            for j in range(-repeat, repeat + 1):
+                offset = cx + i * b1[0] + j * b2[0], cy + i * b1[1] + j * b2[1]
+                translated_shape = [(x + offset[0], y + offset[1]) for x, y in shape]
+                patch = Polygon(translated_shape, closed=True, edgecolor=color,
+                                facecolor='none', linewidth=2, alpha=0.75)
+                ax.add_patch(patch)
+                if i == 0 and j == 0 and np.allclose(center, (0, 0)):
+                    ax.plot(0, 0, 'ko', markersize=4, alpha=0.75)
+                    ax.text(0.1, 0.1, r'$\Gamma$', size=12)
+
+    else:
+        # Rectangular grid tiling
+        for i in range(-repeat, repeat + 1):
+            for j in range(-repeat, repeat + 1):
+                offset_x = cx + i * dx
+                offset_y = cy + j * dy
+                translated_shape = [(x + offset_x, y + offset_y) for x, y in shape]
+                patch = Polygon(translated_shape, closed=True, edgecolor=color,
+                                facecolor='none', linewidth=2, alpha=0.75)
+                ax.add_patch(patch)
+                if i == 0 and j == 0 and np.allclose(center, (0, 0)):
+                    ax.plot(0, 0, 'ko', markersize=4, alpha=0.75)
+                    ax.text(0.1, 0.1, r'$\Gamma$', size=12)
+
+    #bz = Rectangle((0-X, 0-Y), 2*X, 2*Y , linewidth=2, edgecolor=color, facecolor='none', alpha = 0.75)
+
+    #ax.add_patch(bz) #Add bz to plot
+    #ax.plot(0,0, 'ko', markersize = 4, alpha = 0.75)
+    #ax.plot([0, 0], [Y-0.1, Y+0.1], color = 'black', alpha = 0.75)
+    #ax.plot([-X-0.1, -X+0.1], [0, 0], color = 'black', alpha = 0.75)
+    #ax.text(-X-0.45, 0, 'X', size=12)
+    #ax.text(0, Y+0.15, 'Y', size=12)
+    #ax.text(0.1, 0.1, fr'$\Gamma$', size=12)
 
 #I_sum, I_pos, I_pos_sum, I_neg, I_neg_sum = get_data_chunks([-180,-100], t0, ax_delay_offset) #Get the Neg and Pos delay time arrays
 def custom_colormap(CMAP, lower_portion_percentage):
