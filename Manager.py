@@ -10,6 +10,9 @@ Created on Wed Sep 18 15:36:40 2024
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+from matplotlib.lines import Line2D
+from scipy.ndimage import map_coordinates
 from matplotlib.widgets import Slider, CheckButtons, Button
 import mpes
 
@@ -266,6 +269,28 @@ class PlotHandler:
             
         self.im_3.set_data(frame_temp)  # Update image for new E
 
+    def plot_line_cut(self, cut, E_vals, kx1, ky1, kx2, ky2):
+        self.ax[1].cla()
+        # Compute total distance in Å⁻¹
+        delta_k = np.sqrt((kx2 - kx1)**2 + (ky2 - ky1)**2)
+        k_distances = np.linspace(0, delta_k, cut.shape[1])
+
+        # Plot
+        im = self.ax[1].imshow(
+            cut,
+            extent=[k_distances[0], k_distances[-1], E_vals[0], E_vals[-1]],
+            aspect='auto',
+            cmap=self.cmap,
+            origin='lower'
+        )
+
+        self.ax[1].set_title("Arbitrary k-Cut", color = 'purple')
+        self.ax[1].set_xlabel("Position along cut")
+        self.ax[1].set_ylabel("E (eV)")
+        self.ax[1].set_xlabel("$k_{//}$")
+
+        self.fig.canvas.draw_idle()
+        
     def update_time_trace(self):
         """Update the time traces when the square is moved or resized."""
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
@@ -357,14 +382,15 @@ class PlotHandler:
         return custom_cmap
 
 class EventHandler:
-    def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager):
+    def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager, arbitrary_cut_handler):
         self.slider_manager = slider_manager
         self.plot_manager = plot_manager
         self.check_button_manager = check_button_manager
         self.value_manager = value_manager
         self.press_horizontal = False
         self.press_vertical = False
-        
+        self.arbitrary_cut_handler = arbitrary_cut_handler
+
     def on_press(self, event):
         """Handle mouse press events and update square or lines."""
         if self.plot_manager.horizontal_line_0.contains(event)[0]:
@@ -393,6 +419,13 @@ class EventHandler:
             if self.check_button_manager.trace_check_button.get_status()[0] is True:
                 self.plot_manager.update_edc()
             self.plot_manager.fig.canvas.draw()
+
+        if self.check_button_manager.kcut_check_button.get_status()[0]:
+            self.check_button_manager.kcut_button_status = True
+            self.arbitrary_cut_handler.enable()
+        else:
+            self.check_button_manager.kcut_button_status = False
+            self.arbitrary_cut_handler.disable()
 
     def on_motion(self, event):
         if self.press_horizontal:    
@@ -430,23 +463,148 @@ class EventHandler:
         self.press_horizontal = False
         self.press_vertical = False
 
+class ArbitraryCutHandler:
+    def __init__(self, plot_handler, data_handler):
+        self.plot_handler = plot_handler
+        self.data_handler = data_handler
+        self.ax = self.plot_handler.ax[0]
+        self.kx_vals = self.data_handler.I.kx.values
+        self.ky_vals = self.data_handler.I.ky.values
+        self.E_vals = self.data_handler.I.E.values
+        self.data = self.data_handler.I.values  # [kx, ky, E] or [kx, ky, E, delay]
+        
+        # Initial line endpoints in kx-ky space
+        self.x1, self.y1 = -1.0, -1.0
+        self.x2, self.y2 = 1.0, 1.0
+
+        # Plot line and endpoints
+        self.line = Line2D([self.x1, self.x2], [self.y1, self.y2], color='purple', linewidth=2)
+        self.p1 = Circle((self.x1, self.y1), 0.05, color='purple', picker=True)
+        self.p2 = Circle((self.x2, self.y2), 0.05, color='purple', picker=True)
+        self.ax.add_line(self.line)
+        self.ax.add_patch(self.p1)
+        self.ax.add_patch(self.p2)
+        
+        # Hide initially
+        self.line.set_visible(False)
+        self.p1.set_visible(False)
+        self.p2.set_visible(False)
+        self.active_point = None
+
+        # Connect events
+        fig = self.ax.figure
+        fig.canvas.mpl_connect('button_press_event', self.on_press)
+        fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        fig.canvas.mpl_connect('button_release_event', self.on_release)
+
+    def on_press(self, event):
+        if event.inaxes != self.ax:
+            return
+        if self.p1.contains(event)[0]:
+            self.active_point = self.p1
+        elif self.p2.contains(event)[0]:
+            self.active_point = self.p2
+
+    def on_motion(self, event):
+        if self.active_point and event.inaxes == self.ax:
+            self.active_point.center = (event.xdata, event.ydata)
+            self.x1, self.y1 = self.p1.center
+            self.x2, self.y2 = self.p2.center
+            self.line.set_data([self.x1, self.x2], [self.y1, self.y2])
+            self.ax.figure.canvas.draw_idle()
+            self.update_cut_plot()
+
+    def on_release(self, event):
+        self.active_point = None
+
+    def update_cut_plot(self):
+        # For now: only works for 3D data [kx, ky, E]
+        if self.data.ndim != 3:
+            print("Only implemented for 3D data")
+            return
+
+        n_points = 100
+        kx_lin = np.linspace(self.x1, self.x2, n_points)
+        ky_lin = np.linspace(self.y1, self.y2, n_points)
+
+        # Map kx/ky to fractional indices
+        kx_idx = np.interp(kx_lin, self.kx_vals, np.arange(len(self.kx_vals)))
+        ky_idx = np.interp(ky_lin, self.ky_vals, np.arange(len(self.ky_vals)))
+
+        cut = np.zeros((len(self.E_vals), n_points))
+
+        for iE in range(len(self.E_vals)):
+            cut[iE, :] = map_coordinates(self.data[:, :, iE], [kx_idx, ky_idx], order=1, mode='nearest')
+
+        # Normalize and plot
+        cut /= np.max(cut)
+        self.plot_handler.plot_line_cut(cut, self.E_vals, self.x1, self.y1, self.x2, self.y2)
+
+    def enable(self):
+        self.line.set_visible(True)
+        self.p1.set_visible(True)
+        self.p2.set_visible(True)
+        self.update_cut_plot()
+
+    def disable(self):
+        self.line.set_visible(False)
+        self.p1.set_visible(False)
+        self.p2.set_visible(False)
+        # Revert to EDC or TimeTrace
+        if self.data_handler.I.ndim > 3:
+            self.plot_handler.plot_time_trace()
+        else:
+            self.plot_handler.plot_edc()
+        self.ax.figure.canvas.draw_idle()
+
 class CheckButtonManager:
     def __init__(self):
         self.trace_check_button = self.create_trace_check_button()
         self.enhance_check_button = self.create_enhance_check_button()
-        
+        self.kcut_check_button = self.create_kcut_check_button()  # for arb. k cut
+
         self.trace_button_status = False # for EDC
         self.enhance_button_status = False #for enhance CB
-    
+        self.kcut_button_status = False  # for arb. k cut
+
     def create_trace_check_button(self):
-        trace_check_button = CheckButtons(plt.axes([0.005, 0.5, 0.06, 0.05]), ['EDC'])
+        ax = plt.axes([0.005, 0.5, 0.06, 0.05])
+        trace_check_button = CheckButtons(ax, ['EDC'])
         
+        # Remove background and borders
+        ax.set_facecolor('none')            # transparent background
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+
         return trace_check_button
 
     def create_enhance_check_button(self):
-        enhance_check_button = CheckButtons(plt.axes([0.045, 0.5, 0.08, 0.05]), ['Enhance CB'])
+        ax = plt.axes([0.045, 0.5, 0.08, 0.05])
+        enhance_check_button = CheckButtons(ax, ['Enhance CB'])
+
+        # Remove background and borders
+        ax.set_facecolor('none')            # transparent background
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)    
         
         return enhance_check_button
+    
+    def create_kcut_check_button(self):
+        ax = plt.axes([0.41, 0.9, 0.08, 0.05])
+        kcut_check_button = CheckButtons(ax, ['k-Cut'])  # layout can be tweaked
+        
+        # Remove background and borders
+        ax.set_facecolor('none')            # transparent background
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        return kcut_check_button
     
 class ClickButtonManager:
     def __init__(self, plot_manager, check_button_manager):
@@ -514,9 +672,9 @@ class SliderManager:
         
     def create_sliders(self):
         """Create the sliders for energy and delay."""
-        E_slider = Slider(plt.axes([0.025, 0.6, 0.03, 0.25]), 'E, eV', -10, 5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
-        E_int_slider = Slider(plt.axes([0.000, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
-        k_int_slider = Slider(plt.axes([0.055, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
+        E_slider = Slider(plt.axes([0.015, 0.6, 0.03, 0.25]), 'E, eV', -10, 5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
+        E_int_slider = Slider(plt.axes([0.057, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
+        k_int_slider = Slider(plt.axes([0.42, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
         delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
         delay_int_slider = Slider(plt.axes([0.055, 0.001, 0.25, 0.03]), 'Delay, fs', 0, 1000, valinit=50, valstep = 20, color = 'violet', orientation = 'horizontal')
 
