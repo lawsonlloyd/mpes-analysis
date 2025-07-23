@@ -19,7 +19,7 @@ def main(I):
     check_button_manager = CheckButtonManager()
     plot_manager = PlotHandler(figure_handler, data_handler, value_manager, check_button_manager)
     click_button_manager = ClickButtonManager(plot_manager, check_button_manager)
-    arb_cut_handler = ArbitraryCutHandler(plot_manager, data_handler)
+    arb_cut_handler = ArbitraryCutHandler(plot_manager, data_handler, check_button_manager)
 
     # Initialize sliders and attach update event
     slider_manager = SliderManager(value_manager, plot_manager, check_button_manager)

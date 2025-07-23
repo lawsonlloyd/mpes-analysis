@@ -11,16 +11,17 @@ import numpy as np
 import xarray as xr
 
 class DataLoader:
-    def __init__(self, filename, offsets):
+    def __init__(self, filename, **kwargs):
         self.filename = filename
         self.data = None
         self.ax_kx = None
         self.ax_ky = None
         self.ax_E = None
         self.ax_ADC = None
-        self.offsets = offsets
-        
-    
+
+        self.offsets = kwargs.get("offsets", [0, 0])
+        #self.offsets = kwargs.get("ADC_dim", [0, 0])
+
     def load(self):
         with h5py.File(self.filename, 'r') as f:
             # Print all root level object names (aka keys)

@@ -70,7 +70,8 @@ class FigureHandler:
         # Create the figure and axes for subplots
         fig, ax = plt.subplots(nrows=2, ncols=2, gridspec_kw={'width_ratios': [1, 1], 'height_ratios': [1, 1]})
         fig.set_size_inches(15, 10)
-        
+        #fig.canvas.manager.set_window_title("MPES GUI")
+
         return fig, ax.flatten()
         
 class PlotHandler:
@@ -85,7 +86,7 @@ class PlotHandler:
         self.im_1, self.im_2, self.im_3, self.im_4 = None, None, None, None
         self.time_trace_1 = None
         self.Energy_limits = None
-        self.E_enhance = -1
+        self.E_enhance = 1
         
         # Initial setup for plots
         self.initialize_plots()
@@ -157,7 +158,8 @@ class PlotHandler:
         
         # Initial Dynamics Time Trace (top right)
         if self.I.ndim > 3:
-            self.plot_time_trace()  
+            self.plot_time_trace()
+            print('hi')  
         else:
             self.plot_edc()      
 
@@ -218,7 +220,7 @@ class PlotHandler:
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         k = (kx, ky)
         norm_trace = True
-        subtract_neg = True
+        subtract_neg = False
 
         if self.I.ndim > 3:
             time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), norm_trace, subtract_neg, [-200,-50])
@@ -301,7 +303,7 @@ class PlotHandler:
         self.ax[1].set_ylabel("Intensity")
         
         if self.data_handler.I.ndim > 3:
-            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), True, True, [-200,-80])
+            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), True, False, [-200,-80])
             #self.ax[1].set_xticks(np.arange(-200,1250,200))
             #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
              #   label.set_visible(False)
@@ -324,7 +326,7 @@ class PlotHandler:
         edc = edc/np.max(edc)
 
         if self.check_button_manager.enhance_button_status == True:    
-            mask_start = (np.abs(self.data_handler.ax_E - 0.95)).argmin()
+            mask_start = (np.abs(self.data_handler.ax_E - 1.0)).argmin()
             edc[mask_start:] *= 1/np.max(edc[mask_start:])
             
         # Update the edc plots
@@ -431,31 +433,32 @@ class EventHandler:
         if self.press_horizontal:    
             new_ky = event.ydata
             self.value_manager.update_ky_value(new_ky)
+            self.plot_manager.update_kx_image()            
             self.plot_manager.horizontal_line_0.set_ydata(y = new_ky)
             self.plot_manager.vertical_line_2.set_xdata(x = new_ky)
-            self.plot_manager.update_kx_image()            
+            self.plot_manager.update_square()  # Update square position
             
-            if self.check_button_manager.trace_button_status:
+            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False:
                 self.plot_manager.update_edc()
-            else:
+            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
                 self.plot_manager.update_time_trace()
                 
-            self.plot_manager.update_square()  # Update square position
             self.plot_manager.fig.canvas.draw()
 
         if self.press_vertical:    
             new_kx = event.xdata
             self.value_manager.update_kx_value(new_kx)
+            self.plot_manager.update_ky_image()
+
             self.plot_manager.vertical_line_0.set_xdata(x = new_kx)
             self.plot_manager.vertical_line_1.set_xdata(x = new_kx)
-            self.plot_manager.update_ky_image()
-            
-            if self.check_button_manager.trace_button_status:
+            self.plot_manager.update_square()  # Update square position
+
+            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False:
                 self.plot_manager.update_edc()
-            else:
+            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
                 self.plot_manager.update_time_trace()
                 
-            self.plot_manager.update_square()  # Update square position
             self.plot_manager.fig.canvas.draw()
         
     def on_release(self, event):
@@ -464,10 +467,11 @@ class EventHandler:
         self.press_vertical = False
 
 class ArbitraryCutHandler:
-    def __init__(self, plot_handler, data_handler):
-        self.plot_handler = plot_handler
+    def __init__(self, plot_manager, data_handler, check_button_manager):
+        self.plot_manager = plot_manager
+        self.check_button_manager = check_button_manager
         self.data_handler = data_handler
-        self.ax = self.plot_handler.ax[0]
+        self.ax = self.plot_manager.ax[0]
         self.kx_vals = self.data_handler.I.kx.values
         self.ky_vals = self.data_handler.I.ky.values
         self.E_vals = self.data_handler.I.E.values
@@ -538,7 +542,7 @@ class ArbitraryCutHandler:
 
         # Normalize and plot
         cut /= np.max(cut)
-        self.plot_handler.plot_line_cut(cut, self.E_vals, self.x1, self.y1, self.x2, self.y2)
+        self.plot_manager.plot_line_cut(cut, self.E_vals, self.x1, self.y1, self.x2, self.y2)
 
     def enable(self):
         self.line.set_visible(True)
@@ -550,12 +554,16 @@ class ArbitraryCutHandler:
         self.line.set_visible(False)
         self.p1.set_visible(False)
         self.p2.set_visible(False)
+        self.plot_manager.ax[1].cla()  # Clear the axis
         # Revert to EDC or TimeTrace
-        if self.data_handler.I.ndim > 3:
-            self.plot_handler.plot_time_trace()
-        else:
-            self.plot_handler.plot_edc()
-        self.ax.figure.canvas.draw_idle()
+        # if self.data_handler.I.ndim > 3:
+        #     self.plot_handler.plot_time_trace()
+        if self.check_button_manager.trace_button_status is True:
+            self.plot_manager.plot_edc()
+        elif self.check_button_manager.trace_button_status is False:
+            self.plot_manager.plot_time_trace()
+
+        self.plot_manager.fig.canvas.draw()
 
 class CheckButtonManager:
     def __init__(self):
@@ -658,17 +666,16 @@ class ClickButtonManager:
             self.plot_manager.plot_edc()
         else:
             self.plot_manager.plot_time_trace()
-            
-        self.saved_lines.clear()  # Clear the saved traces list
-        self.plot_manager.fig.canvas.draw()  # Redraw the canvas
         
+        self.saved_lines.clear()  # Clear the saved traces list
+        self.plot_manager.fig.canvas.draw()
+
 class SliderManager:
     def __init__(self, value_manager, plot_manager, check_button_manager):
         self.plot_manager = plot_manager
         self.value_manager = value_manager
         self.check_button_manager = check_button_manager
         self.E_slider, self.E_int_slider, self.k_int_slider, self.delay_slider, self.delay_int_slider = self.create_sliders()
-        print(self.plot_manager.Energy_limits)
         
     def create_sliders(self):
         """Create the sliders for energy and delay."""
@@ -698,14 +705,14 @@ class SliderManager:
         self.plot_manager.update_lines()
         self.plot_manager.update_square()
         self.plot_manager.update_kxky_image()
-        self.plot_manager.update_kx_image()
-        self.plot_manager.update_ky_image()
-        self.plot_manager.update_time_trace()
+        #self.plot_manager.update_kx_image()
+        #self.plot_manager.update_ky_image()
 
-        # if self.check_button_manager.trace_button_status:
-        #     self.plot_manager.update_edc()
-        # else:
-        #     self.plot_manager.update_time_trace()
+        if self.check_button_manager.trace_button_status is True and self.check_button_manager.kcut_button_status is False:
+            self.plot_manager.update_edc()
+
+        elif self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
+            self.plot_manager.update_time_trace()
 
         self.plot_manager.fig.canvas.draw()
     
