@@ -145,8 +145,11 @@ def get_k_cut(I, k_start, k_end, num_k=200):
     return I_cut, k_vals, E_vals
 
 # Fucntion for Extracting time Traces
-def get_time_trace(I_res, E, E_int, k, k_int, norm_trace, subtract_neg, neg_delays):
+def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+
     (kx, ky) = k
     (kx_int, ky_int) = k_int
     d1, d2 = neg_delays[0], neg_delays[1]
