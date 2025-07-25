@@ -12,8 +12,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
-from scipy.ndimage import map_coordinates
+from tkinter import filedialog, Tk
 from matplotlib.widgets import Slider, CheckButtons, Button
+from scipy.ndimage import map_coordinates
 import mpes
 
 class DataHandler:
@@ -615,19 +616,28 @@ class CheckButtonManager:
         return kcut_check_button
     
 class ClickButtonManager:
-    def __init__(self, plot_manager, check_button_manager):
+    def __init__(self, plot_manager, check_button_manager, fig):
         self.plot_manager = plot_manager
         self.check_button_manager = check_button_manager
         self.save_button = self.create_save_button()
         self.clear_button = self.create_clear_button()
-
-        # Connect the button actions
-        self.save_button.on_clicked(self.save_trace)
-        self.clear_button.on_clicked(self.clear_traces)
+        self.save_fig_button = self.create_save_fig_button()
+        self.fig = fig
 
         # Store saved traces separately
         self.saved_lines = []
         
+        # Connect the button actions
+        self.save_button.on_clicked(self.save_trace)
+        self.clear_button.on_clicked(self.clear_traces)
+
+        self.save_fig_button.on_clicked(self.save_figure)
+
+    def create_save_fig_button(self):
+        save_fig_button = Button(plt.axes([0.43, 0.97, 0.05, 0.02]), 'Save Fig')
+                    
+        return save_fig_button
+
     def create_save_button(self):
         save_button = Button(plt.axes([0.02, 0.94, 0.075, 0.04]), 'Keep Trace')
 
@@ -637,6 +647,21 @@ class ClickButtonManager:
         clear_button = Button(plt.axes([0.02, 0.89, 0.075, 0.04]), 'Clear Traces')
 
         return clear_button
+
+    def save_figure(self, event):
+            # Hide tkinter root window
+            root = Tk()
+            root.withdraw()
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                filetypes=[("PNG Image", "*.png"), ("PDF File", "*.pdf"), ("SVG Vector", "*.svg")],
+                title="Save figure as..."
+            )
+
+            if file_path:
+                self.plot_manager.fig.savefig(file_path, dpi=300)
+                print(f"Figure saved to {file_path}")
 
     def save_trace(self, event):
         # Get all the current dynamic lines from the plot (assuming they haven't been saved yet)

@@ -9,16 +9,20 @@ import matplotlib.pyplot as plt
 
 from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager, ArbitraryCutHandler
 
-def main(I):
+def main(I, title=None):
     
     value_manager =  ValueHandler()
     data_handler = DataHandler(value_manager, I)
 
     # Initialize plot manager and check and click button managers
     figure_handler = FigureHandler()
+    
+    if title:
+        figure_handler.fig.canvas.manager.set_window_title(title)
+    
     check_button_manager = CheckButtonManager()
     plot_manager = PlotHandler(figure_handler, data_handler, value_manager, check_button_manager)
-    click_button_manager = ClickButtonManager(plot_manager, check_button_manager)
+    click_button_manager = ClickButtonManager(plot_manager, check_button_manager, fig = figure_handler.fig)
     arb_cut_handler = ArbitraryCutHandler(plot_manager, data_handler, check_button_manager)
 
     # Initialize sliders and attach update event
@@ -35,7 +39,7 @@ def main(I):
     plot_manager.fig.canvas.mpl_connect('motion_notify_event', event_handler.on_motion)
     plot_manager.fig.canvas.mpl_connect('button_release_event', event_handler.on_release)
 
-    plt.show(block=True)
+    plt.show()
 
 
 if __name__ == "__main__":
