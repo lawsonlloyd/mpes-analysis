@@ -37,7 +37,7 @@ class DataHandler:
     
 class ValueHandler:
     def __init__(self):
-        self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 100, 500
+        self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 100, 1000
 
     def update_k_int_value(self, k_int):
         self.k_int = k_int
@@ -224,7 +224,7 @@ class PlotHandler:
         subtract_neg = False
 
         if self.I.ndim > 3:
-            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), norm_trace, subtract_neg, [-200,-50])
+            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), norm_trace = True, subtract_neg=False, neg_delays = [-200,-50])
 #            time_trace = self.data_handler.I[idx_kx[0]:idx_kx[1], idx_ky[0]:idx_ky[1], idx_E-2:idx_E+3, :].sum(axis=(0,1,2))
             
             self.im_4, = self.ax[1].plot(self.I.delay.values, time_trace/np.max(time_trace), color = 'black')
@@ -240,7 +240,17 @@ class PlotHandler:
         self.ax[1].set_title("Dynamics")
         self.ax[1].set_xlabel("Delay, fs")
         self.ax[1].set_ylabel("Intensity")
-                   
+
+    def create_waterfall_plot(self):
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        
+        self.ax[1].cla()
+        mpes.plot_waterfall(
+            self.I, kx, k_int, ky, k_int,
+            fig = self.fig, ax = self.ax[1],
+            cmap=self.cmap, scale=[0,1], energy_limits=[0.5,3]
+            )
+        
     def update_kxky_image(self):
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         frame_temp = mpes.get_momentum_map(self.I, E, E_int, delay, delay_int)
@@ -304,7 +314,7 @@ class PlotHandler:
         self.ax[1].set_ylabel("Intensity")
         
         if self.data_handler.I.ndim > 3:
-            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), True, False, [-200,-80])
+            time_trace = mpes.get_time_trace(self.I, E, E_int, k, (k_int, k_int), norm_Trace = True, subtract_neg = False, neg_delays =  [-200,-80])
             #self.ax[1].set_xticks(np.arange(-200,1250,200))
             #for label in self.ax[1].xaxis.get_ticklabels()[1::2]:
              #   label.set_visible(False)
@@ -385,7 +395,7 @@ class PlotHandler:
         return custom_cmap
 
 class EventHandler:
-    def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager, arbitrary_cut_handler):
+    def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager, arbitrary_cut_handler, waterfallHandler):
         self.slider_manager = slider_manager
         self.plot_manager = plot_manager
         self.check_button_manager = check_button_manager
@@ -393,6 +403,7 @@ class EventHandler:
         self.press_horizontal = False
         self.press_vertical = False
         self.arbitrary_cut_handler = arbitrary_cut_handler
+        self.waterfall_handler = waterfallHandler
 
     def on_press(self, event):
         """Handle mouse press events and update square or lines."""
@@ -430,6 +441,13 @@ class EventHandler:
             self.check_button_manager.kcut_button_status = False
             self.arbitrary_cut_handler.disable()
 
+        if self.check_button_manager.waterfall_button.get_status()[0]:
+            self.check_button_manager.waterfall_button_status = True
+            self.waterfall_handler.enable()
+        else:
+            self.check_button_manager.waterfall_button_status = False
+            self.waterfall_handler.disable()
+
     def on_motion(self, event):
         if self.press_horizontal:    
             new_ky = event.ydata
@@ -439,9 +457,9 @@ class EventHandler:
             self.plot_manager.vertical_line_2.set_xdata(x = new_ky)
             self.plot_manager.update_square()  # Update square position
             
-            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False:
+            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_edc()
-            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
+            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_time_trace()
                 
             self.plot_manager.fig.canvas.draw()
@@ -455,9 +473,9 @@ class EventHandler:
             self.plot_manager.vertical_line_1.set_xdata(x = new_kx)
             self.plot_manager.update_square()  # Update square position
 
-            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False:
+            if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_edc()
-            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
+            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_time_trace()
                 
             self.plot_manager.fig.canvas.draw()
@@ -566,15 +584,45 @@ class ArbitraryCutHandler:
 
         self.plot_manager.fig.canvas.draw()
 
+class waterfallHandler:
+    def __init__(self, plot_manager, data_handler, check_button_manager):
+        self.plot_manager = plot_manager
+        self.check_button_manager = check_button_manager
+        self.data_handler = data_handler
+        self.ax = self.plot_manager.ax[0]
+
+    def create_waterfall(self):
+        # For now: only works for 3D data [kx, ky, E]
+
+        self.plot_manager.create_waterfall_plot()
+
+    def enable(self):
+        self.create_waterfall()
+        self.plot_manager.fig.canvas.draw()
+
+    def disable(self):
+        self.plot_manager.ax[1].cla()  # Clear the axis
+        # Revert to EDC or TimeTrace
+        # if self.data_handler.I.ndim > 3:
+        #     self.plot_handler.plot_time_trace()
+        if self.check_button_manager.trace_button_status is True:
+            self.plot_manager.plot_edc()
+        elif self.check_button_manager.trace_button_status is False:
+            self.plot_manager.plot_time_trace()
+
+        self.plot_manager.fig.canvas.draw()
+
 class CheckButtonManager:
     def __init__(self):
         self.trace_check_button = self.create_trace_check_button()
         self.enhance_check_button = self.create_enhance_check_button()
         self.kcut_check_button = self.create_kcut_check_button()  # for arb. k cut
+        self.waterfall_button = self.create_waterfall_button()  # for arb. k cut
 
         self.trace_button_status = False # for EDC
         self.enhance_button_status = False #for enhance CB
         self.kcut_button_status = False  # for arb. k cut
+        self.waterfall_button_status = False  # for k-intergrated waterfall dynamics
 
     def create_trace_check_button(self):
         ax = plt.axes([0.005, 0.5, 0.06, 0.05])
@@ -614,6 +662,19 @@ class CheckButtonManager:
         ax.spines['right'].set_visible(False)
         
         return kcut_check_button
+    
+    def create_waterfall_button(self):
+        ax = plt.axes([0.41, 0.88, 0.08, 0.05])
+        waterfall_button = CheckButtons(ax, ['Waterfall'])  # layout can be tweaked
+        
+        # Remove background and borders
+        ax.set_facecolor('none')            # transparent background
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        
+        return waterfall_button
     
 class ClickButtonManager:
     def __init__(self, plot_manager, check_button_manager, fig):
@@ -708,7 +769,7 @@ class SliderManager:
         E_int_slider = Slider(plt.axes([0.057, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.42, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
         delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
-        delay_int_slider = Slider(plt.axes([0.055, 0.001, 0.25, 0.03]), 'Delay, fs', 0, 1000, valinit=50, valstep = 20, color = 'violet', orientation = 'horizontal')
+        delay_int_slider = Slider(plt.axes([0.055, 0.001, 0.25, 0.03]), 'Delay, fs', 0, 1000, valinit=1000, valstep = 20, color = 'violet', orientation = 'horizontal')
 
         return E_slider, E_int_slider, k_int_slider, delay_slider, delay_int_slider
     
@@ -733,10 +794,10 @@ class SliderManager:
         #self.plot_manager.update_kx_image()
         #self.plot_manager.update_ky_image()
 
-        if self.check_button_manager.trace_button_status is True and self.check_button_manager.kcut_button_status is False:
+        if self.check_button_manager.trace_button_status is True and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False :
             self.plot_manager.update_edc()
 
-        elif self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False:
+        elif self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False :
             self.plot_manager.update_time_trace()
 
         self.plot_manager.fig.canvas.draw()

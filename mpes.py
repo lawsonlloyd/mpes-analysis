@@ -556,7 +556,7 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
         fig, ax = plt.subplots(figsize=(8, 6))
     
     for i, (E, kx) in enumerate(zip(E, kx)):
-        trace = get_time_trace(I_res, E, E_int, (kx, ky), (kx_int, ky_int), norm_trace, subtract_neg, neg_delays)
+        trace = get_time_trace(I_res, E, E_int, (kx, ky), (kx_int, ky_int), norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
         ax.plot(trace.coords['delay'].values, trace.values, label=f'E = {E:.2f} eV', color = colors[i], linewidth=2)
     
@@ -572,7 +572,7 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
 
     return fig, ax
 
-def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
+def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     """
     Plot the waterfall of intensity across both kx and ky slices.
 
@@ -602,11 +602,19 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int,  fig=None, ax=None, **kwargs):
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (10, 6))
     energy_limits=kwargs.get("energy_limits", (1,3))
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-250, -120])
+    
+    d1, d2 = neg_delays[0], neg_delays[1]
     
     if ax is None or fig is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
     waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
+
+    if subtract_neg is True : 
+        waterfall = waterfall - waterfall.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
+
     waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
     waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
