@@ -147,14 +147,29 @@ def get_k_cut(I, k_start, k_end, num_k=200):
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
+    # At the top of your function
+    if isinstance(k, (int, float)):
+        k = (k,)
+    if isinstance(k_int, (int, float)):
+        k_int = (k_int,)
+
     subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-200, -100])
 
-    (kx, ky) = k
-    (kx_int, ky_int) = k_int
     d1, d2 = neg_delays[0], neg_delays[1]
     
-    trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky", "E"))
+    if "angle" in I_res.dims:
+        (angle,) = k
+        (angle_int,) = k_int
+        trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "angle":slice(angle-angle_int/2, angle+angle_int/2)}].mean(dim=("angle", "E"))
+    
+    elif "kx" in I_res.dims and "ky" in I_res.dims:
+        (kx, ky) = k
+        (kx_int, ky_int) = k_int
+        trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky", "E"))
+    
+    else:
+        raise ValueError("Data must contain either ('angle') or ('kx', 'ky') dimensions.")
 
     if subtract_neg is True : 
         trace = trace - np.mean(trace.loc[{"delay":slice(d1,d2)}])

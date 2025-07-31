@@ -89,9 +89,9 @@ class DataLoader:
             
             if 'ax2' in list(f[a_group_key]):
                 ax_delay = f['axes/ax2'][()].astype(np.float32)
-                return xr.DataArray(data, dims = ("Angle", "Energy", "Delay"), coords = [ax_angle, ax_E, ax_delay])
+                return xr.DataArray(data, dims = ("angle", "E", "delay"), coords = [ax_angle, ax_E, ax_delay]) #Old --> Angle, Enegy, Delay
             else:
-                return xr.DataArray(data, dims = ("Angle", "Energy"), coords = [ax_angle, ax_E])
+                return xr.DataArray(data, dims = ("angle", "E"), coords = [ax_angle, ax_E])
 
             print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
 

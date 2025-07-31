@@ -12,7 +12,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
-from tkinter import filedialog, Tk
+import tkinter as tk
+from tkinter import Menu, filedialog, Tk
+from functools import partial
 from matplotlib.widgets import Slider, CheckButtons, Button
 from scipy.ndimage import map_coordinates
 import mpes
@@ -34,7 +36,6 @@ class DataHandler:
         
         return dk
 
-    
 class ValueHandler:
     def __init__(self):
         self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 100, 1000
@@ -250,7 +251,21 @@ class PlotHandler:
             fig = self.fig, ax = self.ax[1],
             cmap=self.cmap, scale=[0,1], energy_limits=[0.5,3]
             )
+
+    def create_waterfall_difference_plot(self):
+        k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         
+        I_diff  = self.I - self.I.loc[{"delay":slice(-250,-150)}].mean(dim="delay")
+        I_diff = I_diff/np.max(I_diff)
+
+        self.ax[1].cla()
+        mpes.plot_waterfall(
+            I_diff, kx, k_int, ky, k_int,
+            fig = self.fig, ax = self.ax[1],
+            cmap='seismic', scale=[-1,1], energy_limits=[0.5,3]
+            )
+
+
     def update_kxky_image(self):
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
         frame_temp = mpes.get_momentum_map(self.I, E, E_int, delay, delay_int)
@@ -404,6 +419,39 @@ class EventHandler:
         self.press_vertical = False
         self.arbitrary_cut_handler = arbitrary_cut_handler
         self.waterfall_handler = waterfallHandler
+        
+        def enable_right_click_menu(fig, action_label, action_callback, target_ax=None):
+            def on_right_click(event):
+                if event.button == 3 and (target_ax is None or event.inaxes == target_ax):
+                    # Create an invisible root to host the popup menu
+                    root = tk.Tk()
+                    root.withdraw()
+
+                    menu = Menu(root, tearoff=0)
+                    menu.add_command(label=action_label, command=lambda: [action_callback(), root.destroy()])
+
+                    # Use tkinter to get pointer position (safe for all backends)
+                    x = root.winfo_pointerx()
+                    y = root.winfo_pointery()
+                    try:
+                        menu.tk_popup(x, y)
+                    finally:
+                        menu.grab_release()
+
+            fig.canvas.mpl_connect("button_press_event", on_right_click)
+        
+        enable_right_click_menu(
+            fig=self.plot_manager.fig,
+            action_label="Show Difference Spectra",
+            action_callback=partial(self.show_difference_spectra)
+        )
+
+    def show_difference_spectra(self):
+        ax = self.plot_manager.ax[1]
+        ax.cla()  # Clear the subplot
+        print('creating difference')
+        self.plot_manager.create_waterfall_difference_plot()
+        self.plot_manager.fig.canvas.draw()
 
     def on_press(self, event):
         """Handle mouse press events and update square or lines."""

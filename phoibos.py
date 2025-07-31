@@ -30,7 +30,7 @@ def get_scan_info(data_path, filename, scan_info):
 def load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_offset):
     
     filename = f"Scan{scan}.h5"
-    data_loader = DataLoader(data_path + '//' + filename, [energy_offset, delay_offset])
+    data_loader = DataLoader(data_path + '//' + filename, offsets = [energy_offset, delay_offset])
     
     if force_offset is True:
         energy_offset = energy_offset
@@ -49,8 +49,8 @@ def load_data(data_path, scan, scan_info, energy_offset, delay_offset, force_off
 
     res = data_loader.load_phoibos()
     
-    res = res.assign_coords(Energy=(res.Energy-energy_offset))
-    res = res.assign_coords(Delay=(res.Delay-delay_offset))
+    res = res.assign_coords(E=(res.E-energy_offset))
+    res = res.assign_coords(delay=(res.delay-delay_offset))
     
     return res
 
