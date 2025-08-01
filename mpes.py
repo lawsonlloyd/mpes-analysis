@@ -881,7 +881,7 @@ model_dict = {
 }
 
 
-def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, sigma_IRF=None):
+def fit_time_trace(fit_model, delay_axis, time_trace, p0, bounds, convolve=False, sigma_IRF=None):
     """
     Fit a time trace using a specified model, optionally convolved with an IRF.
 
@@ -890,7 +890,7 @@ def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, 
     - delay_axis (array): Time delay values
     - time_trace (array): Measured time trace
     - p0 (tuple/list): Initial guess for fit parameters
-    - bnds (2-tuple): Bounds for fit parameters ((lower_bounds), (upper_bounds))
+    - bounds (2-tuple): Bounds for fit parameters ((lower_bounds), (upper_bounds))
     - convolve (bool): Whether to convolve the model with an IRF
     - sigma_IRF (float): Width of the Gaussian IRF (if convolve=True)
 
@@ -918,7 +918,7 @@ def fit_time_trace(fit_model, delay_axis, time_trace, p0, bnds, convolve=False, 
     else:
         model_func = base_model
 
-    popt, pcov = curve_fit(model_func, delay_axis, time_trace, p0=p0, bounds=bnds)
+    popt, pcov = curve_fit(model_func, delay_axis, time_trace, p0=p0, bounds=bounds)
     fit_curve = model_func(delay_axis, *popt)
 
     return popt, pcov, fit_curve
@@ -929,11 +929,20 @@ def print_fit_results(model_name, popt, pcov):
     """
     Print fit parameters and uncertainties based on model name.
     """
+
+    def build_param_list(popt, perr, param_names):
+        
+        return {
+            name: val for name, val in zip(param_names, popt)
+        } | {
+            "errors": {name: err for name, err in zip(param_names, perr)}
+        }
+
     model_param_names = {
         'monoexp': ['A', 'tau'],
-        'biexp': ['A1', 'tau1', 'A2', 'tau2'],
+        'biexp': ['A', 'tau1', 'B', 'tau2'],
         'exp_rise_monoexp_decay': ['A', 'tau_rise', 'tau_decay'],
-        'exp_rise_biexp_decay': ['C', 'tau_rise', 'D', 'tau_decay1', 'tau_decay2']
+        'exp_rise_biexp_decay': ['C', 'tau_rise', 'A', 'tau_decay1', 'tau_decay2']
         # Add more models here as needed
     }
 
@@ -948,6 +957,8 @@ def print_fit_results(model_name, popt, pcov):
     for name, val, err in zip(param_names, popt, errors):
         print(f"{name:10s} = {val:10.4f} ± {err:7.4f}")
     print("-" * 40)
+    
+    return build_param_list(popt, errors, param_names)
 
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
