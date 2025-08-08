@@ -67,21 +67,34 @@ def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None):
 
 def get_kx_E_frame(I_res, ky, ky_int, delay, delay_int):
     
-    if I_res.ndim > 3:    
-        frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="ky").mean(dim="delay")
-    
-    else:
-        frame = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
+    I_ky = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
 
+    if "delay" in I_res.dims:
+        if delay is not None and delay_int is not None:
+            # Integrate over a delay window
+            frame = I_ky.loc[{"delay":slice(delay - delay_int / 2, delay + delay_int / 2)}].mean(dim="delay")
+        else:
+            # No delay specified: average over entire delay axis
+            frame = I_ky.mean(dim="delay")
+    else:
+        frame = I_ky
+                    
     return frame
 
 def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
 
-    if I_res.ndim > 3:    
-        frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "delay":slice(delay-delay_int/2, delay+delay_int/2)}].mean(dim="kx").mean(dim="delay")
-    else:
-        frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
+    I_kx = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
 
+    if "delay" in I_res.dims:
+        if delay is not None and delay_int is not None:
+            # Integrate over a delay window
+            frame = I_kx.loc[{"delay":slice(delay - delay_int / 2, delay + delay_int / 2)}].mean(dim="delay")
+        else:
+            # No delay specified: average over entire delay axis
+            frame = I_kx.mean(dim="delay")
+    else:
+        frame = I_kx
+                    
     return frame
 
 def get_waterfall(I_res, kx, kx_int, ky, ky_int):
@@ -389,7 +402,7 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
 
     return fig, ax, im
 
-def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwargs):
+def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, ax=None, **kwargs):
     """
     Plot time traces of momentum frame at specified kx for multiple energies.
     
@@ -413,7 +426,15 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
     - nrows, ncols: layout for auto subplot creation (optional).
     - colorbar
     """
+    has_delay = "delay" in I_res.dims
+
     delays = np.atleast_1d(delays)
+    
+    if has_delay:
+        delays = np.atleast_1d(delays)
+    else:
+        # Static data – ignore delays entirely
+        delays = [None]
 
     nrows = kwargs.get("nrows", 1)
     ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
@@ -454,14 +475,15 @@ def plot_kx_frame(I_res, ky, ky_int, delays, delay_int, fig=None, ax=None, **kwa
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        #ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        if has_delay:
+            ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
     
     return fig, ax, im
 
-def plot_ky_frame(I_res, kx, kx_int, delays, delay_int, fig=None, ax=None, **kwargs):
+def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
     Plot time traces of momentum frame at specified kx for multiple energies.
     
@@ -485,6 +507,15 @@ def plot_ky_frame(I_res, kx, kx_int, delays, delay_int, fig=None, ax=None, **kwa
     - nrows, ncols: layout for auto subplot creation (optional).
     - colorbar
     """
+
+    has_delay = "delay" in I_res.dims
+    
+    if has_delay:
+        delays = np.atleast_1d(delays)
+    else:
+        # Static data – ignore delays entirely
+        delays = [None]
+
     nrows = kwargs.get("nrows", 1)
     ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
     figsize = kwargs.get("figsize", (8, 5))
@@ -493,8 +524,6 @@ def plot_ky_frame(I_res, kx, kx_int, delays, delay_int, fig=None, ax=None, **kwa
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
 
-    delays = np.atleast_1d(delays)
-    
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
@@ -522,8 +551,9 @@ def plot_ky_frame(I_res, kx, kx_int, delays, delay_int, fig=None, ax=None, **kwa
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
         ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
+        if has_delay:
+            ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
