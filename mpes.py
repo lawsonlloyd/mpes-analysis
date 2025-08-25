@@ -843,11 +843,11 @@ def biexp(t, A, tau1, B, tau2):
     return ( A * np.exp(-t / tau1) + B * np.exp(-t / tau2))  * (t >= 0)  # Ensure decay starts at t=0
 
 # Define the conduction band model: exponential rise + decay
-def exp_rise_monoexp_decay(t, C, tau_rise, tau_decay1):
-    return C * (1 - np.exp(-t / tau_rise)) * (np.exp(-t / tau_decay1)) * (t >= 0)
+def exp_rise_monoexp_decay(t, A, tau_rise, tau_decay1):
+    return A * (1 - np.exp(-t / tau_rise)) * (np.exp(-t / tau_decay1)) * (t >= 0)
 
-def exp_rise_biexp_decay(t, C, tau_rise, D, tau_decay1, tau_decay2):
-    return C * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
+def exp_rise_biexp_decay(t, A, tau_rise, D, tau_decay1, tau_decay2):
+    return A*0 + 1 * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
 
 # Define the Instrumental Response Function (IRF) as a Gaussian
 def IRF(t, sigma_IRF):
@@ -969,10 +969,10 @@ def print_fit_results(model_name, popt, pcov):
         }
 
     model_param_names = {
-        'monoexp': ['A', 'tau'],
-        'biexp': ['A', 'tau1', 'B', 'tau2'],
-        'exp_rise_monoexp_decay': ['A', 'tau_rise', 'tau_decay'],
-        'exp_rise_biexp_decay': ['C', 'tau_rise', 'A', 'tau_decay1', 'tau_decay2']
+        'monoexp': ['A', 'tau_decay1'],
+        'biexp': ['A', 'tau_decay1', 'B', 'tau_decay2'],
+        'exp_rise_monoexp_decay': ["A", 'tau_rise', 'tau_decay1'],
+        'exp_rise_biexp_decay': ['A', 'tau_rise', 'D', 'tau_decay1', 'tau_decay2']
         # Add more models here as needed
     }
 
@@ -982,13 +982,24 @@ def print_fit_results(model_name, popt, pcov):
     param_names = model_param_names[model_name]
     errors = np.sqrt(np.diag(pcov))
 
+    params_list = build_param_list(popt, errors, param_names)
+
+    if model_name == 'monoexp':
+        plot_label == fr"$\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps"
+    elif model_name == 'exp_rise_monoexp_decay':
+        plot_label = fr"$\tau_{{r}}$ = {params_list['tau_rise']:.0f} fs, $\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps"
+    elif model_name == 'biexp':
+        plot_label = fr"$\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps, $\tau_{2}$ = {params_list['tau_decay2']/1000:.1f} ps"
+    elif model_name == 'exp_rise_biexp_decay':
+        plot_label = fr"$\tau_{{r}}$ = {params_list['tau_rise']:.0f} fs, $\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps, $\tau_{2}$ = {params_list['tau_decay2']/1000:.1f} ps"
+
     print(f"\nFit Results for model: {model_name}")
     print("-" * 40)
     for name, val, err in zip(param_names, popt, errors):
         print(f"{name:10s} = {val:10.4f} ± {err:7.4f}")
     print("-" * 40)
     
-    return build_param_list(popt, errors, param_names)
+    return (params_list, plot_label)
 
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
