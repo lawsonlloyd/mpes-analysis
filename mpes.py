@@ -847,7 +847,7 @@ def exp_rise_monoexp_decay(t, A, tau_rise, tau_decay1):
     return A * (1 - np.exp(-t / tau_rise)) * (np.exp(-t / tau_decay1)) * (t >= 0)
 
 def exp_rise_biexp_decay(t, A, tau_rise, D, tau_decay1, tau_decay2):
-    return A*0 + 1 * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
+    return A * (1 - np.exp(-t / tau_rise)) * (D * np.exp(-t / tau_decay1) + (1-D) * np.exp(-t / tau_decay2)) * (t >= 0)
 
 # Define the Instrumental Response Function (IRF) as a Gaussian
 def IRF(t, sigma_IRF):
