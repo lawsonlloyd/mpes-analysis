@@ -259,37 +259,47 @@ def find_E0(edc, energy_window, p0, fig, ax):
     ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
     print(f'E_VBM = {popt[1]:.3f} +- {perr[1]:.3f} eV')
     
-def find_t0(trace_ex, delay_limits, fig, ax):
+def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
+    
+    norm = kwargs.get("norm", False)
 
     def rise_erf(t, t0, tau):
         r = 0.5 * (1 + erf((t - t0) / (tau)))
         return r
             
-    p0 = [-30, 45]
+    p0 = [200, 45]
     #delay_limits = [-200,60]
-    popt, pcov = curve_fit(rise_erf, trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].delay.values ,
-                           trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].values,
-                           p0, method="lm")
+
+    delay_axis = trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].delay.values
+    delay_trace = trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].values
+    
+    if norm is True:
+        delay_trace = delay_trace/np.max(delay_trace)
+
+    popt, pcov = curve_fit(rise_erf, delay_axis, delay_trace, p0, method="lm")
     
     perr = np.sqrt(np.diag(pcov))
     
     rise_fit = rise_erf(np.linspace(delay_limits[0],delay_limits[1], 50), *popt)
     
-    ax[1].plot(trace_ex.delay, trace_ex, 'ko',label='Data')
-    ax[1].plot(np.linspace(delay_limits[0],delay_limits[1],50), rise_fit, 'red',label='Fit')
-    #ax[1].plot(I_res.delay, rise, 'red')
-    ax[1].set_xlabel('Delay, fs')
-    ax[1].set_ylabel('Norm. Int.')
-    ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
-    
-    ax[1].set_xlim([-150, 150]) 
-    ax[1].set_ylim(-.1,1.05)
-    #ax[1].axvline(30)
-    ax[1].legend(frameon=False)
+    if fig is not None:
+        
+        ax[1].plot(trace_ex.delay, trace_ex, 'ko',label='Data')
+        ax[1].plot(np.linspace(delay_limits[0],delay_limits[1],50), rise_fit, 'red',label='Fit')
+        #ax[1].plot(I_res.delay, rise, 'red')
+        ax[1].set_xlabel('Delay, fs')
+        ax[1].set_ylabel('Norm. Int.')
+        ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
+        
+        ax[1].set_xlim([-150, 150]) 
+        ax[1].set_ylim(-.1,1.05)
+        #ax[1].axvline(30)
+        ax[1].legend(frameon=False)
+
     print(fr't0 = {popt[0]:.1f} +/- {perr[0]:.1f} fs')
     print(fr'width = {popt[1]:.1f} +/- {perr[1]:.1f} fs')
     
-    return rise_fit
+    return popt, perr, rise_fit
 
 #%% Useful Functions and Definitions for Plotting Data
 
