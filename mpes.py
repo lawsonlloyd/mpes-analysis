@@ -267,7 +267,7 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
         r = 0.5 * (1 + erf((t - t0) / (tau)))
         return r
             
-    p0 = [200, 45]
+    p0 = [50, 45]
     #delay_limits = [-200,60]
 
     delay_axis = trace_ex.loc[{"delay":slice(delay_limits[0],delay_limits[1])}].delay.values
