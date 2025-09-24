@@ -231,7 +231,7 @@ def find_E0(edc, energy_window, p0, fig, ax):
     #plt.legend(frameon = False)
     ax[1].set_xlim([-1, 1]) 
     #ax[1].set_ylim([0, 1.1])
-    ax[1].set_xlabel('E - E$_{VBM}$, eV')
+    ax[1].set_xlabel('E - E$_{{VBM}}$, eV')
     ax[1].set_ylabel('Norm. Int.')
     #ax[1].axvline(0, color = 'black', linestyle = 'dashed', linewidth = 0.5)
     #ax[1].set_yscale('log')
@@ -387,9 +387,9 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
 
-        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize=fontsize)
-        ax[i].set_ylabel('$k_y$, $\AA^{-1}$', fontsize=fontsize)
-        ax[i].set_title(f"$E$ = {E[i]:.2f} eV", fontsize=fontsize)
+        ax[i].set_xlabel(fr'$k_x$, $\AA^{{-1}}$', fontsize=fontsize)
+        ax[i].set_ylabel(fr'$k_y$, $\AA^{{-1}}$', fontsize=fontsize)
+        ax[i].set_title(fr"$E$ = {E[i]:.2f} eV", fontsize=fontsize)
 
         # Optional panel label
         if panel_labels is True:
@@ -479,14 +479,14 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel('$k_x$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-        ax[i].set_title(f'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
+        ax[i].set_xlabel(fr'$k_x$, $\AA^{{-1}}$', fontsize = 18)
+        ax[i].set_ylabel(fr'$E - E_{{VBM}}, eV$', fontsize = 18)
+        ax[i].set_title(fr'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
         if has_delay:
-            ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+            ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
@@ -555,15 +555,15 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel('$k_y$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel('$E - E_{VBM}, eV$', fontsize = 18)
-        ax[i].set_title(f'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
+        ax[i].set_xlabel(fr'$k_y$, $\AA^{-1}$', fontsize = 18)
+        ax[i].set_ylabel(fr'$E - E_{{VBM}}, eV$', fontsize = 18)
+        ax[i].set_title(fr'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
         ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
         if has_delay:
-            ax[i].text(-1.9, 2.7,  f"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+            ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
@@ -676,7 +676,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Delay, fs', fontsize = 18)
-    ax.set_ylabel('E - E$_{VBM}$, eV', fontsize = 18)
+    ax.set_ylabel(fr'E - E$_{VBM}$, eV', fontsize = 18)
     ax.set_yticks(np.arange(-1,3.5,0.25))
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
@@ -770,7 +770,7 @@ def overlay_bz(shape_type, a, b, ax, color, **kwargs):
                 ax.add_patch(patch)
                 if i == 0 and j == 0 and np.allclose(center, (0, 0)):
                     ax.plot(0, 0, 'ko', markersize=4, alpha=0.75)
-                    ax.text(0.1, 0.1, r'$\Gamma$', size=12)
+                    ax.text(0.1, 0.1, fr'$\Gamma$', size=12)
 
     else:
         # Rectangular grid tiling
@@ -784,7 +784,7 @@ def overlay_bz(shape_type, a, b, ax, color, **kwargs):
                 ax.add_patch(patch)
                 if i == 0 and j == 0 and np.allclose(center, (0, 0)):
                     ax.plot(0, 0, 'ko', markersize=4, alpha=0.75)
-                    ax.text(0.1, 0.1, r'$\Gamma$', size=12)
+                    ax.text(0.1, 0.1, fr'$\Gamma$', size=12)
 
     #bz = Rectangle((0-X, 0-Y), 2*X, 2*Y , linewidth=2, edgecolor=color, facecolor='none', alpha = 0.75)
 
