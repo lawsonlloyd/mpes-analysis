@@ -485,7 +485,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        if has_delay:
+        if has_delay and delays[0] is not None:
             ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
@@ -562,7 +562,7 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
         ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
-        if has_delay:
+        if has_delay and delays[0] is not None:
             ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
