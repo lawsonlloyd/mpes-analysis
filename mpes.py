@@ -306,6 +306,7 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
 def save_figure(fig, name, image_format):
     
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
+    print('Figure Saved!')
 
 def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
