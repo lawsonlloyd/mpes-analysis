@@ -192,7 +192,7 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     return trace
 
-def get_edc(I_res, kx, ky, k_int, delay, delay_int):
+def get_edc(I_res, kx, ky, k_int, delay=500, delay_int=1000):
     
     (kx_int, ky_int) = k_int
     
@@ -257,7 +257,7 @@ def find_E0(edc, energy_window, p0, fig, ax):
     ax[1].plot(edc.E, edc, color = 'black', label = 'Data')
     ax[1].plot(edc.E, vb_fit, linestyle = 'dashed', color = 'red', label = 'Fit')
     ax[1].legend(frameon=False, loc = 'upper left', fontsize = 11)
-    print(f'E_VBM = {popt[1]:.3f} +- {perr[1]:.3f} eV')
+    print(fr'E_VBM = {popt[1]:.3f} +- {perr[1]:.3f} eV')
     
 def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
     
@@ -388,8 +388,8 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
 
-        ax[i].set_xlabel(fr'$k_x$, $\AA^{{-1}}$', fontsize=fontsize)
-        ax[i].set_ylabel(fr'$k_y$, $\AA^{{-1}}$', fontsize=fontsize)
+        ax[i].set_xlabel(r'$k_x$, $\AA^{{-1}}$', fontsize=fontsize)
+        ax[i].set_ylabel(r'$k_y$, $\AA^{{-1}}$', fontsize=fontsize)
         ax[i].set_title(fr"$E$ = {E[i]:.2f} eV", fontsize=fontsize)
 
         # Optional panel label
@@ -480,8 +480,8 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel(fr'$k_x$, $\AA^{{-1}}$', fontsize = 18)
-        ax[i].set_ylabel(fr'$E - E_{{VBM}}, eV$', fontsize = 18)
+        ax[i].set_xlabel(r'$k_x$, $\AA^{{-1}}$', fontsize = 18)
+        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = 18)
         ax[i].set_title(fr'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
@@ -556,8 +556,8 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel(fr'$k_y$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel(fr'$E - E_{{VBM}}, eV$', fontsize = 18)
+        ax[i].set_xlabel(r'$k_y$, $\AA^{-1}$', fontsize = 18)
+        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = 18)
         ax[i].set_title(fr'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
         ax[i].tick_params(axis='both', labelsize=16)
         ax[i].set_xlim(-2,2)
@@ -677,7 +677,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Delay, fs', fontsize = 18)
-    ax.set_ylabel(fr'E - E$_{VBM}$, eV', fontsize = 18)
+    ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = 18)
     ax.set_yticks(np.arange(-1,3.5,0.25))
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
