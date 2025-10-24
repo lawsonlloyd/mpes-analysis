@@ -103,7 +103,7 @@ def get_waterfall(I_res, kx, kx_int, ky, ky_int):
 
     return frame
 
-def get_k_cut(I, k_start, k_end, num_k=200):
+def get_k_cut(I, k_start, k_end, delay, delay_int):
     """
     Extract an E vs k slice along an arbitrary line in kx-ky space.
 
@@ -118,8 +118,18 @@ def get_k_cut(I, k_start, k_end, num_k=200):
     - k_vals: 1D array of k-distance along the cut
     - E_vals: 1D array of energies
     """
-    assert all(dim in I.dims for dim in ['kx', 'ky', 'E']), "Data must have kx, ky, energy dims"
-
+    num_k=200 
+    
+    if "delay" in I.dims:
+        if delay is not None and delay_int is not None:
+            # Integrate over a delay window
+            I = I.loc[{"delay":slice(delay - delay_int / 2, delay + delay_int / 2)}].mean(dim="delay")
+        else:
+            # No delay specified: average over entire delay axis
+            I = I.mean(dim="delay")
+    else:
+        I = I
+                    
     # Coordinate arrays
     kx_vals = I.kx.values
     ky_vals = I.ky.values
@@ -155,7 +165,14 @@ def get_k_cut(I, k_start, k_end, num_k=200):
     dk = np.linalg.norm(k_end - k_start)
     k_vals = np.linspace(0, dk, num_k)
 
-    return I_cut, k_vals, E_vals
+    k_frame = xr.DataArray(
+        I_cut,
+        dims=("E", "k"),
+        coords={"E": E_vals, "k": k_vals},
+        name="arb. k_cut"
+    )
+
+    return k_frame
 
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
@@ -571,6 +588,74 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
     
     return fig, ax
 
+def plot_k_cut(I_res, k_start, k_end, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
+        
+    has_delay = "delay" in I_res.dims
+    
+    if has_delay:
+        delays = np.atleast_1d(delays)
+    else:
+        # Static data – ignore delays entirely
+        delays = [None]
+    
+    nrows = kwargs.get("nrows", 1)
+    ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
+    figsize = kwargs.get("figsize", (8, 5))
+    fontsize = kwargs.get("fontsize", 14)
+    cmap = kwargs.get("cmap", cmap_LTL)
+    scale = kwargs.get("scale", [0, 1])
+    energy_limits=kwargs.get("energy_limits", (-3,2.5))
+    E_enhance = kwargs.get("E_enhance", None)
+    ax2 = kwargs.get("ax2", None)
+
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
+        ax = np.ravel(ax)
+    else:
+        ax = [ax]
+
+    # Loop over the energy list to plot time traces at each energy
+    for i, delay in enumerate(delays):
+        # Get the frame for the given energy, kx, and delay
+        k_frame = get_k_cut(I_res, k_start, k_end, delay, delay_int)
+        k_frame = k_frame/np.max(k_frame)
+
+        if E_enhance is not None:    
+            k_frame = enhance_features(k_frame, E_enhance, factor = 0, norm = True)
+            ax[i].axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+
+        #im = ax[i].pcolormesh(k_vals, E_vals, k_cut, shading='auto', cmap=cmap_LTL)
+        im = k_frame.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
+        
+        #ax[2].set_aspect(1)
+        ax[i].set_xticks(np.arange(-2,3.5,.5))
+        for label in ax[i].xaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+        ax[i].set_yticks(np.arange(-4,4.1,0.5))
+        for label in ax[i].yaxis.get_ticklabels()[1::2]:
+            label.set_visible(False)
+        ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax[i].set_xlabel(r'$k_{//}$, $\AA^{{-1}}$', fontsize = 18)
+        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = 18)
+        ax[i].set_title("E vs k slice", color = 'black', fontsize = 18)
+        ax[i].tick_params(axis='both', labelsize=16)
+        ax[i].set_xlim(0,k_frame.k.values.max())
+        ax[i].set_ylim(energy_limits[0], energy_limits[1])
+        
+        if ax2 is not None:
+            ax2.plot(k_start[0], k_start[1], color = 'purple', marker = 'o')
+            ax2.plot(k_end[0], k_end[1], color = 'purple', marker = 'o')
+            ax2.plot([k_start[0], k_end[0]], [k_start[1], k_end[1]], color = 'purple', linestyle = 'dashed')
+
+        if has_delay and delays[0] is not None:
+            ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        #ax[i].set_aspect(1)
+
+    # Adjust layout
+    fig.tight_layout()
+    
+    return fig, ax, im
+
 def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=True, neg_delays=(-500, -150), fig=None, ax=None, **kwargs):
     """
     Plot time traces at a specific energy and momentum coordinates with optional styling.
@@ -650,17 +735,24 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     Returns:
     - fig, ax: figure and axis handles for the plot.
     """
+    subtract_neg = kwargs.get("subtract_neg", False)
 
-    cmap = kwargs.get("cmap", "viridis")
-    scale = kwargs.get("scale", [0, 1])
+    if subtract_neg is True : 
+    
+        cmap = kwargs.get("cmap", cmap_LTL2)
+        scale = kwargs.get("scale", [-1, 1])
+    else:
+        cmap = kwargs.get("cmap", cmap_LTL)
+        scale = kwargs.get("scale", [0, 1])
+
     xlabel = kwargs.get("xlabel", 'Delay, ps')
     ylabel = kwargs.get("ylabel", 'Intensity')
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (10, 6))
     energy_limits=kwargs.get("energy_limits", (1,3))
-    subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-250, -120])
-    
+    E_enhance = kwargs.get("E_enhance", None)
+
     d1, d2 = neg_delays[0], neg_delays[1]
     
     if ax is None or fig is None:
@@ -671,7 +763,11 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     if subtract_neg is True : 
         waterfall = waterfall - waterfall.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
 
-    waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
+    if E_enhance is not None:
+        waterfall = enhance_features(waterfall, E_enhance, factor = 0, norm = True)
+        ax.axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+    else:
+        waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
     waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
