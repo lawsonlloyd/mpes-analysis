@@ -1092,11 +1092,11 @@ def print_fit_results(model_name, popt, pcov):
     params_list = build_param_list(popt, errors, param_names)
 
     if model_name == 'monoexp':
-        plot_label == fr"$\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps"
+        plot_label = fr"$\tau_{1}$ = {params_list['tau_decay1']:.0f} fs"
     elif model_name == 'exp_rise_monoexp_decay':
         plot_label = fr"$\tau_{{r}}$ = {params_list['tau_rise']:.0f} fs, $\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps"
     elif model_name == 'biexp':
-        plot_label = fr"$\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps, $\tau_{2}$ = {params_list['tau_decay2']/1000:.1f} ps"
+        plot_label = fr"$\tau_{1}$ = {params_list['tau_decay1']:.0f} fs, $\tau_{2}$ = {params_list['tau_decay2']/1000:.1f} ps"
     elif model_name == 'exp_rise_biexp_decay':
         plot_label = fr"$\tau_{{r}}$ = {params_list['tau_rise']:.0f} fs, $\tau_{1}$ = {params_list['tau_decay1']/1000:.1f} ps, $\tau_{2}$ = {params_list['tau_decay2']/1000:.1f} ps"
 
