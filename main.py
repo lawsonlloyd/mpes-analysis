@@ -27,7 +27,7 @@ def main(I, title=None):
     waterfall_handler = waterfallHandler(plot_manager, data_handler, check_button_manager)
 
     # Initialize sliders and attach update event
-    slider_manager = SliderManager(value_manager, plot_manager, check_button_manager)
+    slider_manager = SliderManager(value_manager, plot_manager, check_button_manager, waterfall_handler)
     slider_manager.E_slider.on_changed(slider_manager.on_slider_update)
     slider_manager.E_int_slider.on_changed(slider_manager.on_slider_update)
     slider_manager.k_int_slider.on_changed(slider_manager.on_slider_update)

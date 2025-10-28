@@ -3,7 +3,7 @@ from tkinter import filedialog
 from tkinter import Tk
 import multiprocessing
 import os
-from main import main
+from Main import main
 from Loader import DataLoader
 
 def show_splash_screen():

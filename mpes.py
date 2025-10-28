@@ -769,7 +769,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     else:
         waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
-    waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+    wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Delay, fs', fontsize = 18)
@@ -791,7 +791,7 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     # Adjust layout to avoid overlap
     fig.tight_layout()
 
-    return fig, ax
+    return fig, ax, wf
 
 def add_rect(dim1, dim1_int, dim2, dim2_int, ax, **kwargs):
         edgecolor = kwargs.get("edgecolor", None)
