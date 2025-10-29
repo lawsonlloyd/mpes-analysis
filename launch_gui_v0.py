@@ -3,7 +3,7 @@ from tkinter import filedialog
 from tkinter import Tk
 import multiprocessing
 import os
-from main import main
+from Main import main
 from Loader import DataLoader
 
 def show_splash_screen():
@@ -12,8 +12,8 @@ def show_splash_screen():
     splash.geometry("300x150+600+300")  # size + position (tweak as needed)
     splash.configure(bg="white")
 
-    #label = ttk.Label(splash, text="Launching ARPES GUI...", font=("Helvetica", 14))
-    #label.place(relx=0.5, rely=0.5, anchor="center")
+    label = ttk.Label(splash, text="Launching ARPES GUI...", font=("Helvetica", 14))
+    label.place(relx=0.5, rely=0.5, anchor="center")
 
     splash.update()
     return splash

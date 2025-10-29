@@ -97,9 +97,17 @@ def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
                     
     return frame
 
-def get_waterfall(I_res, kx, kx_int, ky, ky_int):
+def get_waterfall(I_res, kx, kx_int, ky=None, ky_int=None):
     
-    frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
+    #cmap = kwargs.get("cmap", "viridis")
+
+    if "angle" in I_res.dims:
+        angle = kx
+        angle_int = kx_int
+        frame = I_res.loc[{"angle":slice(angle-angle_int/2, angle+angle_int/2)}].mean(dim=("angle"))
+    else:
+
+        frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
 
     return frame
 
@@ -203,10 +211,10 @@ def get_k_cut(I, k_start, k_end, delay, delay_int, n, w):
 def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     # At the top of your function
-    if isinstance(k, (int, float)):
-        k = (k,)
-    if isinstance(k_int, (int, float)):
-        k_int = (k_int,)
+    #if isinstance(k, (int, float)):
+    #    k = (k,)
+    #if isinstance(k_int, (int, float)):
+     #   k_int = (k_int,)
 
     subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-200, -100])
@@ -214,8 +222,9 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     d1, d2 = neg_delays[0], neg_delays[1]
     
     if "angle" in I_res.dims:
-        (angle,) = k
-        (angle_int,) = k_int
+        #(angle,) = k
+        #(angle_int,) = k_int
+        angle, angle_int = k, k_int
         trace = I_res.loc[{"E":slice(E-E_int/2, E+E_int/2), "angle":slice(angle-angle_int/2, angle+angle_int/2)}].mean(dim=("angle", "E"))
     
     elif "kx" in I_res.dims and "ky" in I_res.dims:
@@ -340,8 +349,7 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
     
     return popt, perr, rise_fit
 
-#%% Useful Functions and Definitions for Plotting Data
-
+# Useful Functions and Definitions for Plotting Data
 def save_figure(fig, name, image_format):
     
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
@@ -721,22 +729,22 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     colors = kwargs.get("colors", ['Black', 'Maroon', 'Blue', 'Purple', 'Green', 'Grey'])
     legend = kwargs.get("legend", True)
 
-    (kx, ky), (kx_int, ky_int) = k, k_int
+    #(kx, ky), (kx_int, ky_int) = k, k_int
 
     E = np.atleast_1d(E)
-    kx = np.atleast_1d(kx)
+    k = np.atleast_1d(k)
 
-    if len(E) > len(kx):
-        kx = np.resize(kx, len(E))
+    if len(E) > len(k):
+        k = np.resize(k, len(E))
     
-    if len(E) < len(kx):
-        E = np.resize(E, len(kx))        
+    if len(E) < len(k):
+        E = np.resize(E, len(k))        
     
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
-    for i, (E, kx) in enumerate(zip(E, kx)):
-        trace = get_time_trace(I_res, E, E_int, (kx, ky), (kx_int, ky_int), norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
+    for i, (E, k) in enumerate(zip(E, k)):
+        trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
         ax.plot(trace.coords['delay'].values, trace.values, label=f'E = {E:.2f} eV', color = colors[i], linewidth=2)
     
@@ -752,7 +760,77 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
 
     return fig, ax
 
-def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
+def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **kwargs):
+    
+    subtract_neg = kwargs.get("subtract_neg", False)
+    #xlabel = kwargs.get("xlabel", 'Delay, ps')
+    #ylabel = kwargs.get("ylabel", 'Intensity')
+    fontsize = kwargs.get("fontsize", 14)
+    figsize = kwargs.get("figsize", (8, 6))
+    energy_limits=kwargs.get("energy_limits", (I_res.E.values[0],I_res.E.values[-1]))
+    neg_delays = kwargs.get("neg_delays", [-500, -100])
+    E_enhance = kwargs.get("E_enhance", None)
+
+    if subtract_neg is True : 
+        cmap = kwargs.get("cmap", cmap_LTL2)
+        scale = kwargs.get("scale", [-1, 1])
+    else:
+        cmap = kwargs.get("cmap", cmap_LTL)
+        scale = kwargs.get("scale", [0, 1])
+
+    d1, d2 = neg_delays[0], neg_delays[1]
+    
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    if "delay" in I_res.dims:
+        I_diff = I_res - I_res.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
+
+        if delay is not None:
+            if subtract_neg is True: 
+                frame = I_diff.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim='delay')
+
+            else:
+                frame = I_res.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim='delay')
+
+        if delay is None:
+            if subtract_neg is True: 
+                frame = I_diff.mean(dim='delay')
+
+            else:
+                frame = I_res.mean(dim='delay')
+    else:
+        frame = I_res
+
+    if E_enhance is not None:
+        frame = enhance_features(frame, E_enhance, factor = 0, norm = True)
+        ax.axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+    else:
+        frame = enhance_features(frame, energy_limits[0], factor = 0, norm = True)
+    
+    print(frame.shape)
+    ph = frame.T.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+   
+    ax.set_xlabel('Angle', fontsize = fontsize)
+    ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
+    ax.set_yticks(np.arange(-5,3.5,0.5))
+    ax.set_xlim(I_res.angle[1], I_res.angle[-1])
+    ax.set_ylim(energy_limits[0], energy_limits[1])
+    ax.set_title('Frame')
+    ax.axhline(energy_limits[0], linestyle = 'dashed', color = 'black', linewidth = 1)
+    
+    for label in ax.yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    #hor = I_res.delay[-1] - I_res.delay[1]
+    #ver =  energy_limits[1] - energy_limits[0]
+    #aspra = hor/ver 
+    #ax[1].set_aspect(aspra)
+    ax.set_aspect("auto")
+
+    # Adjust layout to avoid overlap
+    fig.tight_layout()   
+
+def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, **kwargs):
     """
     Plot the waterfall of intensity across both kx and ky slices.
 
@@ -811,8 +889,8 @@ def plot_waterfall(I_res, kx, kx_int, ky, ky_int, fig=None, ax=None, **kwargs):
     wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
-    ax.set_xlabel('Delay, fs', fontsize = 18)
-    ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = 18)
+    ax.set_xlabel('Delay, fs', fontsize = fontsize)
+    ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
     ax.set_yticks(np.arange(-1,3.5,0.25))
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])

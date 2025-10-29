@@ -39,7 +39,7 @@ class DataHandler:
 
 class ValueHandler:
     def __init__(self):
-        self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 100, 1000
+        self.k_int, self.kx, self.ky, self.E, self.E_int, self.delay, self.delay_int = 0.4, 0, 0, 0, 0.100, 500, 1000
 
     def update_k_int_value(self, k_int):
         self.k_int = k_int
@@ -206,7 +206,7 @@ class PlotHandler:
     def plot_edc(self):
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
 
-        edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
+        edc = mpes.get_edc(self.I, kx, ky, k_int, k_int, delay, delay_int)
         edc = edc/np.max(edc)
         
         self.im_4, = self.ax[1].plot(self.I.E.values, edc, color = 'black')
@@ -354,12 +354,13 @@ class PlotHandler:
     def update_edc(self):
         """Update the time traces when the square is moved or resized."""
         k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        print('udpate edc')
 
         if self.data_handler.I.ndim > 3:
-            edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
+            edc = mpes.get_edc(self.I, kx, ky, k_int, delay, delay_int)
         
         else:
-            edc = mpes.get_edc(self.I, kx, ky, (k_int, k_int), delay, delay_int)
+            edc = mpes.get_edc(self.I, kx, ky, k_int, k_int, delay, delay_int)
             
         edc = edc/np.max(edc)
 
@@ -423,6 +424,7 @@ class PlotHandler:
 
 class EventHandler:
     def __init__(self, value_manager, slider_manager, plot_manager, check_button_manager, arbitrary_cut_handler, waterfallHandler):
+        #self.data_handler = data_handler
         self.slider_manager = slider_manager
         self.plot_manager = plot_manager
         self.check_button_manager = check_button_manager
@@ -444,7 +446,6 @@ class EventHandler:
 
                         # Use tkinter to get pointer position (safe for all backends)
                         x, y = root.winfo_pointerx(), root.winfo_pointery()
-
                         try:
                             menu.tk_popup(x, y)
                         finally:
@@ -520,6 +521,7 @@ class EventHandler:
         elif self.check_button_manager.kcut_button_status is True:
             self.arbitrary_cut_handler.disable()
             self.check_button_manager.kcut_button_status = False
+        #elif self.check_button_manager.kcut_button_status is False
         else:
             self.plot_manager.plot_time_trace()
 
@@ -623,9 +625,11 @@ class EventHandler:
             
             if self.check_button_manager.trace_button_status and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_edc()
-            elif  self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
+            elif self.check_button_manager.trace_button_status is False and self.check_button_manager.kcut_button_status is False and self.check_button_manager.waterfall_button_status is False:
                 self.plot_manager.update_time_trace()
-                
+            #elif self.data_handler.I.ndim < 4:
+             #   self.plot_manager.update_edc()
+
             self.plot_manager.fig.canvas.draw()
 
         if self.press_vertical:    
@@ -698,8 +702,9 @@ class ArbitraryCutHandler:
             self.x1, self.y1 = self.p1.center
             self.x2, self.y2 = self.p2.center
             self.line.set_data([self.x1, self.x2], [self.y1, self.y2])
-            
-            k_frame = mpes.get_k_cut(self.I, (self.x1, self.y1), (self.x2, self.y2), 500, 2000)
+            #k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+            k_int = 0.1
+            k_frame = mpes.get_k_cut(self.I, (self.x1, self.y1), (self.x2, self.y2), 500, 2000, 200, k_int)
             k_frame = k_frame/np.max(np.abs(k_frame))
             self.plot_k_cut()
         
@@ -715,7 +720,8 @@ class ArbitraryCutHandler:
 
     def plot_k_cut(self):
         i = 1
-        k_frame = mpes.get_k_cut(self.I, (self.x1, self.y1), (self.x2, self.y2), 500, 2000)
+        #k_int, kx, ky, E, E_int, delay, delay_int = self.value_manager.get_values()
+        k_frame = mpes.get_k_cut(self.I, (self.x1, self.y1), (self.x2, self.y2), 500, 2000, 200, 0.1)
         k_frame = k_frame/np.max(np.abs(k_frame))
 
         if self.check_button_manager.enhance_button_status is True:
@@ -952,10 +958,10 @@ class SliderManager:
         
     def create_sliders(self):
         """Create the sliders for energy and delay."""
-        E_slider = Slider(plt.axes([0.015, 0.6, 0.03, 0.25]), 'E, eV', -10, 5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
+        E_slider = Slider(plt.axes([0.015, 0.6, 0.03, 0.25]), 'E, eV', -6, 3, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
         E_int_slider = Slider(plt.axes([0.057, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.42, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
-        delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=100, valstep = 20, color = 'purple', orientation = 'horizontal')
+        delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=500, valstep = 20, color = 'purple', orientation = 'horizontal')
         delay_int_slider = Slider(plt.axes([0.055, 0.001, 0.25, 0.03]), 'Delay, fs', 0, 1000, valinit=1000, valstep = 20, color = 'violet', orientation = 'horizontal')
 
         return E_slider, E_int_slider, k_int_slider, delay_slider, delay_int_slider
