@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import Menu, filedialog, Tk
 from functools import partial
 from matplotlib.widgets import Slider, CheckButtons, Button
-from scipy.ndimage import map_coordinates
+#from scipy.ndimage import map_coordinates
 import mpes
 from mpes import cmap_LTL, cmap_LTL2
 

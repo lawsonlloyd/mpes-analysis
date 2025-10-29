@@ -103,7 +103,7 @@ def get_waterfall(I_res, kx, kx_int, ky, ky_int):
 
     return frame
 
-def get_k_cut(I, k_start, k_end, delay, delay_int):
+def get_k_cut(I, k_start, k_end, delay, delay_int, n, w):
     """
     Extract an E vs k slice along an arbitrary line in kx-ky space.
 
@@ -118,7 +118,7 @@ def get_k_cut(I, k_start, k_end, delay, delay_int):
     - k_vals: 1D array of k-distance along the cut
     - E_vals: 1D array of energies
     """
-    num_k=200 
+    num_k=n
     
     if "delay" in I.dims:
         if delay is not None and delay_int is not None:
@@ -136,11 +136,15 @@ def get_k_cut(I, k_start, k_end, delay, delay_int):
     E_vals = I.E.values
 
     # Create k-space cut line
-    k_start = np.array(k_start)
-    k_end = np.array(k_end)
+    # Define the main k-line
+    k_start, k_end = np.array(k_start), np.array(k_end)
     k_line = np.linspace(k_start, k_end, num_k)
-    kx_line = k_line[:, 0]
-    ky_line = k_line[:, 1]
+    kx_line, ky_line = k_line[:, 0], k_line[:, 1]
+
+    # Unit vectors
+    d_vec = (k_end - k_start)
+    d_vec /= np.linalg.norm(d_vec)
+    n_vec = np.array([-d_vec[1], d_vec[0]])  # perpendicular unit vector
 
     # Interpolator
     interp = RegularGridInterpolator(
@@ -150,16 +154,37 @@ def get_k_cut(I, k_start, k_end, delay, delay_int):
         fill_value=np.nan
     )
 
-    # For each point along the k-line, extract the I(E) spectrum
-    I_cut = []
-    for kx_i, ky_i in zip(kx_line, ky_line):
-        pts = np.column_stack([np.full_like(E_vals, kx_i),
-                               np.full_like(E_vals, ky_i),
-                               E_vals])
-        spectrum = interp(pts)
-        I_cut.append(spectrum)
+    # Precompute width offsets
+    if w > 0:
+        w_offsets = np.linspace(-w/2, w/2, 20)
+    else:
+        w_offsets = np.array([0.0])
 
-    I_cut = np.array(I_cut).T  # shape: (energy, k_index)
+    # Prepare all sampling points
+    I_cut = np.zeros((len(E_vals), num_k))
+    for i, (kx_i, ky_i) in enumerate(zip(kx_line, ky_line)):
+        # Offset coordinates across the perpendicular direction
+        kx_offsets = kx_i + n_vec[0] * w_offsets
+        ky_offsets = ky_i + n_vec[1] * w_offsets
+
+        # Build grid for each offset and energy
+        kx_grid = np.repeat(kx_offsets[:, None], len(E_vals), axis=1)
+        ky_grid = np.repeat(ky_offsets[:, None], len(E_vals), axis=1)
+        E_grid = np.tile(E_vals[None, :], (len(w_offsets), 1))
+
+        pts = np.column_stack([kx_grid.ravel(), ky_grid.ravel(), E_grid.ravel()])
+        vals = interp(pts).reshape(len(w_offsets), len(E_vals))
+        I_cut[:, i] = np.nanmean(vals, axis=0)
+
+    # For each point along the k-line, extract the I(E) spectrum
+    #I_cut = []
+    #for kx_i, ky_i in zip(kx_line, ky_line):
+    #    pts = np.column_stack([np.full_like(E_vals, kx_i),
+    #                           np.full_like(E_vals, ky_i),
+    #                           E_vals])
+    #    spectrum = interp(pts)
+    #    I_cut.append(spectrum)
+    #I_cut = np.array(I_cut).T  # shape: (energy, k_index)
 
     # Compute 1D distance along cut
     dk = np.linalg.norm(k_end - k_start)
@@ -209,12 +234,9 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     return trace
 
-def get_edc(I_res, kx, ky, k_int, delay=500, delay_int=1000):
-    
-    (kx_int, ky_int) = k_int
-    
+def get_edc(I_res, kx, ky, kx_int, ky_int, delay=500, delay_int=1000):
+        
     if I_res.ndim > 3:    
-
         edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
     else:
         edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
@@ -324,6 +346,21 @@ def save_figure(fig, name, image_format):
     
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
     print('Figure Saved!')
+
+def plot_edc(I, kx, ky, kx_int, ky_int, fig=None, ax=None):
+    
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(1, 1, figsize=(4,2), squeeze=False)
+        ax = np.ravel(ax)
+    else:
+        ax = [ax]
+
+    edc = get_edc(I, kx, ky, kx_int, ky_int)
+    edc = edc/np.max(edc)
+    
+    edc.plot(ax=ax[0], color = 'green')
+
+    fig.tight_layout()
 
 def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
@@ -607,6 +644,8 @@ def plot_k_cut(I_res, k_start, k_end, delays=None, delay_int=None, fig=None, ax=
     energy_limits=kwargs.get("energy_limits", (-3,2.5))
     E_enhance = kwargs.get("E_enhance", None)
     ax2 = kwargs.get("ax2", None)
+    n = kwargs.get("n", 200)
+    w = kwargs.get("w", .2)
 
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
@@ -617,7 +656,7 @@ def plot_k_cut(I_res, k_start, k_end, delays=None, delay_int=None, fig=None, ax=
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
-        k_frame = get_k_cut(I_res, k_start, k_end, delay, delay_int)
+        k_frame = get_k_cut(I_res, k_start, k_end, delay, delay_int, n, w)
         k_frame = k_frame/np.max(k_frame)
 
         if E_enhance is not None:    
