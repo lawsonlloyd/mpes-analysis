@@ -20,6 +20,8 @@ class DataLoader:
         self.ax_ADC = None
 
         self.offsets = kwargs.get("offsets", [0, 0])
+        self.pol_scan = kwargs.get("pol_scan", False)
+
         #self.offsets = kwargs.get("ADC_dim", [0, 0])
 
     def load(self):
@@ -35,6 +37,8 @@ class DataLoader:
             a_group_key = group_keys[0]
             #a_group_key2 = group_keys[1]
 
+            #print(list(f[a_group_key]))
+
             # Load axes data
             self.ax_E = f['axes/ax2'][()].astype(np.float32)
             self.ax_kx = f['axes/ax0'][()].astype(np.float32)
@@ -46,8 +50,8 @@ class DataLoader:
             # Determine the ADC axis
             if 'delay' in list(f[a_group_key]):
                 self.ax_ADC = f['axes/delay'][()].astype(np.float32)
-            elif 'theta' in list(f[a_group_key]):
-                self.ax_ADC = f['axes/theta'][()].astype(np.float32)
+            elif 'pol' in list(f[a_group_key]):
+                self.ax_ADC = f['axes/pol'][()].astype(np.float32)
             elif 'ax3' in list(f[a_group_key]):
                 self.ax_ADC = f['axes/ax3'][()].astype(np.float32)
             else:
@@ -65,7 +69,12 @@ class DataLoader:
             print('"'+ self.filename + '"' + ' has been loaded! Happy Analysis...')
             
             if i_data.ndim > 3:
-                res = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+                if self.pol_scan is False:        
+                    res = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+                
+                elif self.pol_scan is True:
+                    res = xr.DataArray(i_data, dims = ("kx", "ky", "E", "delay"), coords = [self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC])
+                
                 res = res.assign_coords(E=(res.E-self.offsets[0]))
                 res = res.assign_coords(delay=(res.delay-self.offsets[1]))
 

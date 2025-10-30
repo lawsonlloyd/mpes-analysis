@@ -405,8 +405,11 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
     if has_delay:
         delays = np.atleast_1d(delays)
         if len(delays) != len(E):
-            delays = np.resize(delays, len(E))
-    else:
+            if len(delays) < len(E):
+                delays = np.resize(delays, len(E))
+            elif len(delays) > len(E):
+                E = np.resize(E, len(delays))
+    else:  
         # Static data – ignore delays entirely
         delays = [None] * len(E)
 
