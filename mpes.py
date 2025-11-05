@@ -325,11 +325,18 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
         delay_trace = delay_trace/np.max(delay_trace)
 
     popt, pcov = curve_fit(rise_erf, delay_axis, delay_trace, p0, method="lm")
-    
+
     perr = np.sqrt(np.diag(pcov))
     
     rise_fit = rise_erf(np.linspace(delay_limits[0],delay_limits[1], 50), *popt)
-    
+
+    rise_fit_xr = xr.DataArray(
+        rise_fit,
+        dims=("delay"),
+        coords={"delay": np.linspace(delay_limits[0],delay_limits[1], 50)},
+        name="rise_fit"
+    )
+
     if fig is not None:
         
         ax[1].plot(trace_ex.delay, trace_ex, 'ko',label='Data')
@@ -339,7 +346,7 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
         ax[1].set_ylabel('Norm. Int.')
         ax[1].axvline(0, color = 'grey', linestyle = 'dashed')
         
-        ax[1].set_xlim([-150, 150]) 
+        ax[1].set_xlim([trace_ex.delay.values[1], 150]) 
         ax[1].set_ylim(-.1,1.05)
         #ax[1].axvline(30)
         ax[1].legend(frameon=False)
@@ -347,7 +354,7 @@ def find_t0(trace_ex, delay_limits, fig=None, ax=None, **kwargs):
     print(fr't0 = {popt[0]:.1f} +/- {perr[0]:.1f} fs')
     print(fr'width = {popt[1]:.1f} +/- {perr[1]:.1f} fs')
     
-    return popt, perr, rise_fit
+    return popt, perr, rise_fit_xr
 
 # Useful Functions and Definitions for Plotting Data
 def save_figure(fig, name, image_format):
