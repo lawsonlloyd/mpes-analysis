@@ -243,12 +243,31 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     return trace
 
-def get_edc(I_res, kx, ky, kx_int, ky_int, delay=500, delay_int=1000):
-        
+def get_edc(I_res, kx, ky, kx_int, ky_int, **kwargs):
+
+    delay = kwargs.get("delay", 500)
+    delay_int = kwargs.get("delay_int", 1000)
+
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+    norm_trace = kwargs.get("norm_trace", False)
+
     if I_res.ndim > 3:    
-        edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+        edc_all = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+
+        if subtract_neg is True:
+            edc_neg = edc_all.loc[{"delay":slice(neg_delays[0],neg_delays[1])}].mean(dim="delay")
+            edc_sel = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+            edc = edc_sel - edc_neg
+
+        else:
+            edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+
     else:
         edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+
+    if norm_trace is True:
+        edc = edc/np.max(edc)
 
     return edc
 
@@ -362,7 +381,7 @@ def save_figure(fig, name, image_format):
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
     print('Figure Saved!')
 
-def plot_edc(I, kx, ky, kx_int, ky_int, fig=None, ax=None):
+def plot_edc(I, kx, ky, kx_int, ky_int, fig=None, ax=None, **kwargs):
     
     if ax is None or fig is None:
         fig, ax = plt.subplots(1, 1, figsize=(4,2), squeeze=False)
@@ -370,8 +389,8 @@ def plot_edc(I, kx, ky, kx_int, ky_int, fig=None, ax=None):
     else:
         ax = [ax]
 
-    edc = get_edc(I, kx, ky, kx_int, ky_int)
-    edc = edc/np.max(edc)
+    edc = get_edc(I, kx, ky, kx_int, ky_int, **kwargs)
+    #edc = edc/np.max(edc)
     
     edc.plot(ax=ax[0], color = 'green')
 
@@ -896,7 +915,7 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     else:
         waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
-    wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+    wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = 'RdBu_r', add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Delay, fs', fontsize = fontsize)
