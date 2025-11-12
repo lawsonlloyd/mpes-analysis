@@ -209,7 +209,6 @@ def get_k_cut(I, k_start, k_end, delay, delay_int, n, w):
 
 # Fucntion for Extracting time Traces
 def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
-    
     # At the top of your function
     #if isinstance(k, (int, float)):
     #    k = (k,)
@@ -759,20 +758,20 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     legend = kwargs.get("legend", True)
 
     #(kx, ky), (kx_int, ky_int) = k, k_int
-
     E = np.atleast_1d(E)
-    k = np.atleast_1d(k)
+    #k = np.atleast_1d(k)
 
-    if len(E) > len(k):
-        k = np.resize(k, len(E))
+    #if len(E) > len(k):
+     #   k = np.resize(k, len(E))
     
-    if len(E) < len(k):
-        E = np.resize(E, len(k))        
+    #if len(E) < len(k):
+    #    E = np.resize(E, len(k))        
     
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
-    for i, (E, k) in enumerate(zip(E, k)):
+    #for i, (E, k) in enumerate(zip(E, k)):
+    for i, E in enumerate(E):
         trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
         ax.plot(trace.coords['delay'].values, trace.values, label=f'E = {E:.2f} eV', color = colors[i], linewidth=2)
@@ -780,6 +779,9 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     # Formatting
     ax.set_xlabel('Delay, fs', fontsize=fontsize)
     ax.set_ylabel('Intensity' , fontsize=fontsize)
+    ax.set_xticks(np.arange(-600, 2000, 100))
+    for label in ax.xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
 
     if legend is True:
@@ -915,7 +917,7 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     else:
         waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
     
-    wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = 'RdBu_r', add_colorbar=False)
+    wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Delay, fs', fontsize = fontsize)
