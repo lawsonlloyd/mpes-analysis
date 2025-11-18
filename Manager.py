@@ -1009,7 +1009,7 @@ class SliderManager:
         
     def create_sliders(self):
         """Create the sliders for energy and delay."""
-        E_slider = Slider(plt.axes([0.015, 0.6, 0.03, 0.25]), 'E, eV', -6, 3, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
+        E_slider = Slider(plt.axes([0.015, 0.6, 0.03, 0.25]), 'E, eV', -6, 5, valinit=0, valstep = 0.05, color = 'black', orientation = 'vertical')
         E_int_slider = Slider(plt.axes([0.057, 0.6, 0.03, 0.25]), '$\Delta$E, eV', 0, 500, valinit=100, valstep = 50, color = 'grey', orientation = 'vertical')
         k_int_slider = Slider(plt.axes([0.42, 0.6, 0.03, 0.25]), '$\Delta k$, $A^{-1}$', 0, 4, valinit=.5, valstep = 0.1, color = 'red', orientation = 'vertical')
         delay_slider = Slider(plt.axes([0.055, 0.02, 0.25, 0.03]), 'Delay, fs', -200, 1000, valinit=500, valstep = 20, color = 'purple', orientation = 'horizontal')
