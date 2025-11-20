@@ -65,8 +65,13 @@ def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None):
 
     return frame
 
-def get_kx_E_frame(I_res, ky, ky_int, delay, delay_int):
+def get_kx_E_frame(I_res, ky, ky_int, delay=None, delay_int=None, **kwargs):
     
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+
+    d1, d2 = neg_delays[0], neg_delays[1]
+
     I_ky = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
 
     if "delay" in I_res.dims:
@@ -76,13 +81,21 @@ def get_kx_E_frame(I_res, ky, ky_int, delay, delay_int):
         else:
             # No delay specified: average over entire delay axis
             frame = I_ky.mean(dim="delay")
+
+        if subtract_neg is True:
+            frame = frame - I_ky.loc[{"delay":slice(d1,d2)}].mean(dim="delay")
+
     else:
         frame = I_ky
-                    
+         
     return frame
 
-def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
+def get_ky_E_frame(I_res, kx, kx_int, delay=None, delay_int=None, **kwargs):
+    
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
 
+    d1, d2 = neg_delays[0], neg_delays[1]
     I_kx = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
 
     if "delay" in I_res.dims:
@@ -92,6 +105,10 @@ def get_ky_E_frame(I_res, kx, kx_int, delay, delay_int):
         else:
             # No delay specified: average over entire delay axis
             frame = I_kx.mean(dim="delay")
+        
+        if subtract_neg is True:
+            frame = frame - I_kx.loc[{"delay":slice(d1,d2)}].mean(dim="delay")
+    
     else:
         frame = I_kx
                     
@@ -111,7 +128,7 @@ def get_waterfall(I_res, kx, kx_int, ky=None, ky_int=None):
 
     return frame
 
-def get_k_cut(I, k_start, k_end, delay, delay_int, n, w):
+def get_k_cut(I, k_start, k_end, **kwargs):
     """
     Extract an E vs k slice along an arbitrary line in kx-ky space.
 
@@ -126,7 +143,13 @@ def get_k_cut(I, k_start, k_end, delay, delay_int, n, w):
     - k_vals: 1D array of k-distance along the cut
     - E_vals: 1D array of energies
     """
-    num_k=n
+    delay = kwargs.get("delay", None)
+    delay_int = kwargs.get("delay_int", None)
+
+    n = kwargs.get("n", 100)
+    w = kwargs.get("w", 0.2)
+
+    num_k = n
     
     if "delay" in I.dims:
         if delay is not None and delay_int is not None:
@@ -447,16 +470,24 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
     nrows = kwargs.get("nrows", 1)
     ncols = kwargs.get("ncols", int(np.ceil(len(E) / nrows)))
     colorbar = kwargs.get("colorbar", False)
+    norm_to = kwargs.get("norm_to", "frame")
 
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        ax = [ax]
+        if len(ax) == 1:
+            ax = [ax]
+        if len(ax) > 1:
+            ax = ax
         
     for i in range(len(E)):
         frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
-        frame = frame / frame.max()
+        
+        if norm_to == "frame":
+            frame = frame / frame.max()
+        else:
+            frame = frame / norm_to
 
         im = frame.plot.imshow(
             ax=ax[i],
@@ -545,20 +576,33 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
     E_enhance = kwargs.get("E_enhance", None)
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+    d1, d2 = neg_delays[0], neg_delays[1]
+    norm_to = kwargs.get("norm_to", "frame")
 
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        ax = [ax]
-    
+        if len(ax) == 1:
+            ax = [ax]
+        if len(ax) > 1:
+            ax = ax
+
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
-        kx_frame = get_kx_E_frame(I_res, ky, ky_int, delay, delay_int)
+        kx_frame = get_kx_E_frame(I_res, ky, ky_int, delay, delay_int, subtract_neg=subtract_neg, neg_delays=neg_delays)
+        
         if E_enhance is not None:    
             kx_frame = enhance_features(kx_frame, E_enhance, factor = 0, norm = True)
             ax[i].axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+
+        if norm_to == "frame":
+            kx_frame = kx_frame / kx_frame.max()
+        else:
+            kx_frame = kx_frame / norm_to
 
         im = kx_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
@@ -570,14 +614,14 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel(r'$k_x$, $\AA^{{-1}}$', fontsize = 18)
-        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = 18)
-        ax[i].set_title(fr'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = 18)
-        ax[i].tick_params(axis='both', labelsize=16)
+        ax[i].set_xlabel(r'$k_x$, $\AA^{{-1}}$', fontsize = fontsize)
+        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = fontsize)
+        ax[i].set_title(fr'$k_y$ = {ky} $\pm$ {ky_int/2} $\AA^{{-1}}$', fontsize = fontsize)
+        ax[i].tick_params(axis='both', labelsize=fontsize)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        if has_delay and delays[0] is not None:
-            ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        #if has_delay and delays[0] is not None:
+        #    ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
@@ -624,18 +668,33 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
     cmap = kwargs.get("cmap", "viridis")
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
+    E_enhance = kwargs.get("E_enhance", None)
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+    d1, d2 = neg_delays[0], neg_delays[1]
+    norm_to = kwargs.get("norm_to", "frame")
 
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        ax = [ax]
-    
+        if len(ax) == 1:
+            ax = [ax]
+        if len(ax) > 1:
+            ax = ax    
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
-        ky_frame = get_ky_E_frame(I_res, kx, kx_int, delay, delay_int)
-        ky_frame = enhance_features(ky_frame, 0.9, factor = 0, norm = True)
+        ky_frame = get_ky_E_frame(I_res, kx, kx_int, delay, delay_int, subtract_neg=subtract_neg, neg_delays=neg_delays)
+        if E_enhance is not None:    
+            ky_frame = enhance_features(ky_frame, E_enhance, factor = 0, norm = True)
+            ax[i].axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+                
+        if norm_to == "frame":
+            ky_frame = ky_frame / ky_frame.max()
+        else:
+            ky_frame = ky_frame / norm_to
+
         ky_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
         #ax[2].set_aspect(1)
@@ -646,15 +705,15 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax[i].set_xlabel(r'$k_y$, $\AA^{-1}$', fontsize = 18)
-        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = 18)
-        ax[i].set_title(fr'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = 18)
-        ax[i].tick_params(axis='both', labelsize=16)
+        ax[i].set_xlabel(r'$k_y$, $\AA^{-1}$', fontsize = fontsize)
+        ax[i].set_ylabel(r'$E - E_{{VBM}}, eV$', fontsize = fontsize)
+        ax[i].set_title(fr'$k_x$ = {kx} $\pm$ {kx_int/2} $\AA^{{-1}}$', fontsize = fontsize)
+        ax[i].tick_params(axis='both', labelsize=fontsize)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
         ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
-        if has_delay and delays[0] is not None:
-            ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
+        #if has_delay and delays[0] is not None:
+            #ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
     # Adjust layout
     fig.tight_layout()
@@ -839,7 +898,6 @@ def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **k
     else:
         frame = enhance_features(frame, energy_limits[0], factor = 0, norm = True)
     
-    print(frame.shape)
     ph = frame.T.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Angle', fontsize = fontsize)
@@ -920,6 +978,15 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
    
+    # ax[i].set_xticks(np.arange(-4, 4, 1))
+    # for label in ax[i].xaxis.get_ticklabels()[1::2]:
+    #     label.set_visible(False)
+
+    # ax[i].set_yticks(np.arange(-2, 2.1, 1))
+    # for label in ax[i].yaxis.get_ticklabels()[1::2]:
+    #     label.set_visible(False)
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     ax.set_xlabel('Delay, fs', fontsize = fontsize)
     ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
     ax.set_yticks(np.arange(-1,3.5,0.25))

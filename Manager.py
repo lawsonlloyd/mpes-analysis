@@ -261,7 +261,7 @@ class PlotHandler:
         else:
             subtract_neg = False
 
-        energy_limits=[0.75, 2.5]
+        energy_limits=[-2, 2]
         
         f, a, wf = mpes.plot_waterfall(
             self.I, kx, k_int, ky, k_int,
