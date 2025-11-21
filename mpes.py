@@ -7,6 +7,7 @@ Created on Mon Mar 10 11:15:40 2025
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as col
+from matplotlib.ticker import AutoLocator
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
 from matplotlib.patches import Polygon
@@ -812,17 +813,16 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     Returns:
     - fig, ax (figure and axis objects).
     """
-    fontsize = kwargs.get("fontsize", 14)
+    fontsize = kwargs.get("fontsize", 12)
     colors = kwargs.get("colors", ['Black', 'Maroon', 'Blue', 'Purple', 'Green', 'Grey'])
     legend = kwargs.get("legend", True)
+    label = kwargs.get("label", None)
 
     #(kx, ky), (kx_int, ky_int) = k, k_int
     E = np.atleast_1d(E)
     #k = np.atleast_1d(k)
-
     #if len(E) > len(k):
      #   k = np.resize(k, len(E))
-    
     #if len(E) < len(k):
     #    E = np.resize(E, len(k))        
     
@@ -831,20 +831,47 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     
     #for i, (E, k) in enumerate(zip(E, k)):
     for i, E in enumerate(E):
+        if label is None:
+            label = f'E = {E:.2f} eV'
+
         trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
-        ax.plot(trace.coords['delay'].values, trace.values, label=f'E = {E:.2f} eV', color = colors[i], linewidth=2)
+        ax.plot(trace.coords['delay'].values, trace.values, label=label, color = colors[i], linewidth=2)
     
     # Formatting
     ax.set_xlabel('Delay, fs', fontsize=fontsize)
     ax.set_ylabel('Intensity' , fontsize=fontsize)
-    ax.set_xticks(np.arange(-600, 2000, 100))
+    
+    ax.xaxis.reset_ticks()
+    ax.yaxis.reset_ticks()
+
+    if trace.delay.values.max() < 1500:
+        ax.set_xticks(np.arange(-1200, 1600, 100))
+    else:
+        ax.set_xticks(np.arange(-2000, 5000, 500))
+    
+    for label in ax.xaxis.get_ticklabels():
+        label.set_visible(True)
+
     for label in ax.xaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
+    
+    ax.set_yticks(np.arange(-0.5,1.25,0.25))
+    for label in ax.yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+
+    if subtract_neg is True:
+        ax.set_ylim(-0.1, 1.1)
+    else:
+        ax.set_ylim(0, 1.1)
+
+
+    ax.tick_params(axis='both', labelsize=fontsize-1)    
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
     if legend is True:
-        ax.legend(fontsize=fontsize, frameon=False)
+        ax.legend(fontsize=fontsize-2, frameon=False)
     
     fig.tight_layout()
 
@@ -900,7 +927,7 @@ def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **k
     
     ph = frame.T.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
    
-    ax.set_xlabel('Angle', fontsize = fontsize)
+    ax.set_xlabel('Angle, deg', fontsize = fontsize)
     ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
     ax.set_yticks(np.arange(-5,3.5,0.5))
     ax.set_xlim(I_res.angle[1], I_res.angle[-1])
