@@ -446,6 +446,7 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
     - fig, ax, im (image handle for colorbar)
     """
     E = np.atleast_1d(E)
+    E = np.ravel(E)
 
     has_delay = "delay" in I.dims
 
@@ -477,11 +478,8 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        if len(ax) == 1:
-            ax = [ax]
-        if len(ax) > 1:
-            ax = ax
-        
+        ax = np.ravel(ax)
+
     for i in range(len(E)):
         frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
         
@@ -586,10 +584,8 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        if len(ax) == 1:
-            ax = [ax]
-        if len(ax) > 1:
-            ax = ax
+        ax = np.ravel(ax)
+
 
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
@@ -679,10 +675,8 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
         ax = np.ravel(ax)
     else:
-        if len(ax) == 1:
-            ax = [ax]
-        if len(ax) > 1:
-            ax = ax    
+        ax = np.ravel(ax)
+ 
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
