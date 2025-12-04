@@ -1,0 +1,41 @@
+spa_params:
+  ang_range_max: 0.844967320261438
+  ang_range_min: 0.15895424836601305
+  angle_offset_px: 7
+  apply_fft_filter: true
+  crop: true
+  ek_range_max: 0.9095705072381457
+  ek_range_min: 0.0716368179925028
+  energy_offset_px: 0
+  fft_filter_peaks:
+  - amplitude: 0.97
+    pos_x: 85.0
+    pos_y: 0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  - amplitude: 0.97
+    pos_x: 171
+    pos_y: 0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  - amplitude: 0.97
+    pos_x: 0
+    pos_y: 117.0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  - amplitude: 0.97
+    pos_x: 85.0
+    pos_y: 117.0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  - amplitude: 0.97
+    pos_x: 171
+    pos_y: 117.0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  - amplitude: 0.97
+    pos_x: 255
+    pos_y: 117.0
+    sigma_x: 6.0
+    sigma_y: 11.0
+  rotation_angle: 1
