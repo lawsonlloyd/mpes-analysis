@@ -807,7 +807,7 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     Returns:
     - fig, ax (figure and axis objects).
     """
-    fontsize = kwargs.get("fontsize", 12)
+    fontsize = kwargs.get("fontsize", 14)
     colors = kwargs.get("colors", ['Black', 'Maroon', 'Blue', 'Purple', 'Green', 'Grey'])
     legend = kwargs.get("legend", True)
     label = kwargs.get("label", None)
@@ -858,7 +858,6 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
         ax.set_ylim(-0.1, 1.1)
     else:
         ax.set_ylim(0, 1.1)
-
 
     ax.tick_params(axis='both', labelsize=fontsize-1)    
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
@@ -928,7 +927,8 @@ def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **k
     ax.set_ylim(energy_limits[0], energy_limits[1])
     ax.set_title('Frame')
     ax.axhline(energy_limits[0], linestyle = 'dashed', color = 'black', linewidth = 1)
-    
+    ax.tick_params(axis='both', labelsize=fontsize-1)    
+
     for label in ax.yaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
     #hor = I_res.delay[-1] - I_res.delay[1]
@@ -1011,6 +1011,7 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     ax.set_xlabel('Delay, fs', fontsize = fontsize)
     ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
     ax.set_yticks(np.arange(-1,3.5,0.25))
+    ax.tick_params(axis='both', labelsize=fontsize-1)    
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
     ax.set_title('$k$-Integrated')
