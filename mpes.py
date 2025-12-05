@@ -266,7 +266,7 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     return trace
 
-def get_edc(I_res, kx, ky, kx_int, ky_int, **kwargs):
+def get_edc(I_res, k, k_int, **kwargs):
 
     delay = kwargs.get("delay", 500)
     delay_int = kwargs.get("delay_int", 1000)
@@ -275,19 +275,41 @@ def get_edc(I_res, kx, ky, kx_int, ky_int, **kwargs):
     neg_delays = kwargs.get("neg_delays", [-200, -100])
     norm_trace = kwargs.get("norm_trace", False)
 
-    if I_res.ndim > 3:    
-        edc_all = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+    if "kx" in I_res.dims and "ky" in I_res.dims:
+        (kx, ky) = k
+        (kx_int, ky_int) = k_int
+
+        if I_res.ndim > 3:    
+            edc_all = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+
+            if subtract_neg is True:
+                edc_neg = edc_all.loc[{"delay":slice(neg_delays[0],neg_delays[1])}].mean(dim="delay")
+                edc_sel = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+                edc = edc_sel - edc_neg
+            else:
+                edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+
+        else:
+            edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+
+    elif "angle" in I_res.dims:
+        #(angle,) = k
+        #(angle_int,) = k_int
+        if "tilt" in I_res.dims:
+            (angle, tilt), (angle_int, tilt_int) = k, k_int
+            edc_all = I_res.loc[{"tilt":slice(tilt-tilt_int/2, tilt+tilt_int/2), "angle":slice(angle-angle_int/2, angle+angle_int/2)}].mean(dim=("angle", "tilt"))
+        else:
+            angle, angle_int = k, k_int
+            edc_all = I_res.loc[{"angle":slice(angle-angle_int/2, angle+angle_int/2)}].mean(dim="angle")
 
         if subtract_neg is True:
             edc_neg = edc_all.loc[{"delay":slice(neg_delays[0],neg_delays[1])}].mean(dim="delay")
-            edc_sel = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
+            edc_sel = edc_all.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim="delay")
             edc = edc_sel - edc_neg
-
-        else:
-            edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2), "delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim=("kx", "ky", "delay"))
-
-    else:
-        edc = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx", "ky"))
+        elif subtract_neg is False and "delay" in I_res.dims:
+            edc = edc_all.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim="delay")
+        elif "delay" not in I_res.dims:
+            edc = edc_all
 
     if norm_trace is True:
         edc = edc/np.max(edc)
@@ -404,18 +426,51 @@ def save_figure(fig, name, image_format):
     fig.savefig(name + '.'+ image_format, bbox_inches='tight', format=image_format)
     print('Figure Saved!')
 
-def plot_edc(I, kx, ky, kx_int, ky_int, fig=None, ax=None, **kwargs):
+def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
+    
+    fontsize = kwargs.get("fontsize", 14)
+    norm_trace = kwargs.get("norm_trace", False)
+    color = kwargs.get("color", 'black')
+    subtract_neg = kwargs.get("subtract_neg", False)
+    delay = kwargs.get("delay", 500)
+    delay_int = kwargs.get("delay_int", 1000)
     
     if ax is None or fig is None:
         fig, ax = plt.subplots(1, 1, figsize=(4,2), squeeze=False)
-        ax = np.ravel(ax)
-    else:
-        ax = [ax]
+        #ax = np.ravel(ax)
+    #else:
+        #ax = np.ravel(ax)
 
-    edc = get_edc(I, kx, ky, kx_int, ky_int, **kwargs)
-    #edc = edc/np.max(edc)
+    edc = get_edc(I, k ,k_int, **kwargs)
+    edc.plot(ax=ax, color = color)
+
+    # Formatting
+    ax.set_xlabel('Energy, eV', fontsize=fontsize)
+    ax.set_ylabel('Int.' , fontsize=fontsize)
     
-    edc.plot(ax=ax[0], color = 'green')
+    ax.xaxis.reset_ticks()
+    ax.yaxis.reset_ticks()
+
+    ax.set_xticks(np.arange(-5,4,0.5))
+    
+    for label in ax.xaxis.get_ticklabels():
+        label.set_visible(True)
+
+    for label in ax.xaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    
+    ax.set_yticks(np.arange(-0.5,1.25,0.25))
+    for label in ax.yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+
+    if subtract_neg is True:
+        ax.set_ylim(-0.1, 1.1)
+    else:
+        ax.set_ylim(0, 1.1)
+
+    ax.tick_params(axis='both', labelsize=fontsize-1)    
+    ax.set_xlim(I.E.values[0], I.E.values[-1])
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
     fig.tight_layout()
 
@@ -877,9 +932,12 @@ def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **k
     #ylabel = kwargs.get("ylabel", 'Intensity')
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (8, 6))
-    energy_limits=kwargs.get("energy_limits", (I_res.E.values[0],I_res.E.values[-1]))
     neg_delays = kwargs.get("neg_delays", [-500, -100])
     E_enhance = kwargs.get("E_enhance", None)
+    angle, angle_int = kwargs.get("angle", None), kwargs.get("angle_int", None)
+    tilt, tilt_int = kwargs.get("tilt", None), kwargs.get("tilt_int", None)
+    angle_limits =  kwargs.get("angle_limits", None)
+    energy_limits  =kwargs.get("energy_limits", (I_res.E.values[0],I_res.E.values[-1]))
 
     if subtract_neg is True : 
         cmap = kwargs.get("cmap", cmap_LTL2)
@@ -912,21 +970,104 @@ def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **k
     else:
         frame = I_res
 
-    if E_enhance is not None:
+    if angle is not None and angle_int is not None:
+        frame = I_res.loc[{"angle":slice(angle - angle_int/2, angle + angle_int/2)}].mean(dim="angle")
+    elif tilt is not None and tilt_int is not None:
+        frame = I_res.loc[{"tilt":slice(tilt - tilt_int/2, tilt + tilt_int/2)}].mean(dim="tilt")
+
+    if E_enhance is not None and E_enhance < frame.E.values.max():
         frame = enhance_features(frame, E_enhance, factor = 0, norm = True)
         ax.axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
     else:
-        frame = enhance_features(frame, energy_limits[0], factor = 0, norm = True)
-    
+        #frame = enhance_features(frame, energy_limits[0], factor = 0, norm = True)
+        frame = frame/np.max(frame)
+
     ph = frame.T.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
    
     ax.set_xlabel('Angle, deg', fontsize = fontsize)
     ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
     ax.set_yticks(np.arange(-5,3.5,0.5))
-    ax.set_xlim(I_res.angle[1], I_res.angle[-1])
+    if angle_limits is not None:
+        ax.set_xlim(angle_limits[0], angle_limits[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
     ax.set_title('Frame')
     ax.axhline(energy_limits[0], linestyle = 'dashed', color = 'black', linewidth = 1)
+    ax.tick_params(axis='both', labelsize=fontsize-1)    
+
+    for label in ax.yaxis.get_ticklabels()[1::2]:
+        label.set_visible(False)
+    #hor = I_res.delay[-1] - I_res.delay[1]
+    #ver =  energy_limits[1] - energy_limits[0]
+    #aspra = hor/ver 
+    #ax[1].set_aspect(aspra)
+    ax.set_aspect("auto")
+
+    # Adjust layout to avoid overlap
+    fig.tight_layout()   
+
+def plot_tilt_map(I_res, delay=None, delay_int=None, fig=None, ax=None, **kwargs):
+    
+    subtract_neg = kwargs.get("subtract_neg", False)
+    #xlabel = kwargs.get("xlabel", 'Delay, ps')
+    #ylabel = kwargs.get("ylabel", 'Intensity')
+    fontsize = kwargs.get("fontsize", 14)
+    figsize = kwargs.get("figsize", (8, 6))
+    energy_limits  =kwargs.get("energy_limits", (I_res.E.values[0],I_res.E.values[-1]))
+    neg_delays = kwargs.get("neg_delays", [-500, -100])
+    E_enhance = kwargs.get("E_enhance", None)
+    angle, angle_int = kwargs.get("angle", None), kwargs.get("angle_int", None)
+    tilt, tilt_int = kwargs.get("tilt", None), kwargs.get("tilt_int", None)
+    E = kwargs.get("E", 0)
+    E_int = kwargs.get("E_int", 0.2)
+
+    if subtract_neg is True : 
+        cmap = kwargs.get("cmap", cmap_LTL2)
+        scale = kwargs.get("scale", [-1, 1])
+    else:
+        cmap = kwargs.get("cmap", cmap_LTL)
+        scale = kwargs.get("scale", [0, 1])
+
+    d1, d2 = neg_delays[0], neg_delays[1]
+    
+    if ax is None or fig is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    
+    if "delay" in I_res.dims:
+        I_diff = I_res - I_res.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
+
+        if delay is not None:
+            if subtract_neg is True: 
+                frame = I_diff.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim='delay')
+
+            else:
+                frame = I_res.loc[{"delay":slice(delay-delay_int/2,delay+delay_int/2)}].mean(dim='delay')
+
+        if delay is None:
+            if subtract_neg is True: 
+                frame = I_diff.mean(dim='delay')
+
+            else:
+                frame = I_res.mean(dim='delay')
+    else:
+        frame = I_res
+
+    if angle is not None and angle_int is not None:
+        frame = frame.loc[{"angle":slice(angle - angle_int/2, angle + angle_int/2)}].mean(dim="angle")
+    elif tilt is not None and tilt_int is not None:
+        frame = frame.loc[{"tilt":slice(tilt - tilt_int/2, tilt + tilt_int/2)}].mean(dim="tilt")
+
+    frame = frame.loc[{"E":slice(E-E_int/2, E+E_int/2)}].mean(dim="E")
+    frame = frame/np.max(frame)
+
+    ph = frame.T.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
+   
+    ax.set_xlabel('Angle, deg', fontsize = fontsize)
+    ax.set_ylabel('Angle, deg', fontsize = fontsize)
+    ax.set_yticks(np.arange(-30, 35, 5))
+    ax.set_xlim(I_res.angle[1], I_res.angle[-1])
+    ax.set_ylim(I_res.tilt[1], I_res.tilt[-1])
+    ax.set_title('Tilt Map')
+    #ax.axhline(energy_limits[0], linestyle = 'dashed', color = 'black', linewidth = 1)
     ax.tick_params(axis='both', labelsize=fontsize-1)    
 
     for label in ax.yaxis.get_ticklabels()[1::2]:

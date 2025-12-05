@@ -85,7 +85,9 @@ class DataLoader:
             return res
             #return self.data, self.ax_kx, self.ax_ky, self.ax_E, self.ax_ADC
         
-    def load_phoibos(self):
+    def load_phoibos(self, **kwargs):
+        tilt_scan = kwargs.get("tilt_scan", False)
+
         with h5py.File(self.filename, 'r') as f:
         
             group_keys = list(f.keys())
@@ -97,8 +99,14 @@ class DataLoader:
             ax_E = f['axes/ax1'][()].astype(np.float32)
             
             if 'ax2' in list(f[a_group_key]):
-                ax_delay = f['axes/ax2'][()].astype(np.float32)
-                return xr.DataArray(data, dims = ("angle", "E", "delay"), coords = [ax_angle, ax_E, ax_delay]) #Old --> Angle, Enegy, Delay
+                if tilt_scan is False:
+                    ax_delay = f['axes/ax2'][()].astype(np.float32)
+                    return xr.DataArray(data, dims = ("angle", "E", "delay"), coords = [ax_angle, ax_E, ax_delay]) #Old --> Angle, Enegy, Delay
+                elif tilt_scan is True:
+                    ax_ang1 = f['axes/ax1'][()].astype(np.float32)
+                    ax_E = f['axes/ax2'][()].astype(np.float32)
+
+                    return xr.DataArray(data, dims = ("angle", "tilt", "E"), coords = [ax_angle, ax_ang1, ax_E]) #Old --> Angle, Enegy, Delay
             else:
                 return xr.DataArray(data, dims = ("angle", "E"), coords = [ax_angle, ax_E])
 
