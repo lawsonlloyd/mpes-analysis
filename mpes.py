@@ -263,7 +263,11 @@ def get_time_trace(I_res, E, E_int, k, k_int, norm_trace = False, **kwargs):
     
     if norm_trace is True : 
         trace = trace/np.max(trace)
-    
+    elif norm_trace is False:
+        trace = trace
+    else:
+        trace = trace/norm_trace
+
     return trace
 
 def get_edc(I_res, k, k_int, **kwargs):
@@ -880,8 +884,8 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     
     #for i, (E, k) in enumerate(zip(E, k)):
     for i, E in enumerate(E):
-        if label is None:
-            label = f'E = {E:.2f} eV'
+        #if label is None:
+        label = f'E = {E:.2f} eV'
 
         trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
