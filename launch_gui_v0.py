@@ -12,7 +12,7 @@ def show_splash_screen():
     splash.geometry("300x150+600+300")  # size + position (tweak as needed)
     splash.configure(bg="white")
 
-    label = ttk.Label(splash, text="Launching ARPES GUI...", font=("Helvetica", 14))
+    label = tk.Label(splash, text="Launching ARPES GUI...", font=("Helvetica", 14))
     label.place(relx=0.5, rely=0.5, anchor="center")
 
     splash.update()
