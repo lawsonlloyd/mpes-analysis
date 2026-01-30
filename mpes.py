@@ -882,6 +882,13 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
+    has_delay = "delay" in I_res.dims
+
+    if has_delay is False:
+        print('No Delay axis! Cannot plot time trace.')
+        
+        return
+
     #for i, (E, k) in enumerate(zip(E, k)):
     for i, E in enumerate(E):
         #if label is None:
@@ -1107,6 +1114,8 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     Returns:
     - fig, ax: figure and axis handles for the plot.
     """
+
+    has_delay = "delay" in I_res.dims
     subtract_neg = kwargs.get("subtract_neg", False)
 
     if subtract_neg is True : 
@@ -1130,6 +1139,11 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     if ax is None or fig is None:
         fig, ax = plt.subplots(figsize=(8, 6))
     
+    if has_delay is False:
+        print('No Delay axis! Cannot plot Waterfall.')
+        
+        return
+
     waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
 
     if subtract_neg is True : 
