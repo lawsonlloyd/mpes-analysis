@@ -666,7 +666,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         ax[i].set_xticks(np.arange(-2,2.2,1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax[i].set_yticks(np.arange(-2,4.1,.25))
+        ax[i].set_yticks(np.arange(-5,4.1,.25))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
