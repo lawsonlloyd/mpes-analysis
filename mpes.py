@@ -17,7 +17,8 @@ import xarray as xr
 from scipy.special import erf
 from scipy.optimize import curve_fit
 from scipy.signal import fftconvolve
-from scipy.optimize import curve_fit
+from scipy import signal
+from scipy.fft import fft, fftshift
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
@@ -1341,8 +1342,8 @@ def create_custom_diverging_colormap(map1, map2):
 
     return custom_colormap
 
-#%% Functions For Fitting Data: Time Traces
-
+######
+# Functions For Fitting Data: Time Traces
 def monoexp(t, A, tau):
     return A * np.exp(-t / tau) * (t >= 0)  # Ensure decay starts at t=0
 
@@ -1417,7 +1418,6 @@ model_dict = {
         'biexp': biexp,
         'exp_rise_biexp_decay': exp_rise_biexp_decay
 }
-
 
 def fit_time_trace(fit_model, delay_axis, time_trace, p0, bounds, convolve=False, sigma_IRF=None):
     """
@@ -1508,6 +1508,172 @@ def print_fit_results(model_name, popt, pcov):
     print("-" * 40)
     
     return (params_list, plot_label)
+
+######
+# Functions for Fourier Transform Analysis
+
+def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, win_type, alpha, dkx, fwhm):    
+    
+    ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
+    fwhm_pixel = fwhm/dkx
+    sigma = fwhm_pixel/2.355
+    # gaussian_kx = signal.gaussian(len(ax_kx), std = sigma)
+    # gaussian_kx = gaussian_kx/np.max(gaussian_kx)
+    # gaussian_ky = signal.gaussian(len(ax_ky), std = sigma)
+    # gaussian_ky = gaussian_ky/np.max(gaussian_ky)
+    
+    # gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    # gaussian_kxky = gaussian_kxky/np.max(gaussian_kxky)
+    # gaussian_kxky = np.outer(gaussian_kx, gaussian_ky)
+    #kx_cut_deconv = signal.deconvolve(kx_cut, gaussian_kx)
+    
+    ### Symmetrize Data
+    #kspace_frame_sym = xr.DataArray(np.zeros(kspace_frame.shape), coords = {"ky": ax_kx, "kx": ax_ky})
+    kspace_frame_ = kspace_frame.values
+    kspace_frame_rev = kspace_frame_[:,::-1]
+    
+    kspace_frame_sym = kspace_frame_ + kspace_frame_rev
+    kspace_frame_sym =  kspace_frame_sym/2
+    kspace_frame_sym = xr.DataArray(kspace_frame_sym, coords = {"ky": ax_ky, "kx": ax_kx})
+
+    ### Generate the Windows to Apodize the signal
+    k_x_i = np.abs(ax_kx.values-(kx-kx_int/2)).argmin()
+    k_x_f = np.abs(ax_kx.values-(kx+kx_int/2)).argmin()
+    k_y_i = np.abs(ax_kx.values-(ky-ky_int/2)).argmin()
+    k_y_f = np.abs(ax_kx.values-(ky+ky_int/2)).argmin()
+    #I_res.indexes["kx"].get_indexer([kx-kx_int/2], method = 'nearest')[0]
+    
+    # kx Axis
+    win_1_tuk = np.zeros(kspace_frame.shape[0])
+    win_1_box = np.zeros(kspace_frame.shape[0])
+
+    tuk_1 = signal.windows.tukey(k_x_f-k_x_i, alpha = 0.1)
+    box_1 = signal.windows.boxcar(k_x_f-k_x_i)
+    win_1_tuk[k_x_i:k_x_f] = tuk_1
+    win_1_box[k_x_i:k_x_f] = box_1
+
+    # ky Axis
+    win_2_tuk = np.zeros(kspace_frame.shape[1])
+    win_2_box = np.zeros(kspace_frame.shape[1])
+
+    tuk_2 = signal.windows.tukey(k_y_f-k_y_i, alpha = alpha)
+    box_2 = signal.windows.boxcar(k_y_f-k_y_i)
+    win_2_tuk[k_y_i:k_y_f] = tuk_2
+    win_2_box[k_y_i:k_y_f] = box_2
+
+    # Combine to (kx, ky) Window
+    window_2D_tukey = np.outer(win_2_tuk, win_1_tuk) # 2D tukey
+    window_2D_box = np.outer(win_2_box, win_1_box) # 2D Square Window
+    window_tukey_box = np.outer(win_2_tuk, win_1_box) # Tukey + Box
+
+    if win_type == 'gaussian':
+        win_1_gauss = np.zeros(kspace_frame.shape[0])
+        gaus_1 = signal.windows.gaussian(k_x_f-k_x_i, alpha)
+        win_1_gauss[k_x_i:k_x_f] = gaus_1
+        window_2D_gaussian = np.outer(win_1_gauss, win_2_box)
+        kspace_window = window_2D_gaussian
+        
+    # 2D Tukey    
+    if win_type == 1:
+        kspace_window = xr.DataArray(window_2D_tukey, coords = {"ky": ax_ky, "kx": ax_kx})
+
+    if win_type == 'square':
+        kspace_window = window_2D_box
+
+    if win_type == 'tukey, square':
+        kspace_window = xr.DataArray(window_tukey_box, coords = {"ky": ax_ky, "kx": ax_kx})
+
+    kspace_frame_sym_win = kspace_frame_sym*kspace_window
+    kspace_frame_win = kspace_frame*(kspace_window)
+        
+    return kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window/np.max(kspace_window)
+
+def FFT_MM(MM_frame, zeropad, dkx, ax_kx, ax_ky):
+    
+    I_MM = MM_frame
+
+    ##############################
+    
+    # Define real-space axis
+    k_step = dkx
+    #k_step_y = k-step
+    #k_length_y = len(ax_ky)
+    zplength = zeropad #5*k_length+1
+    max_r = 1/(2*k_step)
+
+    #r_axis = np.linspace(-max_r, max_r, num = k_length)
+    #r_axis = r_axis/(10)
+
+    # Shuo Method ?
+    N = 1 #(zplength)Fs
+    Fs = 1/((2*np.max(ax_kx.values))/len(ax_kx.values))
+    r_axis = np.arange(0,zplength)*Fs/1
+    r_axis = r_axis - (np.max(r_axis)/2)
+    r_axis = r_axis/(1*zplength)
+   
+    # Use np to define
+    r_axis = np.linspace(-max_r, max_r, num = zplength)
+    r_axis = 2*np.pi * np.fft.fftshift(np.fft.fftfreq(zplength, d=dkx)) #Include 2pi factor
+    r_axis = 0.1 * r_axis # Covnert to nm from Angstrom
+
+    ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
+    I_MM = np.abs(I_MM)/np.max(I_MM)
+    root_I_MM = np.sqrt(I_MM)
+    fft_frame = np.fft.fft2(root_I_MM, [zplength, zplength])
+    fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
+
+    fft_frame = np.abs(fft_frame) 
+    I_xy = np.square(np.abs(fft_frame)) #frame squared
+    I_xy = I_xy/np.max(I_xy)
+    
+    ### Take x and y cuts and extract bohr radius
+    ky_cut = I_MM[:,int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4].sum(axis=1)
+    ky_cut = ky_cut/np.max(ky_cut)
+    kx_cut = I_MM[int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4,:].sum(axis=0)
+    kx_cut = kx_cut/np.max(kx_cut)
+
+    ### real space Psi*^2 cut
+    y_cut = I_xy[:,int(zplength/2)-1]
+    x_cut = I_xy[int(zplength/2)-1,:]
+    x_cut = x_cut/np.max(x_cut)
+    y_cut = y_cut/np.max(y_cut)
+
+    x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
+    y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
+    x_brad = int(zplength/2)-10 + x_brad
+    y_brad = int(zplength/2)-10 + y_brad
+    x_brad = r_axis[x_brad]
+    y_brad = r_axis[y_brad]
+    
+    ### real space Psi cut : |r*Psi(r)|^2
+    r2_cut_y = fft_frame[:,int(zplength/2)-1] 
+    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) 
+    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
+    
+    r2_cut_x = fft_frame[int(zplength/2)-1,:]
+    r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
+    r2_cut_x = r2_cut_x/np.max(r2_cut_x)
+
+    rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
+    rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
+
+    rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
+    rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
+
+    return r_axis, I_xy, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad
+    
+def lorentzian(x, amp_1, mean_1, stddev_1, offset):
+    
+    b = (x - mean_1)/(stddev_1/2)
+    l1 = amp_1/(1+b**2) + offset
+    
+    return l1
+    
+def gaussian(x, amp_1, mean_1, stddev_1, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
+    
+    return g1
 
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
