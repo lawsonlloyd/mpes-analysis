@@ -438,7 +438,8 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     subtract_neg = kwargs.get("subtract_neg", False)
     delay = kwargs.get("delay", 500)
     delay_int = kwargs.get("delay_int", 1000)
-    
+    E_enhance = kwargs.get("E_enhance", None)
+
     if ax is None or fig is None:
         fig, ax = plt.subplots(1, 1, figsize=(4,2), squeeze=False)
         #ax = np.ravel(ax)
@@ -446,6 +447,11 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
         #ax = np.ravel(ax)
 
     edc = get_edc(I, k ,k_int, **kwargs)
+
+    if E_enhance is not None:    
+        edc = enhance_features(edc, E_enhance, factor = 0, norm = True)
+        ax.axvline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+    
     edc.plot(ax=ax, color = color)
 
     # Formatting
@@ -765,7 +771,6 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         ax[i].tick_params(axis='both', labelsize=fontsize)
         ax[i].set_xlim(-2,2)
         ax[i].set_ylim(energy_limits[0], energy_limits[1])
-        ax[i].axhline(0.9, linestyle = 'dashed', color = 'black', linewidth = 1)
         #if has_delay and delays[0] is not None:
             #ax[i].text(-1.9, 2.7,  fr"$\Delta$t = {delay} $\pm$ {delay_int/2:.0f} fs", size=14)
     
