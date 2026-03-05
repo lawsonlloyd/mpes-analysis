@@ -1575,13 +1575,13 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, win_type, alph
         
     # 2D Tukey    
     if win_type == 1:
-        kspace_window = xr.DataArray(window_2D_tukey, coords = {"ky": ax_ky, "kx": ax_kx})
+        kspace_window = xr.DataArray(window_2D_tukey, coords = {"ky": ax_ky, "kx": ax_kx}, dims = ["ky", "kx"])
 
     if win_type == 'square':
         kspace_window = window_2D_box
 
     if win_type == 'tukey, square':
-        kspace_window = xr.DataArray(window_tukey_box, coords = {"ky": ax_ky, "kx": ax_kx})
+        kspace_window = xr.DataArray(window_tukey_box, coords = {"ky": ax_ky, "kx": ax_kx}, dims = ["ky", "kx"])
 
     kspace_frame_sym_win = kspace_frame_sym*kspace_window
     kspace_frame_win = kspace_frame*(kspace_window)
