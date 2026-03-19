@@ -74,7 +74,10 @@ def get_kx_E_frame(I_res, ky, ky_int, delay=None, delay_int=None, **kwargs):
 
     d1, d2 = neg_delays[0], neg_delays[1]
 
-    I_ky = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
+    if "ky" in I_res.dims:
+        I_ky = I_res.loc[{"ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim="ky")
+    elif "angle" in I_res.dims:
+        I_ky = I_res
 
     if "delay" in I_res.dims:
         if delay is not None and delay_int is not None:
@@ -98,7 +101,11 @@ def get_ky_E_frame(I_res, kx, kx_int, delay=None, delay_int=None, **kwargs):
     neg_delays = kwargs.get("neg_delays", [-200, -100])
 
     d1, d2 = neg_delays[0], neg_delays[1]
-    I_kx = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
+
+    if "ky" in I_res.dims:
+        I_kx = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2)}].mean(dim="kx")
+    elif "angle" in I_res.dims:
+        I_kx = I_res.loc[{"angle":slice(kx-kx_int/2, kx+kx_int/2)}]
 
     if "delay" in I_res.dims:
         if delay is not None and delay_int is not None:
@@ -1674,6 +1681,14 @@ def gaussian(x, amp_1, mean_1, stddev_1, offset):
     g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)+offset
     
     return g1
+
+def two_gaussians(x, amp_1, amp_2, mean_1, mean_2, stddev_1, stddev_2, offset):
+    
+    g1 = amp_1 * np.exp(-0.5*((x - mean_1) / stddev_1)**2)
+    g2 = amp_2 * np.exp(-0.5*((x - mean_2) / stddev_2)**2)
+    
+    g = g1 + g2 + offset
+    return g
 
 cmap_LTL = custom_colormap('viridis', 0.2)
 cmap_LTL2 = create_custom_diverging_colormap('Blues', 'viridis')
