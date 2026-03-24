@@ -1519,7 +1519,7 @@ def print_fit_results(model_name, popt, pcov):
 ######
 # Functions for Fourier Transform Analysis
 
-def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, win_type, alpha, dkx, fwhm):    
+def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, dkx, win_type, alpha, fwhm):    
     
     ### Deconvolve k-space momentum broadening, Gaussian with FWHM 0.063A-1
     fwhm_pixel = fwhm/dkx
@@ -1596,78 +1596,73 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, win_type, alph
     return kspace_frame_sym, kspace_frame_win, kspace_frame_sym_win, kspace_window/np.max(kspace_window)
 
 def FFT_MM(MM_frame, zeropad, dkx, ax_kx, ax_ky):
-    
-    I_MM = MM_frame
+ 
+    I_MM = MM_frame.where(MM_frame >= 0)
 
-    ##############################
-    
-    # Define real-space axis
+    ### Define real-space axis for FFT
+    # Shuo Method ?
+    #N = 1 #(zplength)Fs
+    #Fs = 1/((2*np.max(ax_kx.values))/len(ax_kx.values))
+    #r_axis = np.arange(0,zplength)*Fs/1
+    #r_axis = r_axis - (np.max(r_axis)/2)
+    #r_axis = r_axis/(1*zplength)
+
     k_step = dkx
-    #k_step_y = k-step
-    #k_length_y = len(ax_ky)
     zplength = zeropad #5*k_length+1
     max_r = 1/(2*k_step)
-
-    #r_axis = np.linspace(-max_r, max_r, num = k_length)
-    #r_axis = r_axis/(10)
-
-    # Shuo Method ?
-    N = 1 #(zplength)Fs
-    Fs = 1/((2*np.max(ax_kx.values))/len(ax_kx.values))
-    r_axis = np.arange(0,zplength)*Fs/1
-    r_axis = r_axis - (np.max(r_axis)/2)
-    r_axis = r_axis/(1*zplength)
-   
-    # Use np to define
     r_axis = np.linspace(-max_r, max_r, num = zplength)
     r_axis = 2*np.pi * np.fft.fftshift(np.fft.fftfreq(zplength, d=dkx)) #Include 2pi factor
     r_axis = 0.1 * r_axis # Covnert to nm from Angstrom
 
-    ### Do the FFT operations to get --> |Psi(x,y)|^2 ###
-    I_MM = np.abs(I_MM)/np.max(I_MM)
-    root_I_MM = np.sqrt(I_MM)
+    ### Do the FFT operations: |Psi(kx,ky)|^2 --> |Psi(x,y)|^2
+    I_MM = I_MM/np.max(I_MM) # |Psi(kx,ky)|^2
+    root_I_MM = np.sqrt(I_MM) # Psi(kx,ky)
+
     fft_frame = np.fft.fft2(root_I_MM, [zplength, zplength])
     fft_frame = np.fft.fftshift(fft_frame, axes = (0,1))
+    fft_frame = np.abs(fft_frame) # Psi(rx,ry)
+    psi_xy = xr.DataArray(fft_frame, coords = {"y": r_axis, "x": r_axis}) #Extracted intrinsic peak after deconv. k-space resolutation
 
-    fft_frame = np.abs(fft_frame) 
-    I_xy = np.square(np.abs(fft_frame)) #frame squared
-    I_xy = I_xy/np.max(I_xy)
-    
-    ### Take x and y cuts and extract bohr radius
-    ky_cut = I_MM[:,int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4].sum(axis=1)
-    ky_cut = ky_cut/np.max(ky_cut)
-    kx_cut = I_MM[int(len(I_MM[0])/2)-1-4:int(len(I_MM[0])/2)-1+4,:].sum(axis=0)
-    kx_cut = kx_cut/np.max(kx_cut)
+    I_xy = np.square((fft_frame))
+    I_xy = I_xy/np.max(I_xy) # Psi(rx,ry)|^2
+    I_xy = xr.DataArray(I_xy, coords = {"y": r_axis, "x": r_axis}) #Extracted intrinsic peak after deconv. k-space resolutation
 
-    ### real space Psi*^2 cut
-    y_cut = I_xy[:,int(zplength/2)-1]
-    x_cut = I_xy[int(zplength/2)-1,:]
+    ### Take kx and ky cuts
+    #kx_cut = I_MM.loc[{"ky":slice(0-.05,0+.05)}].mean(dim="ky")
+    #ky_cut = I_MM.loc[{"kx":slice(X/2-.05,X/2+.05)}].mean(dim="kx")
+    #kx_cut = kx_cut/np.max(kx_cut)
+    #ky_cut = ky_cut/np.max(ky_cut)
+
+    ### real space I_xy = Psi*^2 cuts along x and y
+    x_cut = I_xy.loc[{"y":slice(0)}].mean(dim='y')
+    y_cut = I_xy.loc[{"x":slice(0)}].mean(dim='x')
     x_cut = x_cut/np.max(x_cut)
     y_cut = y_cut/np.max(y_cut)
 
-    x_brad = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
-    y_brad = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
-    x_brad = int(zplength/2)-10 + x_brad
-    y_brad = int(zplength/2)-10 + y_brad
-    x_brad = r_axis[x_brad]
-    y_brad = r_axis[y_brad]
-    
-    ### real space Psi cut : |r*Psi(r)|^2
-    r2_cut_y = fft_frame[:,int(zplength/2)-1] 
-    r2_cut_y = np.square(np.abs(r2_cut_y*r_axis)) 
-    r2_cut_y = r2_cut_y/np.max(r2_cut_y)
-    
-    r2_cut_x = fft_frame[int(zplength/2)-1,:]
-    r2_cut_x = np.square(np.abs(r2_cut_x[0:1090]*r_axis[0:1090]))
-    r2_cut_x = r2_cut_x/np.max(r2_cut_x)
+    ### From the Half-Width at Half-Max
 
-    rdist_brad_x = np.argmax(r2_cut_x[int(zplength/2)-10:int(zplength/2)+90])
-    rdist_brad_y = np.argmax(r2_cut_y[int(zplength/2)-10:int(zplength/2)+150])
+    x_rad_hwhm = (np.abs(x_cut[int(zplength/2)-10:int(zplength/2)+200] - 0.5)).argmin()
+    x_rad_hwhm = int(zplength/2)-10 + x_rad_hwhm
+    x_rad_hwhm = r_axis[x_rad_hwhm]
 
-    rdist_brad_x = r_axis[int(zplength/2)-10 + rdist_brad_x]
-    rdist_brad_y = r_axis[int(zplength/2)-10 + rdist_brad_y]
+    y_rad_hwhm = (np.abs(y_cut[int(zplength/2)-10:] - 0.5)).argmin()
+    y_rad_hwhm = int(zplength/2)-10 + y_rad_hwhm
+    y_rad_hwhm = r_axis[y_rad_hwhm]
 
-    return r_axis, I_xy, x_cut, y_cut, rdist_brad_x, rdist_brad_y, x_brad, y_brad
+    ### r-weighted distribution / 2D Radial Distribution ~ r*|Psi(r)|^2
+
+    x_rad_dist = np.abs(r_axis) * x_cut
+    y_rad_dist = np.abs(r_axis) * y_cut
+    x_rad_dist = x_rad_dist / np.max(x_rad_dist)
+    y_rad_dist = y_rad_dist / np.max(y_rad_dist)
+
+    x_brad = (x_rad_dist[int(zplength/2)-10:int(zplength/2)+100]).argmax().values
+    y_brad = (y_rad_dist[int(zplength/2)-10:int(zplength/2)+100]).argmax().values
+
+    x_brad = r_axis[int(zplength/2)-10 + x_brad]
+    y_brad = r_axis[int(zplength/2)-10 + y_brad]
+
+    return r_axis, I_xy, x_cut, y_cut, x_rad_hwhm, y_rad_hwhm, x_brad, y_brad
     
 def lorentzian(x, amp_1, mean_1, stddev_1, offset):
     
