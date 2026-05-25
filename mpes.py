@@ -673,7 +673,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         ax[i].set_xticks(np.arange(-2,2.2,1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax[i].set_yticks(np.arange(-5,4.1,.25))
+        ax[i].set_yticks(np.arange(-7,4.1,.25))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -762,7 +762,7 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         ax[i].set_xticks(np.arange(-2,2.2,1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax[i].set_yticks(np.arange(-2,4.1,.25))
+        ax[i].set_yticks(np.arange(-7,4.1,.25))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -811,7 +811,7 @@ def plot_k_cut(I_res, k_start, k_end, delays=None, delay_int=None, fig=None, ax=
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
-        k_frame = get_k_cut(I_res, k_start, k_end, delay, delay_int, n, w)
+        k_frame = get_k_cut(I_res, k_start, k_end, delay = delay, delay_int = delay_int, n = n, w = w)
         k_frame = k_frame/np.max(k_frame)
 
         if E_enhance is not None:    
@@ -883,7 +883,7 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     #if len(E) > len(k):
      #   k = np.resize(k, len(E))
     #if len(E) < len(k):
-    #    E = np.resize(E, len(k))        
+        #E = np.resize(E, len(k))        
     
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -896,14 +896,14 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
         return
 
     #for i, (E, k) in enumerate(zip(E, k)):
-    for i, E in enumerate(E):
+    for E, colors_i in zip(E, colors):
         #if label is None:
         label = f'E = {E:.2f} eV'
 
         trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
-        ax.plot(trace.coords['delay'].values, trace.values, label=label, color = colors[i], linewidth=2)
-    
+        ax.plot(trace.coords['delay'].values, trace.values, label=label, color = colors_i, linewidth=2)
+
     # Formatting
     ax.set_xlabel('Delay, fs', fontsize=fontsize)
     ax.set_ylabel('Intensity' , fontsize=fontsize)

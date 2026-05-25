@@ -47,7 +47,7 @@ def load_data(data_path, scan, force_offset=False, **kwargs):
         energy_offset = energy_offset
         delay_offset = delay_offset 
 
-    elif force_offset is False and scan_info is not None: # Take the offsets from provided scan info
+    elif force_offset is False and scan_info is not None: # Take the offsets from provided scan info, if no entry provided take offset inputs
         if scan_info[str(scan)]['t0_offset'] == '':
             delay_offset = delay_offset 
         else:
