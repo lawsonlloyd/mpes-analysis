@@ -659,7 +659,6 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
     else:
         ax = np.ravel(ax)
 
-
     # Loop over the energy list to plot time traces at each energy
     for i, delay in enumerate(delays):
         # Get the frame for the given energy, kx, and delay
@@ -680,7 +679,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
         ax[i].set_xticks(np.arange(-2,2.2,1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax[i].set_yticks(np.arange(-7,4.1,.25))
+        ax[i].set_yticks(np.arange(-7,4.1,.5))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -763,13 +762,13 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
         else:
             ky_frame = ky_frame / norm_to
 
-        ky_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
+        im = ky_frame.T.plot.imshow(ax=ax[i], cmap=cmap, add_colorbar=False, vmin=scale[0], vmax=scale[1]) #kx, ky, t
         
         #ax[2].set_aspect(1)
         ax[i].set_xticks(np.arange(-2,2.2,1))
         for label in ax[i].xaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
-        ax[i].set_yticks(np.arange(-7,4.1,.25))
+        ax[i].set_yticks(np.arange(-7,4.1,.5))
         for label in ax[i].yaxis.get_ticklabels()[1::2]:
             label.set_visible(False)
         ax[i].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -785,7 +784,7 @@ def plot_ky_frame(I_res, kx, kx_int, delays=None, delay_int=None, fig=None, ax=N
     # Adjust layout
     fig.tight_layout()
     
-    return fig, ax
+    return fig, ax, im
 
 def plot_k_cut(I_res, k_start, k_end, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
         
@@ -1546,8 +1545,8 @@ def window_MM(kspace_frame, kx, ky, kx_int, ky_int, ax_kx, ax_ky, dkx, win_type,
     ### Generate the Windows to Apodize the signal
     k_x_i = np.abs(ax_kx.values-(kx-kx_int/2)).argmin()
     k_x_f = np.abs(ax_kx.values-(kx+kx_int/2)).argmin()
-    k_y_i = np.abs(ax_kx.values-(ky-ky_int/2)).argmin()
-    k_y_f = np.abs(ax_kx.values-(ky+ky_int/2)).argmin()
+    k_y_i = np.abs(ax_ky.values-(ky-ky_int/2)).argmin()
+    k_y_f = np.abs(ax_ky.values-(ky+ky_int/2)).argmin()
     #I_res.indexes["kx"].get_indexer([kx-kx_int/2], method = 'nearest')[0]
     
     # kx Axis
