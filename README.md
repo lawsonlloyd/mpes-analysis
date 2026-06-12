@@ -1,4 +1,4 @@
-mpes-analysis 
+# mpes-analysis 
 
 Python tools for multidimensional photoemission spectroscopy data analysis, visualization, and interactive exploration.
 
@@ -7,7 +7,7 @@ This repository contains:
 - Reusable and standardized Python modules for loading ARPES data, plotting, curve fitting, etc.
 - Interactive GUI for data exploration of multidimensional datasets.
 
-Key Features:
+## Key Features
 - Momentum map extraction
 - Energy-momentum or energy-delay cuts
 - Delay trace analysis and curve fitting
@@ -16,20 +16,22 @@ Key Features:
 - Interactive GUI
 - Use of xarray data structures
 
-Structure:
+## Structure
+```text
 mpes-analysis/
 ├── notebooks/      # Notebooks: analysis and workflows
 ├── arpes_tools/    # Data loading, analysis, and plotting functions
 ├── gui/            # Interactive GUI
 └── README.md
+```
 
-Dependencies
-NumPy
-SciPy
-Matplotlib
-h5py
-Jupyter
-xarray
+## Dependencies
+- NumPy
+- SciPy
+- Matplotlib
+- h5py
+- Jupyter
+- xarray
 
 Lawson T. Lloyd
 FHI Berlin
