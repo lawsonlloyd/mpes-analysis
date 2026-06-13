@@ -17,8 +17,8 @@ from tkinter import Menu, filedialog, Tk
 from functools import partial
 from matplotlib.widgets import Slider, CheckButtons, Button
 #from scipy.ndimage import map_coordinates
-import mpes
-from mpes import cmap_LTL, cmap_LTL2
+from arpes_tools import mpes
+from arpes_tools.mpes import cmap_LTL, cmap_LTL2
 
 class DataHandler:
     def __init__(self, value_manager, I):

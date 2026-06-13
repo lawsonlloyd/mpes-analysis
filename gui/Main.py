@@ -4,10 +4,11 @@ Created on Mon Sep 23 12:01:16 2024
 
 @author: lloyd
 """
-#Main.py
+#main.py
 import matplotlib.pyplot as plt
 
-from Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler, CheckButtonManager, ClickButtonManager, ArbitraryCutHandler, waterfallHandler
+from gui.Manager import DataHandler, FigureHandler, PlotHandler, ValueHandler, SliderManager, EventHandler,\
+    CheckButtonManager, ClickButtonManager, ArbitraryCutHandler, waterfallHandler
 
 def main(I, title=None):
     

@@ -3,8 +3,8 @@ from tkinter import filedialog
 from tkinter import Tk
 import multiprocessing
 import os
-from Main import main
-from Loader import DataLoader
+from gui.main import main
+from arpes_tools.loader import DataLoader
 
 def show_splash_screen():
     splash = tk.Tk()
@@ -23,7 +23,7 @@ def launch_gui(filepath):
     data_loader = DataLoader(filepath)
     I = data_loader.load()
 
-    title = os.path.basename(filepath)  # ✅ Only the filename, not full path
+    title = os.path.basename(filepath)
 
     #I = load_from_file(filepath)
 
