@@ -50,8 +50,10 @@ def get_data_chunks(I, neg_times, t0, ax_delay_offset):
         I_sum = I
 
 # Function for Creating MM Constant Energy kx, ky slice 
-def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None):
+def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None, **kwargs):
     
+    norm = kwargs.get("norm", False)
+
     # Integrate over energy window
     I_E = I_res.loc[{"E":slice(E - E_int / 2, E + E_int / 2)}].mean(dim="E")
 
@@ -65,6 +67,11 @@ def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None):
     else:
         frame = I_E.T
 
+    if norm is True:
+        frame = frame / frame.max()
+    else:
+        frame = frame
+        
     return frame
 
 def get_kx_E_frame(I_res, ky, ky_int, delay=None, delay_int=None, **kwargs):
@@ -440,7 +447,7 @@ def save_figure(fig, name, image_format):
 
 def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     
-    fontsize = kwargs.get("fontsize", 14)
+    fontsize = kwargs.get("fontsize", 12)
     norm_trace = kwargs.get("norm_trace", False)
     color = kwargs.get("color", 'black')
     subtract_neg = kwargs.get("subtract_neg", False)
@@ -460,7 +467,7 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
         edc = enhance_features(edc, E_enhance, factor = 0, norm = True)
         ax.axvline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
     
-    edc.plot(ax=ax, color = color)
+    tr, = edc.plot(ax=ax, color = color)
 
     # Formatting
     ax.set_xlabel('Energy, eV', fontsize=fontsize)
@@ -469,7 +476,7 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     ax.xaxis.reset_ticks()
     ax.yaxis.reset_ticks()
 
-    ax.set_xticks(np.arange(-5,4,0.5))
+    ax.set_xticks(np.arange(-5,4.5,0.5))
     
     for label in ax.xaxis.get_ticklabels():
         label.set_visible(True)
@@ -477,7 +484,7 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     for label in ax.xaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
     
-    ax.set_yticks(np.arange(-0.5,1.25,0.25))
+    ax.set_yticks(np.arange(-1,1.5,0.25))
     for label in ax.yaxis.get_ticklabels()[1::2]:
         label.set_visible(False)
 
@@ -491,6 +498,8 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
     fig.tight_layout()
+
+    return fig, ax, tr
 
 def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
@@ -536,7 +545,7 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
         # Static data – ignore delays entirely
         delays = [None] * len(E)
 
-    cmap = kwargs.get("cmap", "viridis")
+    cmap = kwargs.get("cmap", cmap_LTL)
     scale = kwargs.get("scale", [0, 1])
     panel_labels = kwargs.get("panel_labels", False)
     label_positions = kwargs.get("label_positions", (0.0, 1.1))
@@ -908,7 +917,8 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
 
         trace = get_time_trace(I_res, E, E_int, k, k_int, norm_trace=norm_trace, subtract_neg=subtract_neg, neg_delays=neg_delays)
         
-        ax.plot(trace.coords['delay'].values, trace.values, label=label, color = colors_i, linewidth=2)
+        #tr = ax.plot(trace.coords['delay'].values, trace.values, label=label, color = colors_i, linewidth=2)
+        tr, = trace.plot(ax = ax, label=label, color = colors_i, linewidth=2)
 
     # Formatting
     ax.set_xlabel('Delay, fs', fontsize=fontsize)
@@ -946,7 +956,7 @@ def plot_time_traces(I_res, E, E_int, k, k_int, norm_trace=True, subtract_neg=Tr
     
     fig.tight_layout()
 
-    return fig, ax
+    return fig, ax, tr
 
 def plot_phoibos_frame(I_res, delay=None, delay_int=None, fig=None, ax=None, **kwargs):
     
@@ -1142,7 +1152,7 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     ylabel = kwargs.get("ylabel", 'Intensity')
     fontsize = kwargs.get("fontsize", 14)
     figsize = kwargs.get("figsize", (10, 6))
-    energy_limits=kwargs.get("energy_limits", (1,3))
+    energy_limits=kwargs.get("energy_limits", (-1,I_res.E.values.max()))
     neg_delays = kwargs.get("neg_delays", [-250, -120])
     E_enhance = kwargs.get("E_enhance", None)
 
@@ -1181,7 +1191,7 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     ax.set_xlabel('Delay, fs', fontsize = fontsize)
     ax.set_ylabel(r'E - E$_{VBM}$, eV', fontsize = fontsize)
-    ax.set_yticks(np.arange(-1,3.5,0.25))
+    ax.set_yticks(np.arange(-1,4.5,0.5))
     ax.tick_params(axis='both', labelsize=fontsize-1)    
     ax.set_xlim(I_res.delay[1], I_res.delay[-1])
     ax.set_ylim(energy_limits[0], energy_limits[1])
