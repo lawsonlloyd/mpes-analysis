@@ -53,6 +53,10 @@ def get_data_chunks(I, neg_times, t0, ax_delay_offset):
 def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None, **kwargs):
     
     norm = kwargs.get("norm", False)
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+
+    d1, d2 = neg_delays[0], neg_delays[1]
 
     # Integrate over energy window
     I_E = I_res.loc[{"E":slice(E - E_int / 2, E + E_int / 2)}].mean(dim="E")
@@ -61,6 +65,10 @@ def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None, **kwargs):
         if delay is not None and delay_int is not None:
             # Integrate over a delay window
             frame = I_E.loc[{"delay":slice(delay - delay_int / 2, delay + delay_int / 2)}].mean(dim="delay").T
+            neg_frame = I_E.loc[{"delay":slice(d1, d2)}].mean(dim="delay").T
+
+            if subtract_neg is True:
+                frame = frame - neg_frame
         else:
             # No delay specified: average over entire delay axis
             frame = I_E.mean(dim="delay").T
@@ -68,7 +76,7 @@ def get_momentum_map(I_res, E, E_int, delay=None, delay_int=None, **kwargs):
         frame = I_E.T
 
     if norm is True:
-        frame = frame / frame.max()
+        frame = frame / np.abs(frame).max()
     else:
         frame = frame
         
@@ -78,6 +86,7 @@ def get_kx_E_frame(I_res, ky, ky_int, delay=None, delay_int=None, **kwargs):
     
     subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-200, -100])
+    E_enhance = kwargs.get("E_enhance", None)
 
     d1, d2 = neg_delays[0], neg_delays[1]
 
@@ -99,13 +108,17 @@ def get_kx_E_frame(I_res, ky, ky_int, delay=None, delay_int=None, **kwargs):
 
     else:
         frame = I_ky
-         
+
+    if E_enhance is not None:
+        frame = enhance_features(frame, E_enhance, factor = 0, norm = True)
+
     return frame
 
 def get_ky_E_frame(I_res, kx, kx_int, delay=None, delay_int=None, **kwargs):
     
     subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-200, -100])
+    E_enhance = kwargs.get("E_enhance", None)
 
     d1, d2 = neg_delays[0], neg_delays[1]
 
@@ -127,11 +140,35 @@ def get_ky_E_frame(I_res, kx, kx_int, delay=None, delay_int=None, **kwargs):
     
     else:
         frame = I_kx
-                    
+
+    if E_enhance is not None:
+        frame = enhance_features(frame, E_enhance, factor = 0, norm = True)
+
     return frame
 
-def get_waterfall(I_res, kx, kx_int, ky=None, ky_int=None):
+def get_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, **kwargs):
     
+    has_delay = "delay" in I_res.dims
+    subtract_neg = kwargs.get("subtract_neg", False)
+
+    if subtract_neg is True : 
+    
+        cmap = kwargs.get("cmap", cmap_LTL2)
+        scale = kwargs.get("scale", [-1, 1])
+    else:
+        cmap = kwargs.get("cmap", cmap_LTL)
+        scale = kwargs.get("scale", [0, 1])
+
+    xlabel = kwargs.get("xlabel", 'Delay, ps')
+    ylabel = kwargs.get("ylabel", 'Intensity')
+    fontsize = kwargs.get("fontsize", 14)
+    figsize = kwargs.get("figsize", (10, 6))
+    energy_limits=kwargs.get("energy_limits", (-1,I_res.E.values.max()))
+    neg_delays = kwargs.get("neg_delays", [-250, -100])
+    E_enhance = kwargs.get("E_enhance", None)
+
+    d1, d2 = neg_delays[0], neg_delays[1]
+
     #cmap = kwargs.get("cmap", "viridis")
 
     if "angle" in I_res.dims:
@@ -141,6 +178,14 @@ def get_waterfall(I_res, kx, kx_int, ky=None, ky_int=None):
     else:
 
         frame = I_res.loc[{"kx":slice(kx-kx_int/2, kx+kx_int/2), "ky":slice(ky-ky_int/2, ky+ky_int/2)}].mean(dim=("kx","ky"))
+
+    if subtract_neg is True : 
+        frame = frame - frame.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
+
+    if E_enhance is not None:
+        frame = enhance_features(frame, E_enhance, factor = 0, norm = True)
+    #else:
+        #frame = enhance_features(frame, energy_limits[0], factor = 0, norm = True)
 
     return frame
 
@@ -293,6 +338,7 @@ def get_edc(I_res, k, k_int, **kwargs):
     subtract_neg = kwargs.get("subtract_neg", False)
     neg_delays = kwargs.get("neg_delays", [-200, -100])
     norm_trace = kwargs.get("norm_trace", False)
+    E_enhance = kwargs.get("E_enhance", None)
 
     if "kx" in I_res.dims and "ky" in I_res.dims:
         (kx, ky) = k
@@ -330,6 +376,9 @@ def get_edc(I_res, k, k_int, **kwargs):
         elif "delay" not in I_res.dims:
             edc = edc_all
 
+    if E_enhance is not None:    
+        edc = enhance_features(edc, E_enhance, factor = 0, norm = True)
+        
     if norm_trace is True:
         edc = edc/np.max(edc)
 
@@ -337,8 +386,8 @@ def get_edc(I_res, k, k_int, **kwargs):
 
 def enhance_features(I_res, Ein, factor, norm):
     
-    I1 = I_res.loc[{"E":slice(-3.5,Ein)}]
-    I2 = I_res.loc[{"E":slice(Ein,3.5)}]
+    I1 = I_res.loc[{"E":slice(I_res.E.values.min(),Ein)}]
+    I2 = I_res.loc[{"E":slice(Ein,I_res.E.values.max())}]
 
     if norm is True:
         I1 = I1/np.max(I1)
@@ -454,20 +503,17 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     delay = kwargs.get("delay", 500)
     delay_int = kwargs.get("delay_int", 1000)
     E_enhance = kwargs.get("E_enhance", None)
+    norm_trace = kwargs.get("norm_trace", False)
 
     if ax is None or fig is None:
-        fig, ax = plt.subplots(1, 1, figsize=(4,2), squeeze=False)
-        #ax = np.ravel(ax)
+        fig, ax = plt.subplots(figsize=(4,2))
+        #ax = ax.flatten()
     #else:
         #ax = np.ravel(ax)
-
+    
     edc = get_edc(I, k ,k_int, **kwargs)
 
-    if E_enhance is not None:    
-        edc = enhance_features(edc, E_enhance, factor = 0, norm = True)
-        ax.axvline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
-    
-    tr, = edc.plot(ax=ax, color = color)
+    tr = edc.plot(ax=ax, color = color)
 
     # Formatting
     ax.set_xlabel('Energy, eV', fontsize=fontsize)
@@ -497,9 +543,14 @@ def plot_edc(I, k, k_int, fig=None, ax=None, **kwargs):
     ax.set_xlim(I.E.values[0], I.E.values[-1])
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
+    if E_enhance is not None:    
+        E_enhance_line = ax.axvline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+    else:
+        E_enhance_line = ax.axvline(-10, linestyle = 'dashed', color = 'black', linewidth = 1)
+
     fig.tight_layout()
 
-    return fig, ax, tr
+    return fig, ax, tr, E_enhance_line
 
 def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=None, **kwargs):
     """
@@ -555,6 +606,10 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
     ncols = kwargs.get("ncols", int(np.ceil(len(E) / nrows)))
     colorbar = kwargs.get("colorbar", False)
     norm_to = kwargs.get("norm_to", "frame")
+    norm = kwargs.get("norm", True)
+    subtract_neg = kwargs.get("subtract_neg", False)
+    neg_delays = kwargs.get("neg_delays", [-200, -100])
+    #d1, d2 = neg_delays[0], neg_delays[1]
 
     if ax is None or fig is None:
         fig, ax = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
@@ -563,9 +618,9 @@ def plot_momentum_maps(I, E, E_int, delays=None, delay_int=None, fig=None, ax=No
         ax = np.ravel(ax)
 
     for i in range(len(E)):
-        frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int)
+        frame = get_momentum_map(I, E[i], E_int, delays[i], delay_int, **kwargs)
         
-        if norm_to == "frame":
+        if norm_to == "frame" and norm is True:
             frame = frame / frame.max()
         else:
             frame = frame / norm_to
@@ -653,7 +708,7 @@ def plot_kx_frame(I_res, ky, ky_int, delays = None, delay_int = None, fig=None, 
     ncols = kwargs.get("ncols", int(np.ceil(len(delays) / nrows)))
     figsize = kwargs.get("figsize", (8, 5))
     fontsize = kwargs.get("fontsize", 14)
-    cmap = kwargs.get("cmap", "viridis")
+    cmap = kwargs.get("cmap", cmap_LTL)
     scale = kwargs.get("scale", [0, 1])
     energy_limits=kwargs.get("energy_limits", (1,3))
     E_enhance = kwargs.get("E_enhance", None)
@@ -1166,20 +1221,14 @@ def plot_waterfall(I_res, kx, kx_int, ky=None, ky_int=None, fig=None, ax=None, *
         
         return
 
-    waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int)
+    waterfall = get_waterfall(I_res, kx, kx_int, ky, ky_int, **kwargs)
 
-    if subtract_neg is True : 
-        waterfall = waterfall - waterfall.loc[{"delay":slice(d1,d2)}].mean(dim='delay')
-
-    if E_enhance is not None:
-        waterfall = enhance_features(waterfall, E_enhance, factor = 0, norm = True)
-        ax.axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
-    else:
-        waterfall = enhance_features(waterfall, energy_limits[0], factor = 0, norm = True)
-    
     wf = waterfall.plot.imshow(ax = ax, vmin = scale[0], vmax = scale[1], cmap = cmap, add_colorbar=False)
     #waterfall.plot.imshow(ax = ax, cmap = cmap, add_colorbar=False)
-   
+    
+    if E_enhance is not None:
+        ax.axhline(E_enhance, linestyle = 'dashed', color = 'black', linewidth = 1)
+
     # ax[i].set_xticks(np.arange(-4, 4, 1))
     # for label in ax[i].xaxis.get_ticklabels()[1::2]:
     #     label.set_visible(False)
